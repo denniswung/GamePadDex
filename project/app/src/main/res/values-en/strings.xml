@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gamepad mouse</string>
+    <string name="app_version_format">Version %s</string>
+    <string name="app_not_found">App not found</string>
+
+    <!-- ============================ drawer ============================ -->
+    <string name="nav_settings">Settings</string>
+    <string name="nav_manual">Manual</string>
+    <string name="nav_app">App</string>
+    <string name="nav_general_settings">General Settings</string>
+    <string name="nav_pointer_settings">Pointer &amp; Sensitivity</string>
+    <string name="nav_root_dex">Root / DeX</string>
+    <string name="nav_mapping">Button Mapping</string>
+    <string name="nav_keyboard_settings">Keyboard Settings</string>
+    <string name="nav_initial_setup">Initial Setup</string>
+    <string name="nav_about">About</string>
+    <string name="drawer_open">Open navigation menu</string>
+    <string name="drawer_close">Close navigation menu</string>
+
+    <!-- ========================= page titles ========================= -->
+    <string name="general_settings">General Settings</string>
+    <string name="pointer_sensitivity">Pointer &amp; Sensitivity</string>
+    <string name="keyboard_settings">Keyboard Settings</string>
+    <string name="page_initial_setup">Initial Setup</string>
+    <string name="initial_setup">Initial Setup</string>
+    <string name="accessibility_disclosure_title">Privacy &amp; Accessibility Disclosure</string>
+    <string name="root_dex_settings">Root / DeX</string>
+    <string name="custom_key_mapping">Custom Key Mapping (X + Button)</string>
+    <string name="about">About</string>
+
+    <!-- =========================== general =========================== -->
+    <string name="mouse_service_enabled">Mouse Service Enabled</string>
+    <string name="mouse_service_enabled_desc">Master switch for the gamepad cursor overlay.</string>
+    <string name="customize_toggle_key">Change Activation Button</string>
+    <string name="l3_long_press_duration">Long Press Duration</string>
+    <string name="long_press_instant">Instant</string>
+    <string name="seconds_unit">s</string>
+    <string name="l3_toggle_enabled">Enable Long Press Activation</string>
+    <string name="l3_toggle_enabled_desc">When off, pressing the activation button toggles the cursor immediately.</string>
+    <string name="swap_ab_buttons_title">Swap A/B Buttons</string>
+    <string name="swap_ab_buttons_desc">B: Cursor Click / A: Back Action</string>
+    <string name="haptic_feedback_title">Haptic Feedback</string>
+    <string name="haptic_feedback_desc">Vibrate the controller when the cursor clicks or a mapped action runs.</string>
+    <string name="vibration_intensity">Vibration Intensity</string>
+    <string name="reset_all_settings">Reset All Settings</string>
+    <string name="reset_confirm_msg">Are you sure you want to reset all settings to their default values?</string>
+    <string name="reset">Reset</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="settings_reset_toast">Settings Reset to Defaults</string>
+
+    <!-- =========================== pointer =========================== -->
+    <string name="cursor_style">Cursor Style</string>
+    <string name="cursor_color_orange">Orange (Default)</string>
+    <string name="cursor_custom_color">Custom Color</string>
+    <string name="cursor_custom_png">Custom PNG Image</string>
+    <string name="cursor_color_manual">Type HEX</string>
+    <string name="cursor_color_invalid">Invalid color code. Use #RRGGBB format.</string>
+    <string name="cursor_color_hint">#FFA000</string>
+    <string name="cursor_png_load_failed">Failed to load image.</string>
+    <string name="pointer_size">Cursor Size</string>
+    <string name="pointer_speed">Pointer Speed</string>
+    <string name="dex_pointer_speed">DeX Pointer Speed</string>
+    <string name="sensitivity_curve">Sensitivity (Curve)</string>
+    <string name="auto_hide_timeout">Auto-Hide Timeout</string>
+    <string name="never">Never</string>
+    <string name="scroll_speed">Scroll Speed</string>
+    <string name="deadzone_title">Gamepad Deadzone</string>
+
+    <!-- ========================== root / DeX ========================= -->
+    <string name="root_own_gamepad">Own the gamepad with root (blocks Samsung\'s built-in gamepad control)</string>
+    <string name="root_own_gamepad_desc">A root helper grabs the controller exclusively, so Samsung DeX, Game Tools and games never see raw gamepad input.</string>
+    <string name="native_pointer_title">Use the native system pointer (uinput mouse)</string>
+    <string name="native_pointer_desc">Required for DeX desktop clicks. Needs the root helper.</string>
+    <string name="force_mirroring_switch">Force mirroring / never switch to the external display</string>
+    <string name="force_mirroring_desc">Check this when using the external display in mirroring mode.</string>
+    <string name="status_title">Status</string>
+    <string name="status_accessibility">Accessibility service</string>
+    <string name="status_root">Root helper</string>
+    <string name="status_display">Active display</string>
+    <string name="status_mouse_mode">Mouse mode</string>
+    <string name="status_enabled">Enabled</string>
+    <string name="status_disabled">Disabled</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_not_connected">Not connected</string>
+    <string name="status_checking">Checking…</string>
+    <string name="status_display_phone">Phone</string>
+    <string name="status_display_dex">External display (DeX)</string>
+    <string name="status_on">On</string>
+    <string name="status_off">Off</string>
+    <string name="mouse_mode_exclusive_note">While mouse mode is on the controller is grabbed exclusively, so Samsung DeX gets no gamepad input.</string>
+    <string name="btn_toggle_mouse_mode">Toggle Mouse Mode Now</string>
+    <string name="toggle_requested">Toggle request sent to the service.</string>
+
+    <!-- ======================= button mapping ======================== -->
+    <string name="mapping_hint">Tap a row to pick the action for that X + button combination. For \"Click Specific Location\" press the combination while mouse mode is on to capture the cursor position. Long-press a row to change the repeat-click interval.</string>
+    <string name="select_action_title">Select Action for X + %1$s</string>
+    <string name="select_app">Select App</string>
+    <string name="repeat_interval_title">Repeat Click Interval</string>
+    <string name="repeat_interval_format">%1$.1fs</string>
+    <string name="repeat_interval_custom">Custom…</string>
+    <string name="repeat_interval_hint">Milliseconds (100 ~ 3000)</string>
+    <string name="repeat_interval_range_msg">Enter a value between 100 and 3000 milliseconds.</string>
+    <string name="repeat_interval_saved">Repeat interval: %1$d ms</string>
+    <string name="click_location_guide_title">How to Set Up Click Location</string>
+    <string name="click_location_guide_msg">1. Open your game or app.\n2. Turn ON the gamepad mouse.\n3. Move the cursor to the target location.\n4. Press the mapped button combination.\n\nThe location is then saved and clicked whenever you press the combination again.</string>
+    <string name="click_location_repeat_guide_title">How to Set Up Repeat Clicks</string>
+    <string name="click_location_repeat_guide_msg">1. Open the game or app you want.\n2. Turn ON the gamepad mouse.\n3. Move the cursor to the location you want to click.\n4. Press the mapped button combination to save the location.\n5. Press the same combination again to start repeating clicks, and press it once more to stop.\n\nRepeating stops automatically when the mouse cursor turns off.\nLong-press a mapping row to retune its interval.\n\nTap OK to choose the repeat interval in the next step.</string>
+    <string name="press_gamepad_button_title">Set Activation Button</string>
+    <string name="press_gamepad_button_msg">Press any button on your gamepad to use it as the activation button.\n\n(D-Pad, Back and the volume keys cannot be used.)</string>
+    <string name="reset_toggle_key_default">Reset to Default (L3)</string>
+    <string name="toast_dpad_not_allowed">The D-Pad, Back and volume keys cannot be set as the activation button.</string>
+    <string name="permission_required">Permission Required</string>
+    <string name="brightness_permission_msg">Brightness control requires \'Modify system settings\' permission. Open settings to grant?</string>
+    <string name="open_settings">Open Settings</string>
+
+    <!-- mapping action labels (order matters: it is the dialog order) -->
+    <string name="action_none">None</string>
+    <string name="action_launch_app">Launch App</string>
+    <string name="action_home">Home</string>
+    <string name="action_recents">Recents</string>
+    <string name="action_vol_up">Volume Up</string>
+    <string name="action_vol_down">Volume Down</string>
+    <string name="action_mute">Mute</string>
+    <string name="action_bright_up">Brightness Up</string>
+    <string name="action_bright_down">Brightness Down</string>
+    <string name="action_media_forward">Fast Forward (10s)</string>
+    <string name="action_media_rewind">Rewind (10s)</string>
+    <string name="action_screenshot">Screenshot</string>
+    <string name="action_rotate">Screen Rotation</string>
+    <string name="action_click_location">Click Specific Location</string>
+    <string name="action_click_location_repeat">Repeat Click at Location</string>
+
+    <!-- ========================== keyboard =========================== -->
+    <string name="keyboard_input">Gamepad Keyboard Input</string>
+    <string name="keyboard_input_desc">Clicking a text box with the cursor opens an on-screen keyboard.</string>
+    <string name="kb_not_ported">The on-screen keyboard overlay is not ported yet. The options below are stored for a future release and change nothing right now.</string>
+    <string name="kb_languages_title">Keyboard languages (select one or both)</string>
+    <string name="kb_lang_en">English keyboard</string>
+    <string name="kb_lang_ko">Korean keyboard</string>
+    <string name="kb_lang_es">Spanish keyboard</string>
+    <string name="kb_lang_min_toast">At least one keyboard language must be selected.</string>
+    <string name="kb_nav_interval">Key move repeat interval (sec)</string>
+    <string name="kb_nav_delay">Key move hold delay (sec)</string>
+    <string name="kb_move_sound">Key move sound</string>
+    <string name="kb_move_sound_desc">When on, a ding sound plays every time the selection moves in the keyboard.</string>
+    <string name="kb_dex_width_title">DeX keyboard width (external monitor)</string>
+    <string name="kb_dex_height_title">DeX keyboard height (external monitor)</string>
+    <string name="kb_dex_pos_title">DeX keyboard position (external monitor)</string>
+    <string name="kb_dex_pos_left">Left</string>
+    <string name="kb_dex_pos_center">Center</string>
+    <string name="kb_dex_pos_right">Right</string>
+    <string name="kb_dex_pct_format">%1$d%%</string>
+
+    <!-- ====================== initial setup ========================= -->
+    <string name="setup_step_1">1. Grant Accessibility Permission.</string>
+    <string name="setup_step_2">2. Disable Battery Optimization.</string>
+    <string name="setup_step_3">3. Connect any Gamepad in X-Input mode (BT/Wired).\n4. Press the Xbox button (or L3: Left Stick Click) to show the cursor.</string>
+    <string name="open_accessibility_settings">Open Accessibility Settings</string>
+    <string name="disable_battery_optimization">Disable Battery Optimization</string>
+    <string name="btn_accept_continue">Accept &amp; Continue</string>
+    <string name="initial_setup_done">Initial setup finished.</string>
+    <string name="setup_note">Nothing leaves your device. The accessibility service only converts gamepad input into touch gestures.</string>
+
+    <!-- ============================ about ============================ -->
+    <string name="about_heading">Gamepad mouse</string>
+    <string name="about_paragraph">This is a clean-room, DeX-focused replica of \"Gamepad mouse\" (com.pkyul13.gamepadmouse, v2.0.2). It was written from scratch against the public behaviour of the original app: the same preference keys, the same numeric ranges and the same button-mapping model, plus a root / DeX layer that owns the controller so Samsung\'s built-in gamepad handling never interferes.\n\nNo ads, no analytics, no billing: every former \"Pro\" feature is free here.\n\nAll settings stay on this device in a single private preferences file.</string>
+    <string name="about_play_link">Original app on Google Play</string>
+</resources>

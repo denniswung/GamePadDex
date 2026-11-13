@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/GpmPage">
+
+    <TextView
+        style="@style/GpmSection"
+        android:layout_marginTop="0dp"
+        android:text="@string/root_dex_settings" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_root_enabled"
+        style="@style/GpmSwitch"
+        android:text="@string/root_own_gamepad" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/root_own_gamepad_desc" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_always_grab"
+        style="@style/GpmSwitch"
+        android:text="@string/always_grab_title" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/always_grab_desc" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_native_pointer"
+        style="@style/GpmSwitch"
+        android:text="@string/native_pointer_title" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/native_pointer_desc" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_force_mirroring"
+        style="@style/GpmSwitch"
+        android:text="@string/force_mirroring_switch" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/force_mirroring_desc" />
+
+    <View
+        style="@style/GpmDivider"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        style="@style/GpmSection"
+        android:text="@string/status_title" />
+
+    <LinearLayout style="@style/GpmCard">
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tv_mouse_mode_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:lineSpacingExtra="2dp"
+            android:textColor="@color/text_muted"
+            android:textSize="12sp"
+            android:text="@string/mouse_mode_exclusive_note" />
+
+        <Button
+            android:id="@+id/btn_toggle_mouse_mode"
+            style="@style/GpmButton"
+            android:layout_marginTop="14dp"
+            android:backgroundTint="@color/accent_blue"
+            android:text="@string/btn_toggle_mouse_mode"
+            android:textColor="@color/white" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,37 @@
+# ---- 构建产物 ----
+build/
+.gradle/
+project/**/build/
+project/**/.gradle/
+*.iml
+.idea/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ---- 二进制/大文件（走 GitHub Releases 而不是 git）----
+*.apk
+*.aab
+*.zip
+*.img
+*.so
+!work/scripts/vgpad      # 测试工具可执行文件按需保留（如不需要可删掉这一行）
+work/apk/
+work/backup/
+backup/
+export/
+
+# ---- 运行时/临时 ----
+*.log
+*.png
+!docs/**/*.png
+*.tmp
+.gpm/
+work/scripts/*.pyc
+__pycache__/
+
+# ---- 密钥 ----
+*.jks
+*.keystore
+.env

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- copied from the original app (res/values/colors.xml) -->
+    <color name="accent_red">#c62828</color>
+    <color name="accent_blue">#2196f3</color>
+    <color name="accent_green">#2e7d32</color>
+    <color name="accent_orange">#e65100</color>
+    <color name="app_bg">#f4f6f8</color>
+    <color name="button_bg">#ffffff</color>
+    <color name="divider">#d3d8dc</color>
+    <color name="drawer_header_bg">#dde8f4</color>
+    <color name="icon_tint">#546e7a</color>
+    <color name="surface">#ffffff</color>
+    <color name="text_faint">#777777</color>
+    <color name="text_guide">#455a64</color>
+    <color name="text_muted">#616161</color>
+    <color name="text_primary">#1f1f1f</color>
+    <color name="text_secondary">#37474f</color>
+    <color name="text_value">#5f5f5f</color>
+    <color name="white">#ffffff</color>
+</resources>

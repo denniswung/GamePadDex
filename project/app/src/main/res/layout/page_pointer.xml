@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/GpmPage">
+
+    <TextView
+        style="@style/GpmSection"
+        android:layout_marginTop="0dp"
+        android:text="@string/cursor_style" />
+
+    <LinearLayout
+        android:id="@+id/btn_select_cursor_style"
+        style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/cursor_style" />
+
+        <TextView
+            android:id="@+id/tv_current_cursor_style"
+            style="@style/GpmValue"
+            android:text="@string/cursor_color_orange" />
+    </LinearLayout>
+
+    <View style="@style/GpmDivider" />
+
+    <!-- Cursor size -->
+    <LinearLayout
+        style="@style/GpmRow"
+        android:layout_marginTop="8dp">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/pointer_size" />
+
+        <TextView
+            android:id="@+id/tv_size_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_size"
+        style="@style/GpmSeek"
+        android:max="160"
+        android:progress="60" />
+
+    <!-- Pointer speed -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/pointer_speed" />
+
+        <TextView
+            android:id="@+id/tv_speed_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_speed"
+        style="@style/GpmSeek"
+        android:max="190"
+        android:progress="40" />
+
+    <!-- DeX pointer speed -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/dex_pointer_speed" />
+
+        <TextView
+            android:id="@+id/tv_dex_speed_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_dex_speed"
+        style="@style/GpmSeek"
+        android:max="190"
+        android:progress="25" />
+
+    <!-- Sensitivity -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/sensitivity_curve" />
+
+        <TextView
+            android:id="@+id/tv_sensitivity_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_sensitivity"
+        style="@style/GpmSeek"
+        android:max="20"
+        android:progress="10" />
+
+    <!-- Auto hide timeout -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/auto_hide_timeout" />
+
+        <TextView
+            android:id="@+id/tv_timeout_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_timeout"
+        style="@style/GpmSeek"
+        android:max="56"
+        android:progress="0" />
+
+    <!-- Scroll speed -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/scroll_speed" />
+
+        <TextView
+            android:id="@+id/tv_scroll_speed_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_scroll_speed"
+        style="@style/GpmSeek"
+        android:max="390"
+        android:progress="90" />
+
+    <!-- Deadzone -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/deadzone_title" />
+
+        <TextView
+            android:id="@+id/tv_deadzone_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_deadzone"
+        style="@style/GpmSeek"
+        android:max="49"
+        android:progress="14" />
+</LinearLayout>

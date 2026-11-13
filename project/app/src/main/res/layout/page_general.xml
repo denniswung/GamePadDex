@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/GpmPage">
+
+    <TextView
+        style="@style/GpmSection"
+        android:layout_marginTop="0dp"
+        android:text="@string/nav_settings" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_mouse_enabled"
+        style="@style/GpmSwitch"
+        android:text="@string/mouse_service_enabled" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/mouse_service_enabled_desc" />
+
+    <!-- activation button row -->
+    <LinearLayout
+        android:id="@+id/btn_customize_toggle_key"
+        style="@style/GpmRow">
+        <TextView
+            android:id="@+id/tv_customize_toggle_key_label"
+            style="@style/GpmLabel"
+            android:text="@string/customize_toggle_key" />
+
+        <TextView
+            android:id="@+id/tv_current_toggle_key"
+            style="@style/GpmValue"
+            android:textColor="@color/accent_green"
+            android:text="L3" />
+    </LinearLayout>
+
+    <!-- long press duration -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/l3_long_press_duration" />
+
+        <TextView
+            android:id="@+id/tv_l3_long_press_val"
+            style="@style/GpmValue"
+            android:text="@string/long_press_instant" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_l3_long_press"
+        style="@style/GpmSeek"
+        android:max="10"
+        android:progress="0" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_start_mouse_mode"
+        style="@style/GpmSwitch"
+        android:text="@string/start_mouse_mode_title" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/start_mouse_mode_desc" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_l3_toggle_enabled"
+        style="@style/GpmSwitch"
+        android:text="@string/l3_toggle_enabled" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/l3_toggle_enabled_desc" />
+
+    <View style="@style/GpmDivider" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_swap_ab_buttons"
+        style="@style/GpmSwitch"
+        android:layout_marginTop="12dp"
+        android:text="@string/swap_ab_buttons_title" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/swap_ab_buttons_desc" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_hide_statusbar"
+        style="@style/GpmSwitch"
+        android:text="@string/hide_statusbar_title" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/hide_statusbar_desc" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_haptic_feedback"
+        style="@style/GpmSwitch"
+        android:text="@string/haptic_feedback_title" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/haptic_feedback_desc" />
+
+    <!-- vibration intensity -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/vibration_intensity" />
+
+        <TextView
+            android:id="@+id/tv_vibration_intensity_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_vibration_intensity"
+        style="@style/GpmSeek"
+        android:max="255"
+        android:progress="255" />
+
+    <View
+        style="@style/GpmDivider"
+        android:layout_marginTop="12dp" />
+
+    <Button
+        android:id="@+id/btn_reset_defaults"
+        style="@style/GpmButton"
+        android:layout_marginTop="20dp"
+        android:backgroundTint="@color/accent_red"
+        android:text="@string/reset_all_settings"
+        android:textColor="@color/white" />
+</LinearLayout>

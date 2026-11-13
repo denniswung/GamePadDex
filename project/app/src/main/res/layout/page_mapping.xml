@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/GpmPage">
+
+    <TextView
+        style="@style/GpmSection"
+        android:layout_marginTop="0dp"
+        android:text="@string/custom_key_mapping" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/mapping_hint" />
+
+    <LinearLayout
+        android:id="@+id/btn_map_x_lb"
+        style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="X + LB" />
+
+        <TextView
+            android:id="@+id/tv_map_x_lb_val"
+            style="@style/GpmValue"
+            android:text="@string/action_none" />
+    </LinearLayout>
+
+    <View style="@style/GpmDivider" />
+
+    <LinearLayout
+        android:id="@+id/btn_map_x_rb"
+        style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="X + RB" />
+
+        <TextView
+            android:id="@+id/tv_map_x_rb_val"
+            style="@style/GpmValue"
+            android:text="@string/action_none" />
+    </LinearLayout>
+
+    <View style="@style/GpmDivider" />
+
+    <LinearLayout
+        android:id="@+id/btn_map_x_lt"
+        style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="X + LT" />
+
+        <TextView
+            android:id="@+id/tv_map_x_lt_val"
+            style="@style/GpmValue"
+            android:text="@string/action_none" />
+    </LinearLayout>
+
+    <View style="@style/GpmDivider" />
+
+    <LinearLayout
+        android:id="@+id/btn_map_x_rt"
+        style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="X + RT" />
+
+        <TextView
+            android:id="@+id/tv_map_x_rt_val"
+            style="@style/GpmValue"
+            android:text="@string/action_none" />
+    </LinearLayout>
+
+    <View style="@style/GpmDivider" />
+
+    <LinearLayout
+        android:id="@+id/btn_map_x_up"
+        style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="X + Dpad Up" />
+
+        <TextView
+            android:id="@+id/tv_map_x_up_val"
+            style="@style/GpmValue"
+            android:text="@string/action_none" />
+    </LinearLayout>
+
+    <View style="@style/GpmDivider" />
+
+    <LinearLayout
+        android:id="@+id/btn_map_x_down"
+        style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="X + Dpad Down" />
+
+        <TextView
+            android:id="@+id/tv_map_x_down_val"
+            style="@style/GpmValue"
+            android:text="@string/action_none" />
+    </LinearLayout>
+
+    <View style="@style/GpmDivider" />
+
+    <LinearLayout
+        android:id="@+id/btn_map_x_left"
+        style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="X + Dpad Left" />
+
+        <TextView
+            android:id="@+id/tv_map_x_left_val"
+            style="@style/GpmValue"
+            android:text="@string/action_none" />
+    </LinearLayout>
+
+    <View style="@style/GpmDivider" />
+
+    <LinearLayout
+        android:id="@+id/btn_map_x_right"
+        style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="X + Dpad Right" />
+
+        <TextView
+            android:id="@+id/tv_map_x_right_val"
+            style="@style/GpmValue"
+            android:text="@string/action_none" />
+    </LinearLayout>
+
+    <View style="@style/GpmDivider" />
+</LinearLayout>

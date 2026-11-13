@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- ======================= content ======================= -->
+    <LinearLayout
+        android:id="@+id/main_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/app_bg"
+        android:orientation="vertical">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/main_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/surface"
+            app:navigationContentDescription="@string/drawer_open"
+            app:navigationIcon="@drawable/ic_menu"
+            app:navigationIconTint="@color/text_secondary"
+            app:title="@string/app_name"
+            app:titleTextColor="@color/text_primary" />
+
+        <ScrollView
+            android:id="@+id/page_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
+
+            <!-- every page is a sibling container; only one is VISIBLE -->
+            <LinearLayout
+                android:id="@+id/page_host"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <include
+                    android:id="@+id/layout_initial_setup"
+                    layout="@layout/page_initial_setup"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/layout_settings_general"
+                    layout="@layout/page_general"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/layout_settings_pointer"
+                    layout="@layout/page_pointer"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/layout_root_dex"
+                    layout="@layout/page_root_dex"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/layout_button_mapping"
+                    layout="@layout/page_mapping"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/layout_settings_keyboard"
+                    layout="@layout/page_keyboard"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/layout_about"
+                    layout="@layout/page_about"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- ======================= drawer ======================= -->
+    <LinearLayout
+        android:id="@+id/drawer_container"
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="@color/surface"
+        android:orientation="vertical">
+
+        <com.google.android.material.navigation.NavigationView
+            android:id="@+id/nav_drawer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            app:headerLayout="@layout/drawer_header"
+            app:itemIconTint="@color/icon_tint"
+            app:itemTextColor="@color/text_secondary"
+            app:menu="@menu/drawer_menu" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/divider" />
+
+        <TextView
+            android:id="@+id/tv_drawer_version"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:textColor="@color/text_faint"
+            android:textSize="12sp" />
+    </LinearLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

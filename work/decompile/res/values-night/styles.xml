@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.GamepadMouse" parent="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/app_bg</item>
+        <item name="android:navigationBarColor">@color/app_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="alertDialogTheme">@style/Theme.GamepadMouse.AlertDialog</item>
+        <item name="colorControlNormal">#e0e0e0</item>
+        <item name="colorOnPrimary">@color/text_primary</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorPrimary">@color/app_bg</item>
+        <item name="colorPrimaryVariant">@color/app_bg</item>
+        <item name="colorSecondary">#2196f3</item>
+        <item name="colorSecondaryVariant">#1976d2</item>
+    </style>
+    <style name="Theme.MaterialComponents.DayNight.NoActionBar" parent="@style/Theme.MaterialComponents.NoActionBar">
+    </style>
+</resources>

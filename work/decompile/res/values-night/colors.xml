@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent_green">#4caf50</color>
+    <color name="accent_orange">#ff9800</color>
+    <color name="accent_pro">#ffd08a</color>
+    <color name="accent_red">#ff5252</color>
+    <color name="app_bg">#121212</color>
+    <color name="button_bg">#1a1a1a</color>
+    <color name="divider">#2c2c2c</color>
+    <color name="drawer_header_bg">#16222c</color>
+    <color name="icon_tint">#90a4ae</color>
+    <color name="surface">#1e1e1e</color>
+    <color name="text_faint">#666666</color>
+    <color name="text_guide">#b0bec5</color>
+    <color name="text_muted">#b0b0b0</color>
+    <color name="text_primary">#ffffff</color>
+    <color name="text_secondary">#e0e0e0</color>
+    <color name="text_value">#888888</color>
+    <color name="title_light">#eceff1</color>
+</resources>

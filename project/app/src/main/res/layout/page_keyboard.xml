@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/GpmPage">
+
+    <TextView
+        style="@style/GpmSection"
+        android:layout_marginTop="0dp"
+        android:text="@string/keyboard_settings" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_keyboard_input"
+        style="@style/GpmSwitch"
+        android:text="@string/keyboard_input" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/keyboard_input_desc" />
+
+    <TextView
+        android:id="@+id/tv_kb_note"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:background="@color/surface"
+        android:lineSpacingExtra="2dp"
+        android:padding="12dp"
+        android:textColor="@color/accent_orange"
+        android:textSize="13sp"
+        android:text="@string/kb_not_ported" />
+
+    <View style="@style/GpmDivider" />
+
+    <TextView
+        style="@style/GpmSection"
+        android:text="@string/kb_languages_title" />
+
+    <CheckBox
+        android:id="@+id/cb_kb_lang_en"
+        style="@style/GpmCheck"
+        android:text="@string/kb_lang_en" />
+
+    <CheckBox
+        android:id="@+id/cb_kb_lang_ko"
+        style="@style/GpmCheck"
+        android:text="@string/kb_lang_ko" />
+
+    <CheckBox
+        android:id="@+id/cb_kb_lang_es"
+        style="@style/GpmCheck"
+        android:text="@string/kb_lang_es" />
+
+    <View
+        style="@style/GpmDivider"
+        android:layout_marginTop="10dp" />
+
+    <!-- Key move repeat interval -->
+    <LinearLayout
+        style="@style/GpmRow"
+        android:layout_marginTop="8dp">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/kb_nav_interval" />
+
+        <TextView
+            android:id="@+id/tv_kb_repeat_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_kb_repeat"
+        style="@style/GpmSeek"
+        android:max="45"
+        android:progress="10" />
+
+    <!-- Key move hold delay -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/kb_nav_delay" />
+
+        <TextView
+            android:id="@+id/tv_kb_delay_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_kb_delay"
+        style="@style/GpmSeek"
+        android:max="26"
+        android:progress="2" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_kb_move_sound"
+        style="@style/GpmSwitch"
+        android:text="@string/kb_move_sound" />
+
+    <TextView
+        style="@style/GpmDesc"
+        android:text="@string/kb_move_sound_desc" />
+
+    <View style="@style/GpmDivider" />
+
+    <!-- DeX keyboard width -->
+    <LinearLayout
+        style="@style/GpmRow"
+        android:layout_marginTop="8dp">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/kb_dex_width_title" />
+
+        <TextView
+            android:id="@+id/tv_kb_dex_width_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_kb_dex_width"
+        style="@style/GpmSeek"
+        android:max="80"
+        android:progress="30" />
+
+    <!-- DeX keyboard height -->
+    <LinearLayout style="@style/GpmRow">
+        <TextView
+            style="@style/GpmLabel"
+            android:text="@string/kb_dex_height_title" />
+
+        <TextView
+            android:id="@+id/tv_kb_dex_height_val"
+            style="@style/GpmValue" />
+    </LinearLayout>
+
+    <com.dennis.gamepadmouse.VerticalFriendlySeekBar
+        android:id="@+id/seekbar_kb_dex_height"
+        style="@style/GpmSeek"
+        android:max="32"
+        android:progress="12" />
+
+    <TextView
+        style="@style/GpmSection"
+        android:text="@string/kb_dex_pos_title" />
+
+    <RadioGroup
+        android:id="@+id/rg_kb_dex_pos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/rb_kb_dex_pos_left"
+            style="@style/GpmCheck"
+            android:text="@string/kb_dex_pos_left" />
+
+        <RadioButton
+            android:id="@+id/rb_kb_dex_pos_center"
+            style="@style/GpmCheck"
+            android:text="@string/kb_dex_pos_center" />
+
+        <RadioButton
+            android:id="@+id/rb_kb_dex_pos_right"
+            style="@style/GpmCheck"
+            android:text="@string/kb_dex_pos_right" />
+    </RadioGroup>
+</LinearLayout>

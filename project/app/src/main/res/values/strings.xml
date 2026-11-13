@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gamepad mouse</string>
+    <string name="app_version_format">版本 %s</string>
+    <string name="app_not_found">未找到应用</string>
+
+    <!-- ============================ drawer ============================ -->
+    <string name="nav_settings">设置</string>
+    <string name="nav_manual">使用手册</string>
+    <string name="nav_app">应用</string>
+    <string name="nav_general_settings">通用设置</string>
+    <string name="nav_pointer_settings">指针与灵敏度</string>
+    <string name="nav_root_dex">Root / DeX</string>
+    <string name="nav_mapping">按键映射</string>
+    <string name="nav_keyboard_settings">键盘设置</string>
+    <string name="nav_initial_setup">初始设置</string>
+    <string name="nav_about">关于</string>
+    <string name="drawer_open">打开导航菜单</string>
+    <string name="drawer_close">关闭导航菜单</string>
+
+    <!-- ========================= page titles ========================= -->
+    <string name="general_settings">通用设置</string>
+    <string name="pointer_sensitivity">指针与灵敏度</string>
+    <string name="keyboard_settings">键盘设置</string>
+    <string name="page_initial_setup">初始设置</string>
+    <string name="initial_setup">初始设置</string>
+    <string name="accessibility_disclosure_title">隐私与无障碍声明</string>
+    <string name="root_dex_settings">Root / DeX</string>
+    <string name="custom_key_mapping">自定义按键映射（X + 按键）</string>
+    <string name="about">关于</string>
+
+    <!-- =========================== general =========================== -->
+    <string name="mouse_service_enabled">鼠标服务已启用</string>
+    <string name="mouse_service_enabled_desc">游戏手柄光标悬浮层的总开关。</string>
+    <string name="customize_toggle_key">更改激活按键</string>
+    <string name="l3_long_press_duration">长按持续时间</string>
+    <string name="long_press_instant">即时</string>
+    <string name="seconds_unit">秒</string>
+    <string name="l3_toggle_enabled">启用长按激活</string>
+    <string name="l3_toggle_enabled_desc">关闭后，按下激活按键会立即切换光标。</string>
+    <string name="swap_ab_buttons_title">交换 A/B 按键</string>
+    <string name="swap_ab_buttons_desc">B：光标点击 / A：返回操作</string>
+    <string name="haptic_feedback_title">震动反馈</string>
+    <string name="haptic_feedback_desc">光标点击或执行映射操作时震动手柄。</string>
+    <string name="vibration_intensity">震动强度</string>
+    <string name="reset_all_settings">重置所有设置</string>
+    <string name="reset_confirm_msg">确定要将所有设置恢复为默认值吗？</string>
+    <string name="reset">重置</string>
+    <string name="cancel">取消</string>
+    <string name="ok">确定</string>
+    <string name="settings_reset_toast">设置已恢复默认</string>
+
+    <!-- =========================== pointer =========================== -->
+    <string name="cursor_style">光标样式</string>
+    <string name="cursor_color_orange">橙色（默认）</string>
+    <string name="cursor_custom_color">自定义颜色</string>
+    <string name="cursor_custom_png">自定义 PNG 图片</string>
+    <string name="cursor_color_manual">输入 HEX</string>
+    <string name="cursor_color_invalid">颜色代码无效，请使用 #RRGGBB 格式。</string>
+    <string name="cursor_color_hint">#FFA000</string>
+    <string name="cursor_png_load_failed">图片加载失败。</string>
+    <string name="pointer_size">光标大小</string>
+    <string name="pointer_speed">指针速度</string>
+    <string name="dex_pointer_speed">DeX 指针速度</string>
+    <string name="sensitivity_curve">灵敏度（曲线）</string>
+    <string name="auto_hide_timeout">自动隐藏超时</string>
+    <string name="never">从不</string>
+    <string name="scroll_speed">滚动速度</string>
+    <string name="deadzone_title">手柄死区</string>
+
+    <!-- ========================== root / DeX ========================= -->
+    <string name="root_own_gamepad">用 root 独占手柄（阻止三星内置的手柄控制）</string>
+    <string name="root_own_gamepad_desc">root 助手会独占接管手柄，因此三星 DeX、Game Tools 和游戏都收不到原始手柄输入。</string>
+    <string name="native_pointer_title">使用系统原生指针（uinput 鼠标）</string>
+    <string name="native_pointer_desc">DeX 桌面点击需要此项，同时需要 root 助手。</string>
+    <string name="force_mirroring_switch">强制镜像 / 永不切换到外接显示</string>
+    <string name="force_mirroring_desc">在外接显示上使用镜像模式时勾选此项。</string>
+    <string name="status_title">状态</string>
+    <string name="status_accessibility">无障碍服务</string>
+    <string name="status_root">root 助手</string>
+    <string name="status_display">当前显示</string>
+    <string name="status_mouse_mode">鼠标模式</string>
+    <string name="status_enabled">已启用</string>
+    <string name="status_disabled">已禁用</string>
+    <string name="status_connected">已连接</string>
+    <string name="status_not_connected">未连接</string>
+    <string name="status_checking">检查中…</string>
+    <string name="status_display_phone">手机</string>
+    <string name="status_display_dex">外接显示（DeX）</string>
+    <string name="status_on">开</string>
+    <string name="status_off">关</string>
+    <string name="mouse_mode_exclusive_note">鼠标模式开启时，手柄会被独占接管，因此三星 DeX 收不到手柄输入。</string>
+    <string name="btn_toggle_mouse_mode">立即切换鼠标模式</string>
+    <string name="toggle_requested">切换请求已发送到服务。</string>
+
+    <!-- ======================= button mapping ======================== -->
+    <string name="mapping_hint">点击某一行，为该 X + 按键组合选择操作。对于“点击指定位置”，请在鼠标模式开启时按下该组合以捕获光标位置。长按某一行可更改连点间隔。</string>
+    <string name="select_action_title">为 X + %1$s 选择操作</string>
+    <string name="select_app">选择应用</string>
+    <string name="repeat_interval_title">连点间隔</string>
+    <string name="repeat_interval_format">%1$.1f秒</string>
+    <string name="repeat_interval_custom">自定义…</string>
+    <string name="repeat_interval_hint">毫秒（100 ~ 3000）</string>
+    <string name="repeat_interval_range_msg">请输入 100 到 3000 之间的毫秒值。</string>
+    <string name="repeat_interval_saved">连点间隔：%1$d 毫秒</string>
+    <string name="click_location_guide_title">如何设置点击位置</string>
+    <string name="click_location_guide_msg">1. 打开你的游戏或应用。\n2. 开启手柄鼠标。\n3. 将光标移动到目标位置。\n4. 按下已映射的按键组合。\n\n位置随即被保存，之后再次按下该组合时就会点击该位置。</string>
+    <string name="click_location_repeat_guide_title">如何设置连点</string>
+    <string name="click_location_repeat_guide_msg">1. 打开你想使用的游戏或应用。\n2. 开启手柄鼠标。\n3. 将光标移动到要点击的位置。\n4. 按下已映射的按键组合以保存该位置。\n5. 再次按下同一组合开始连点，再按一次即可停止。\n\n鼠标光标关闭时，连点会自动停止。\n长按映射行可调整其间隔。\n\n点击“确定”，在下一步选择连点间隔。</string>
+    <string name="press_gamepad_button_title">设置激活按键</string>
+    <string name="press_gamepad_button_msg">按下手柄上的任意按键，将其设为激活按键。\n\n（方向键、返回键和音量键不可使用。）</string>
+    <string name="reset_toggle_key_default">恢复默认（L3）</string>
+    <string name="toast_dpad_not_allowed">方向键、返回键和音量键不能设为激活按键。</string>
+    <string name="permission_required">需要权限</string>
+    <string name="brightness_permission_msg">亮度控制需要“修改系统设置”权限。是否打开设置进行授权？</string>
+    <string name="open_settings">打开设置</string>
+
+    <!-- mapping action labels (order matters: it is the dialog order) -->
+    <string name="action_none">无</string>
+    <string name="action_launch_app">启动应用</string>
+    <string name="action_home">主页</string>
+    <string name="action_recents">最近任务</string>
+    <string name="action_vol_up">音量加</string>
+    <string name="action_vol_down">音量减</string>
+    <string name="action_mute">静音</string>
+    <string name="action_bright_up">亮度加</string>
+    <string name="action_bright_down">亮度减</string>
+    <string name="action_media_forward">快进（10 秒）</string>
+    <string name="action_media_rewind">快退（10 秒）</string>
+    <string name="action_screenshot">截图</string>
+    <string name="action_rotate">屏幕旋转</string>
+    <string name="action_click_location">点击指定位置</string>
+    <string name="action_click_location_repeat">在指定位置连点</string>
+
+    <!-- ========================== keyboard =========================== -->
+    <string name="keyboard_input">手柄键盘输入</string>
+    <string name="keyboard_input_desc">用光标点击文本框时会打开屏幕键盘。</string>
+    <string name="kb_not_ported">屏幕键盘悬浮层尚未移植。以下选项仅为后续版本保存，目前不会产生任何效果。</string>
+    <string name="kb_languages_title">键盘语言（可选择一种或两种）</string>
+    <string name="kb_lang_en">英文键盘</string>
+    <string name="kb_lang_ko">韩文键盘</string>
+    <string name="kb_lang_es">西班牙文键盘</string>
+    <string name="kb_lang_min_toast">至少需要选择一种键盘语言。</string>
+    <string name="kb_nav_interval">按键移动重复间隔（秒）</string>
+    <string name="kb_nav_delay">按键移动长按延迟（秒）</string>
+    <string name="kb_move_sound">按键移动音效</string>
+    <string name="kb_move_sound_desc">开启后，每次在键盘中移动选择位置都会播放提示音。</string>
+    <string name="kb_dex_width_title">DeX 键盘宽度（外接显示器）</string>
+    <string name="kb_dex_height_title">DeX 键盘高度（外接显示器）</string>
+    <string name="kb_dex_pos_title">DeX 键盘位置（外接显示器）</string>
+    <string name="kb_dex_pos_left">左</string>
+    <string name="kb_dex_pos_center">居中</string>
+    <string name="kb_dex_pos_right">右</string>
+    <string name="kb_dex_pct_format">%1$d%%</string>
+
+    <!-- ====================== initial setup ========================= -->
+    <string name="setup_step_1">1. 授予无障碍权限。</string>
+    <string name="setup_step_2">2. 关闭电池优化。</string>
+    <string name="setup_step_3">3. 以 X-Input 模式连接任意手柄（蓝牙/有线）。\n4. 按下 Xbox 键（或 L3：按下左摇杆）以显示光标。</string>
+    <string name="open_accessibility_settings">打开无障碍设置</string>
+    <string name="disable_battery_optimization">关闭电池优化</string>
+    <string name="btn_accept_continue">接受并继续</string>
+    <string name="initial_setup_done">初始设置完成。</string>
+    <string name="setup_note">数据不会离开你的设备。无障碍服务只将手柄输入转换为触摸手势。</string>
+
+    <!-- ============================ about ============================ -->
+    <string name="about_heading">Gamepad mouse</string>
+    <string name="about_paragraph">这是对“Gamepad mouse”（com.pkyul13.gamepadmouse，v2.0.2）的干净室复刻，专注于 DeX。它完全依据原应用的公开行为从零编写：相同的偏好设置键、相同的数值范围、相同的按键映射模型，并额外提供一层接管手柄的 root / DeX 层，使三星内置的手柄处理永不干扰。\n\n无广告、无统计、无计费：原版所有“Pro”功能在这里都免费。\n\n所有设置都保存在本机的单个私有偏好设置文件中。</string>
+    <string name="about_play_link">在 Google Play 上查看原应用</string>
+</resources>

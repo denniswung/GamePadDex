@@ -1,0 +1,37 @@
+﻿<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <int name="speed_dex" value="30" />
+    <string name="btn_down">none</string>
+    <string name="mix_7_action">snap_right</string>
+    <string name="mix_6_action">snap_left</string>
+    <string name="mix_8_action">wheel_right</string>
+    <string name="btn_right">none</string>
+    <string name="mix_6_keys">y+left</string>
+    <string name="btn_y">home</string>
+    <string name="btn_x">recents</string>
+    <string name="mix_8_keys">x+y</string>
+    <string name="btn_up">none</string>
+    <string name="btn_rt">zoom_in</string>
+    <string name="btn_r3">none</string>
+    <string name="combo_lt">ctrl+a</string>
+    <string name="btn_lt">zoom_out</string>
+    <int name="deadzone" value="160" />
+    <string name="btn_l3">center_cursor</string>
+    <int name="scroll_deadzone" value="350" />
+    <string name="btn_rb">wheel_down</string>
+    <string name="btn_left">none</string>
+    <string name="btn_b">back</string>
+    <string name="mix_7_keys">y+right</string>
+    <string name="btn_a">left_click</string>
+    <string name="combo_x">alt+tab</string>
+    <string name="btn_lb">wheel_up</string>
+    <string name="combo_y">ctrl+a</string>
+    <string name="combo_start">alt+tab</string>
+    <int name="speed_phone" value="30" />
+    <string name="btn_select">maximize_window</string>
+    <string name="btn_start">switch_app</string>
+    <int name="scroll_speed" value="4" />
+    <string name="btn_share">toggle_mouse</string>
+    <string name="combo_guide">alt+f4</string>
+    <string name="btn_guide">key_combo</string>
+</map>

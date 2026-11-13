@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 追加字符串（与翻译文件分离，避免互相覆盖） -->
+    <string name="hide_statusbar_title">全屏模式（隐藏状态栏）</string>
+    <string name="hide_statusbar_desc">开启后 App 内不显示状态栏，设置内容从屏幕顶开始，调整参数更方便。关闭则恢复系统状态栏。</string>
+    <string name="icon_desc">Gamepad mouse 图标</string>
+    <string name="full_key_mapping_title">全键映射（Xbox 按键）</string>
+    <string name="full_key_mapping_hint">每个按键都可以单独改动作；下面的组合键在所有按键都按住时触发，优先于单键映射。</string>
+    <string name="combos_title">组合按键</string>
+    <string name="action_default">默认行为（不修改）</string>
+    <string name="combo_keys_title">选择组合键（可多选）</string>
+    <string name="combo_row_format">组合 %1$d：%2$s</string>
+    <string name="combo_empty">未设置</string>
+    <string name="action_key_combo">键盘组合键</string>
+    <string name="action_dex_fullscreen">DeX 全屏</string>
+    <string name="always_grab_title">默认屏蔽系统输入</string>
+    <string name="always_grab_desc">开启后，助手一启动就独占手柄（EVIOCGRAB），三星/DeX 的自带手柄处理不会再收到输入；关闭后只有鼠标模式开启时才独占。</string>
+    <string name="start_mouse_mode_title">启动即鼠标模式</string>
+    <string name="start_mouse_mode_desc">开启后 App 启动（含开机）自动进入鼠标模式；映射一个「切换鼠标模式」按键，就能随时把手柄交还系统打游戏。</string>
+</resources>
