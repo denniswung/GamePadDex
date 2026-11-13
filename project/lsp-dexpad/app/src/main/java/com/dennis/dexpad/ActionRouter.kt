@@ -36,6 +36,9 @@ class ActionRouter(private val host: ActionHost) {
 
         /** ignore stick input while the pointer is being centred */
         fun lockCenterFor(ms: Long)
+
+        /** the pointer must be visible again (e.g. it was hidden while idle) */
+        fun onPointerNeeded()
     }
 
     fun fire(action: String, comboValue: String) {
@@ -126,6 +129,8 @@ class ActionRouter(private val host: ActionHost) {
                 log("screenshot (SYSRQ) on display $display")
             }
             Action.CENTER_CURSOR -> {
+                // 指针可能被「空闲隐藏」销毁了：先恢复，否则居中看不到结果
+                host.onPointerNeeded()
                 val (w, h) = host.displayState().size(display)
                 val rot = host.displayState().rotation(display)
                 host.lockCenterFor(3000)

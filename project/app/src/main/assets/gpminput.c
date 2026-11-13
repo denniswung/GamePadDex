@@ -923,26 +923,23 @@ static void move_display(double dx, double dy, int rot) {
 }
 
 /* move the pointer to the centre of the display: O <maxX> <maxY> [park] [rot] */
+/* 居中：先用一次超大位移把指针顶到左上角，再按实测增益一步走到中心。
+ * 这台设备(1600x2560 强制分辨率 + 指针加速)下 raw→px 增益约 2.16。 */
 static void cmd_center(int maxX, int maxY, int park, int rot) {
     (void)park; (void)rot;
     if (maxX <= 0) maxX = 2560;
     if (maxY <= 0) maxY = 1600;
     int tx = maxX / 2, ty = maxY / 2;
-    if (g_abs_ptr >= 0) {
-        /* 一次性居中：绝对坐标，没有「先回角再跳」的中间态，也不受指针加速度影响 */
-        int ax = (int)((long)tx * 32767 / (maxX > 0 ? maxX : 1));
-        int ay = (int)((long)ty * 32767 / (maxY > 0 ? maxY : 1));
-        ev_emit(g_abs_ptr, EV_ABS, ABS_X, ax);
-        ev_emit(g_abs_ptr, EV_ABS, ABS_Y, ay);
-        ev_syn(g_abs_ptr);
-        out("CENTER(abs %d,%d) -> %d,%d", ax, ay, tx, ty);
-        return;
+    /* 指针可能正被「空闲隐藏」销毁了：先恢复设备，否则 L3 完全没反应 */
+    if (g_mouse < 0) {
+        g_mouse = make_mouse();
+        usleep(120 * 1000);
+        out("POINTER on (center)");
     }
-    /* 兜底：没有绝对设备时先归零再按实测增益跳过去 */
     cmd_mouse_move(-30000.0, -30000.0);
-    usleep(60 * 1000);
+    usleep(15 * 1000);
     cmd_mouse_move(tx / 2.16, ty / 2.16);
-    out("CENTER(linear 2.16 fallback) -> target %d,%d", tx, ty);
+    out("CENTER(clamp+gain 2.16) -> %d,%d", tx, ty);
 }
 
 static void cmd_wheel(int n, int horizontal) {
@@ -1562,11 +1559,6 @@ static void handle_line(char *line) {
                 g_mouse = -1;
                 out("POINTER off");
             }
-            if (g_abs_ptr >= 0) {
-                ioctl(g_abs_ptr, UI_DEV_DESTROY);
-                close(g_abs_ptr);
-                g_abs_ptr = -1;
-            }
             break;
         }
         case 'j': {
@@ -1576,7 +1568,6 @@ static void handle_line(char *line) {
                 usleep(120 * 1000);
                 out("POINTER on");
             }
-            if (g_abs_ptr < 0) g_abs_ptr = make_abs_pointer();
             break;
         }
         case 'A': {
@@ -1724,7 +1715,6 @@ int main(int argc, char **argv) {
     g_mouse = make_mouse();
     g_kbd = make_keyboard();
     g_pad = make_gamepad();
-    g_abs_ptr = make_abs_pointer();
     if (g_mouse >= 0 || g_kbd >= 0) usleep(150 * 1000);
     g_ino_fd = inotify_init1(IN_NONBLOCK);
     if (g_ino_fd >= 0) {

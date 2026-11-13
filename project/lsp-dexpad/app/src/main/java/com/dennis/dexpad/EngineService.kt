@@ -84,6 +84,11 @@ class EngineService : Service(), RootInput.Listener {
                 arrowLockUntil = SystemClock.elapsedRealtime() + ms
             }
 
+            override fun onPointerNeeded() {
+                lastUserInputAt = SystemClock.elapsedRealtime()
+                showPointer()
+            }
+
             override fun lockCenterFor(ms: Long) {
         ptrX = Float.NaN
         ptrY = Float.NaN
