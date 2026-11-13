@@ -39,6 +39,9 @@ class ActionRouter(private val host: ActionHost) {
 
         /** the pointer must be visible again (e.g. it was hidden while idle) */
         fun onPointerNeeded()
+
+        /** move the pointer to the middle of the display in ONE relative move */
+        fun centerPointer()
     }
 
     fun fire(action: String, comboValue: String) {
@@ -131,10 +134,11 @@ class ActionRouter(private val host: ActionHost) {
             Action.CENTER_CURSOR -> {
                 // 指针可能被「空闲隐藏」销毁了：先恢复，否则居中看不到结果
                 host.onPointerNeeded()
+                host.centerPointer()
                 val (w, h) = host.displayState().size(display)
                 val rot = host.displayState().rotation(display)
-                host.lockCenterFor(3000)
-                root.centerCursor(w, h, host.isPhone(), rot)
+                host.lockCenterFor(300)
+                // 位移已由 centerPointer() 一步完成，这里不再用助手的"夹角"算法
                 log("cursor centered on ${w}x$h (display $display, rot $rot)")
             }
             Action.POWER -> {

@@ -84,6 +84,20 @@ class EngineService : Service(), RootInput.Listener {
                 arrowLockUntil = SystemClock.elapsedRealtime() + ms
             }
 
+            /** 一次性居中：用引擎自己维护的指针位置，算一条相对位移，
+             *  不再"先回角再跳"，因此不会有可见跳变，也不会把指针甩出屏幕。 */
+            override fun centerPointer() {
+                val (vw, vh) = displaySize(activeDisplay())
+                if (ptrX.isNaN()) { ptrX = vw / 2f; ptrY = vh / 2f }
+                val gain = prefs.centerGain
+                val dx = (vw / 2f - ptrX) / gain
+                val dy = (vh / 2f - ptrY) / gain
+                if (Math.abs(dx) >= 0.5f || Math.abs(dy) >= 0.5f) root.move(dx, dy)
+                ptrX = vw / 2f
+                ptrY = vh / 2f
+                Log.i(TAG, "center pointer dx=${dx.toInt()} dy=${dy.toInt()} gain=$gain -> ${vw / 2},${vh / 2}")
+            }
+
             override fun onPointerNeeded() {
                 lastUserInputAt = SystemClock.elapsedRealtime()
                 showPointer()
@@ -216,6 +230,8 @@ class EngineService : Service(), RootInput.Listener {
     private var mixHoldStartAt = 0L
     private var mixHoldNextAt = 0L
     private var lastPtrLogAt = 0L
+    /** uinput REL 单位 → 屏幕像素 的实测增益（指针加速之后约 2.16） */
+    private val RAW_TO_PX = 2.16f
     /** 系统指针是否已被我们隐藏（销毁虚拟鼠标 = 没有指针设备 = 指针消失） */
     private var pointerHidden = false
     /** 最近一次用户操作时间（摇杆/按键/点击），用于空闲自动隐藏 */
@@ -1379,8 +1395,9 @@ class EngineService : Service(), RootInput.Listener {
                     lastPtrLogAt = nowPtr
                     Log.i(TAG, "ptr move dx=${mx.toInt()} dy=${my.toInt()} sens=${prefs.sensX()}")
                 }
-                ptrX = (ptrX + mx).coerceIn(0f, vw.toFloat())
-                ptrY = (ptrY + my).coerceIn(0f, vh.toFloat())
+                val g = prefs.centerGain
+                ptrX = (ptrX + mx * g).coerceIn(0f, vw.toFloat())
+                ptrY = (ptrY + my * g).coerceIn(0f, vh.toFloat())
             }
         }
 

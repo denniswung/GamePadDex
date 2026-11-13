@@ -194,6 +194,7 @@ class ConfigActivity : Activity() {
             sliderRow("水平灵敏度 X", 20, 300, (prefs.sensX() * 100).toInt(), "%") { v -> prefs.setSensX(v) },
             sliderRow("垂直灵敏度 Y", 20, 300, (prefs.sensY() * 100).toInt(), "%") { v -> prefs.setSensY(v) },
             sliderRow("边缘减速", 0, 60, prefs.edgeSlow(), "%") { v -> prefs.setEdgeSlow(v) },
+            sliderRow("居中增益", 100, 400, (prefs.centerGain * 100).toInt(), " %") { v -> prefs.setCenterGain(v) },
             sliderRow("空闲隐藏指针", 0, 30, prefs.idleHideSec, " s") { v -> prefs.setIdleHideSec(v) },
             sliderRow("方向键焦点窗口", 3, 50, (prefs.focusWindowMs() / 100).toInt(), "00 ms") { v ->
                 prefs.setFocusWindowMs(v * 100)

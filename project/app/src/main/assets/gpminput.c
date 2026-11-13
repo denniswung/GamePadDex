@@ -77,6 +77,8 @@ static int g_kbd = -1;
 static int g_pad = -1;
 /* 绝对指针设备：只用来「一次性把指针放到指定坐标」（相对鼠标有加速度，算不准） */
 static int g_abs_ptr = -1;
+/* 居中用的 raw->px 增益（可被命令 G 修改，用于标定） */
+static double g_center_gain = 2.16;
 /* forward the physical d-pad to the virtual gamepad (native d-pad for the OS) */
 static int g_dpad_native = 0;
 static volatile sig_atomic_t g_quit = 0;
@@ -938,8 +940,8 @@ static void cmd_center(int maxX, int maxY, int park, int rot) {
     }
     cmd_mouse_move(-30000.0, -30000.0);
     usleep(15 * 1000);
-    cmd_mouse_move(tx / 2.16, ty / 2.16);
-    out("CENTER(clamp+gain 2.16) -> %d,%d", tx, ty);
+    cmd_mouse_move((double)tx / g_center_gain, (double)ty / g_center_gain);
+    out("CENTER(clamp+gain %.2f) rot=%d -> %d,%d", g_center_gain, rot, tx, ty);
 }
 
 static void cmd_wheel(int n, int horizontal) {
@@ -1645,6 +1647,15 @@ static void handle_line(char *line) {
                     hd);
                 int rc = system(cmd);
                 out("HOMEDEX %d rc=%d", hd, rc);
+            }
+            break;
+        }
+        case 'g': {
+            /* 标定：设置居中增益（raw -> px） */
+            double g = 0;
+            if (sscanf(line, "%lf", &g) == 1 && g > 0.2 && g < 20.0) {
+                g_center_gain = g;
+                out("GAIN %.2f", g_center_gain);
             }
             break;
         }
