@@ -174,6 +174,19 @@ int main(int argc, char **argv) {
         emit(EV_ABS, axis, 0); syn();
         sleep_ms(80);
         emit(EV_KEY, code, 0); syn();
+    } else if (!strcmp(argv[1], "keyvhat")) {
+        // keyvhat <keycode> <hatY> <holdMs> [pre] : 先按键再推竖直方向（HAT0Y）
+        int code = atoi(argv[2]), hy = atoi(argv[3]);
+        int hold = argc > 4 ? atoi(argv[4]) : 400;
+        int pre = argc > 5 ? atoi(argv[5]) : 2600;
+        if (pre > 0) sleep_ms(pre);
+        emit(EV_KEY, code, 1); syn();
+        sleep_ms(90);
+        emit(EV_ABS, 17, hy); syn();
+        sleep_ms(hold);
+        emit(EV_ABS, 17, 0); syn();
+        sleep_ms(60);
+        emit(EV_KEY, code, 0); syn();
     } else if (!strcmp(argv[1], "keyhat")) {
         // keyhat <keycode> <hatY> <holdMs> [pre] : 先按键再推方向（测 X+↑ 这类组合）
         int code = atoi(argv[2]), hat = atoi(argv[3]);
