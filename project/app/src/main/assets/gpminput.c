@@ -79,6 +79,8 @@ static int g_pad = -1;
 static int g_abs_ptr = -1;
 /* 居中用的 raw->px 增益（可被命令 G 修改，用于标定） */
 static double g_center_gain = 2.16;
+/* 最近一次已知的屏幕尺寸（通知栏下滑手势要用） */
+static int g_disp_w = 0, g_disp_h = 0;
 /* 最近一次解析到的前台包名（杀应用用） */
 static char g_top_pkg[192];
 /* 虚拟触摸屏：给"点击=触摸"和"双指缩放"用（真实触摸事件，带多点协议 B） */
@@ -1085,18 +1087,24 @@ static void move_display(double dx, double dy, int rot) {
 /* 居中：先用"多个有界小步"把指针推到左上角（一个 -30000 的大位移会把指针甩出屏幕、
  * 之后连 hover 都没有），再按增益一步走到屏幕中心。
  * 用法：O <w> <h> <park> <rot> [gain] */
-static void cmd_center(int maxX, int maxY, int park, int rot) {
-    (void)park; (void)rot;
+/* 把指针放到屏幕上的任意绝对坐标：先有界步进到左上角(0,0)，再按增益一步到 (tx,ty)。
+ * 因为「到左上角」是有界且会撞到屏幕边缘的，所以不管指针当前在哪都能对齐到 (0,0)，
+ * 这样重建鼠标设备后也能精确地把光标放回"上次的位置"。 */
+static void pointer_goto(int tx, int ty, int maxX, int maxY) {
     if (maxX <= 0) maxX = 2560;
     if (maxY <= 0) maxY = 1600;
+    g_disp_w = maxX;
+    g_disp_h = maxY;
+    if (tx < 0) tx = 0;
+    if (ty < 0) ty = 0;
+    if (tx > maxX) tx = maxX;
+    if (ty > maxY) ty = maxY;
     double gain = g_center_gain > 0.2 ? g_center_gain : 2.16;
-    int tx = maxX / 2, ty = maxY / 2;
     if (g_mouse < 0) {
         g_mouse = make_mouse();
         usleep(120 * 1000);
-        out("POINTER on (center)");
+        out("POINTER on (goto)");
     }
-    /* 1) 有界步进到左上角：总量约 1.2 屏，分成 40 步，每步很小 */
     double totalX = -(double)maxX * 1.2 / gain;
     double totalY = -(double)maxY * 1.2 / gain;
     const int STEPS = 40;
@@ -1105,9 +1113,16 @@ static void cmd_center(int maxX, int maxY, int park, int rot) {
         usleep(6 * 1000);
     }
     usleep(40 * 1000);
-    /* 2) 从(0,0)一步到中心 */
     cmd_mouse_move((double)tx / gain, (double)ty / gain);
-    out("CENTER(steps+gain %.2f) rot=%d -> %d,%d", gain, rot, tx, ty);
+}
+
+static void cmd_center(int maxX, int maxY, int park, int rot) {
+    (void)park; (void)rot;
+    if (maxX <= 0) maxX = 2560;
+    if (maxY <= 0) maxY = 1600;
+    double gain = g_center_gain > 0.2 ? g_center_gain : 2.16;
+    pointer_goto(maxX / 2, maxY / 2, maxX, maxY);
+    out("CENTER(steps+gain %.2f) rot=%d -> %d,%d", gain, rot, maxX / 2, maxY / 2);
 }
 
 static void cmd_wheel(int n, int horizontal) {
@@ -1991,18 +2006,22 @@ static void handle_line(char *line) {
             break;
         }
         case 'N': {
-            /* cmd statusbar 在这个 SELinux 域里注入不了（rc=512），
-             * 改走虚拟键盘的 KEY_NOTIFICATION_CENTER(444) → 系统映射成通知栏。 */
-            int ok = 0;
-            if (g_kbd >= 0) {
-                ev_emit(g_kbd, EV_KEY, 444, 1);
-                ev_syn(g_kbd);
-                usleep(40 * 1000);
-                ev_emit(g_kbd, EV_KEY, 444, 0);
-                ev_syn(g_kbd);
-                ok = 1;
+            /* 展开通知栏：uinput 的 KEY_NOTIFICATION_CENTER 在三星上不生效，
+             * cmd statusbar 同域注入失败，所以改成"从顶部边缘下滑"的真实触摸手势
+             * （和用户手指下拉通知栏完全一样）。 */
+            int nw = g_disp_w > 0 ? g_disp_w : 2560;
+            int nh = g_disp_h > 0 ? g_disp_h : 1600;
+            pid_t nch = fork();
+            if (nch == 0) {
+                char ncmd[192];
+                snprintf(ncmd, sizeof(ncmd),
+                         "/system/bin/input -d 0 swipe %d 4 %d %d 320",
+                         nw / 2, nw / 2, nh * 55 / 100);
+                int rc = system(ncmd);
+                out("NOTIF swipe rc=%d", rc);
+                _exit(0);
             }
-            out("NOTIF uinput=%d", ok);
+            out("NOTIF swipe async");
             break;
         }
         case 'W':
@@ -2132,10 +2151,16 @@ static void handle_line(char *line) {
             break;
         }
         case 'P': {
-            float px, py, pdy, pdx;
-            int pdisp = 0;
-            int pn = sscanf(line, "%f %f %f %f %d", &px, &py, &pdy, &pdx, &pdisp);
-            if (pn >= 3) injector_scroll(px, py, pdy, pdx, pn >= 5 ? pdisp : 0);
+            /* P <x> <y> <maxX> <maxY> : 把光标放到绝对坐标
+             * （空闲隐藏会销毁鼠标设备，重建后用这条把光标放回"上次的位置"） */
+            int px = 0, py = 0, pw = 0, ph = 0;
+            int pn = sscanf(line, "%d %d %d %d", &px, &py, &pw, &ph);
+            if (pn >= 2) {
+                if (pw <= 0) pw = 2560;
+                if (ph <= 0) ph = 1600;
+                pointer_goto(px, py, pw, ph);
+                out("POSPTR %d,%d", px, py);
+            }
             break;
         }
         case 'R': {
