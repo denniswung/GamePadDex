@@ -71,6 +71,20 @@ class DebugReceiver : BroadcastReceiver() {
                 prefs.enabled = intent.getBooleanExtra("enabled", !prefs.enabled)
                 Log.i("DexPadDebug", "enabled=${prefs.enabled}")
             }
+            // 调试：验证包可见性（<queries> 是否生效）——列出可启动应用数量
+            "com.dennis.dexpad.QUERY" -> {
+                val pm = context.packageManager
+                val i = android.content.Intent(android.content.Intent.ACTION_MAIN)
+                    .addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+                val list = try {
+                    pm.queryIntentActivities(i, 0)
+                } catch (t: Throwable) {
+                    Log.i("DexPadDebug", "query failed: ${t.message}")
+                    null
+                }
+                Log.i("DexPadDebug", "launchable apps visible=${list?.size ?: -1}")
+                Log.i("DexPadDebug", "action picker entries=${com.dennis.dexpad.Action.all.size}")
+            }
         }
     }
 }
