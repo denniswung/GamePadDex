@@ -70,14 +70,21 @@ object Action {
     const val ARROW_LEFT = "arrow_left"
     const val ARROW_RIGHT = "arrow_right"
 
+    /**
+     * 选择器里展示的动作（精简过：去掉了和别的动作重复、或几乎没人用的项）。
+     * 被移除的常量仍然保留，老配置里的旧映射照样能执行，只是不再出现在列表里：
+     *  - SLOW_SWIPE_*（4 个）：和 SWIPE_* 重复，只是慢一点
+     *  - SCROLL_SWIPE_LEFT/RIGHT：左右方向很少用，竖向的 LB/RB 默认还在
+     *  - MINIMIZE：等同于 HOME
+     *  - CLOSE_WINDOW：等同于 FORCE_STOP（都是杀前台应用）
+     */
     val all = listOf(
         LEFT, RIGHT, MIDDLE, WHEEL_UP, WHEEL_DOWN, WHEEL_LEFT, WHEEL_RIGHT,
         SWIPE_UP, SWIPE_DOWN, SWIPE_LEFT, SWIPE_RIGHT,
-        SCROLL_SWIPE_UP, SCROLL_SWIPE_DOWN, SCROLL_SWIPE_LEFT, SCROLL_SWIPE_RIGHT,
-        SLOW_SWIPE_UP, SLOW_SWIPE_DOWN, SLOW_SWIPE_LEFT, SLOW_SWIPE_RIGHT, TOGGLE,
+        SCROLL_SWIPE_UP, SCROLL_SWIPE_DOWN, TOGGLE,
         ZOOM_IN, ZOOM_OUT, OPEN_APP,
         VOLUME_UP, VOLUME_DOWN, VOLUME_MUTE, PLAY_PAUSE, NEXT_TRACK, PREV_TRACK,
-        MINIMIZE, CLOSE_WINDOW, SCREENSHOT,
+        SCREENSHOT,
         CENTER_CURSOR, SWITCH_APP, POWER,
         ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT,
         RECENTS, HOME, BACK, NOTIFICATIONS, KEY_COMBO, FORCE_STOP, NONE,
