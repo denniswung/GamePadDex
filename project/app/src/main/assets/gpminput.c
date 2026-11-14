@@ -1612,10 +1612,10 @@ static int android_to_linux(int a) {
         case 31:  return 46;   /* C */
         case 32:  return 32;   /* D */
         case 33:  return 18;   /* E */
-        case 122: return 102;  /* HOME */
+        case 122: return 172;  /* HOME -> KEY_HOMEPAGE */
         case 4:   return 158;  /* BACK */
         case 187: return 125;  /* APP_SWITCH */
-        case 3:   return 102;  /* HOME */
+        case 3:   return 172;  /* HOME -> KEY_HOMEPAGE */
         case 24:  return 115;  /* VOLUME_UP */
         case 25:  return 114;  /* VOLUME_DOWN */
         case 164: return 113;  /* MUTE */
@@ -1633,6 +1633,9 @@ static int android_to_linux(int a) {
         case 21:  return 105;  /* DPAD_LEFT */
         case 22:  return 106;  /* DPAD_RIGHT */
         case 123: return 107;  /* MOVE_END */
+        case 120: return 99;   /* SYSRQ (截图) */
+        case 23:  return 352;  /* DPAD_CENTER -> KEY_OK */
+        case 82:  return 139;  /* MENU */
         case 92:  return 104;  /* PAGE_UP */
         case 93:  return 109;  /* PAGE_DOWN */
         case 117: return 125;  /* META_LEFT (win) */
@@ -1877,13 +1880,26 @@ static void handle_line(char *line) {
         case 'D': {
             int kd, kc;
             if (sscanf(line, "%d %d", &kd, &kc) == 2) {
-                /* async: `input keyevent` takes ~100 ms */
-                if (fork() == 0) {
-                    char cmd[160];
-                    snprintf(cmd, sizeof(cmd), "/system/bin/input -d %d keyevent %d", kd, kc);
-                    int rc = system(cmd);
-                    out("KEYON %d %d rc=%d", kd, kc, rc);
-                    _exit(0);
+                /* 优先用我们自己的虚拟键盘注入（内核级，稳定）：
+                 * `input keyevent` 在 ksu 域里返回 512（exit code 2），事件根本进不去，
+                 * HOME/BACK/音量/静音/媒体键全都是"日志有、实际没反应"。 */
+                int lc = android_to_linux(kc);
+                if (g_kbd >= 0 && lc >= 0) {
+                    ev_emit(g_kbd, EV_KEY, lc, 1);
+                    ev_syn(g_kbd);
+                    usleep(8 * 1000);
+                    ev_emit(g_kbd, EV_KEY, lc, 0);
+                    ev_syn(g_kbd);
+                    out("KEYUIN %d %d lcode=%d", kd, kc, lc);
+                } else {
+                    /* 没映射的键才退回 input（子进程里跑，避免卡主循环） */
+                    if (fork() == 0) {
+                        char cmd[160];
+                        snprintf(cmd, sizeof(cmd), "/system/bin/input -d %d keyevent %d", kd, kc);
+                        int rc = system(cmd);
+                        out("KEYON %d %d rc=%d (unmapped)", kd, kc, rc);
+                        _exit(0);
+                    }
                 }
             }
             break;
@@ -1973,8 +1989,18 @@ static void handle_line(char *line) {
             break;
         }
         case 'N': {
-            int rc = system("/system/bin/cmd statusbar expand-notifications");
-            out("NOTIF rc=%d", rc);
+            /* cmd statusbar 在这个 SELinux 域里注入不了（rc=512），
+             * 改走虚拟键盘的 KEY_NOTIFICATION_CENTER(444) → 系统映射成通知栏。 */
+            int ok = 0;
+            if (g_kbd >= 0) {
+                ev_emit(g_kbd, EV_KEY, 444, 1);
+                ev_syn(g_kbd);
+                usleep(40 * 1000);
+                ev_emit(g_kbd, EV_KEY, 444, 0);
+                ev_syn(g_kbd);
+                ok = 1;
+            }
+            out("NOTIF uinput=%d", ok);
             break;
         }
         case 'W':
