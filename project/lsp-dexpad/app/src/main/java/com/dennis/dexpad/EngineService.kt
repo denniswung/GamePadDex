@@ -184,6 +184,11 @@ class EngineService : Service(), RootInput.Listener {
     /** estimated pointer position for edge slowdown (reset on L3 centre) */
     private var ptrX = Float.NaN
     private var ptrY = Float.NaN
+    /** 隐藏时停车位（-1 = 未停车）与隐藏前的真实位置 */
+    private var parkedAtX = -1f
+    private var parkedAtY = 0f
+    private var lastPosX = Float.NaN
+    private var lastPosY = Float.NaN
     private var euroX = OneEuroFilter()
     private var euroY = OneEuroFilter()
 
@@ -335,34 +340,21 @@ class EngineService : Service(), RootInput.Listener {
         super.onTaskRemoved(rootIntent)
     }
 
-    /** 隐藏系统指针：销毁虚拟鼠标设备（没有鼠标设备时系统不画指针） */
+    /** 隐藏指针：销毁虚拟鼠标设备（系统不画指针，瞬间消失） */
     private fun hidePointer() {
         if (pointerHidden || !root.helperReady) return
         root.raw("h")
         pointerHidden = true
-        Log.i(TAG, "pointer hidden (mouse device destroyed)")
+        Log.i(TAG, "pointer hidden (device destroyed)")
     }
 
-    /** 恢复指针：重建虚拟鼠标 */
+    /** 恢复指针：只重建设备。系统会保留光标坐标，所以光标直接出现在上次位置，
+     *  没有任何可见的"修正移动"（这就是"隐形修正"）。 */
     private fun showPointer() {
         if (!pointerHidden || !root.helperReady) return
         root.raw("j")
         pointerHidden = false
-        // 关键：销毁再重建鼠标设备后，系统里光标的真实位置是不可知的（会被重置），
-        // 而我们的估算还停在旧位置——位移夹取就会把某些方向锁死（"有些区域过不去"）。
-        // 所以重建后直接把光标拉回屏幕中心，并同步估算值。
-        val display = activeDisplay()
-        val (vw, vh) = displaySize(display)
-        // 恢复到"上次的位置"：重建设备后指针真实位置未知，但助手可以先把光标
-        // 有界推到左上角(0,0)，再按增益一步放到 (ptrX, ptrY) —— 绝对定位。
-        val tx = (if (ptrX.isNaN()) vw / 2f else ptrX).coerceIn(0f, vw.toFloat())
-        val ty = (if (ptrY.isNaN()) vh / 2f else ptrY).coerceIn(0f, vh.toFloat())
-        root.positionPointer(tx.toInt(), ty.toInt(), vw, vh)
-        ptrX = tx
-        ptrY = ty
-        centerLock = true
-        centerLockUntil = SystemClock.elapsedRealtime() + 260
-        Log.i(TAG, "pointer shown at last position ${tx.toInt()},${ty.toInt()} (${vw}x$vh)")
+        Log.i(TAG, "pointer shown at last position (no correction move)")
     }
 
     /** 调试/测试用：把一条原始命令转发给 root 助手 */
@@ -1789,18 +1781,7 @@ class EngineService : Service(), RootInput.Listener {
         pointerHidden = false
         touchSizeSent = ""
         root.raw("j")
-        runCatching {
-            val display = activeDisplay()
-            val (vw, vh) = displaySize(display)
-            val tx = (if (ptrX.isNaN()) vw / 2f else ptrX).coerceIn(0f, vw.toFloat())
-            val ty = (if (ptrY.isNaN()) vh / 2f else ptrY).coerceIn(0f, vh.toFloat())
-            root.positionPointer(tx.toInt(), ty.toInt(), vw, vh)
-            ptrX = tx
-            ptrY = ty
-            centerLock = true
-            centerLockUntil = SystemClock.elapsedRealtime() + 260
-            Log.i(TAG, "helper ready: pointer restored at ${tx.toInt()},${ty.toInt()}")
-        }
+        Log.i(TAG, "helper ready: pointer device recreated (system keeps the position)")
         EngineState.connected = true
         EngineState.lastError = ""
         if (prefs.forceLandscape) root.setRotation(1)
