@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -185,21 +186,65 @@ class ButtonDetailActivity : Activity() {
         }
     }
 
-    /** 选目标应用（给 OPEN_APP 用）：返回 (label, package) 列表对话框 */
+    /** 选目标应用（给 OPEN_APP 用）：弹可启动应用列表；一个都查不到时退化为手输包名 */
     private fun pickApp(title: String, current: String, onPick: (String) -> Unit) {
         val pm = packageManager
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val apps = pm.queryIntentActivities(intent, 0)
-            .map { it.loadLabel(pm).toString() to it.activityInfo.packageName }
-            .distinctBy { it.second }
-            .sortedBy { it.first }
+        val apps = try {
+            pm.queryIntentActivities(intent, 0)
+                .map { it.loadLabel(pm).toString() to it.activityInfo.packageName }
+                .distinctBy { it.second }
+                .sortedBy { it.first }
+        } catch (t: Throwable) {
+            Log.w("DexPadUi", "pickApp query failed: ${t.message}")
+            emptyList()
+        }
+        Log.i("DexPadUi", "pickApp: ${apps.size} launchable apps visible")
+        if (apps.isEmpty()) {
+            // 包可见性受限（或系统异常）时不能列应用：让用户直接输入包名
+            toast("没有查到可启动的应用，改为手动输入包名")
+            editPackage(title, current, onPick)
+            return
+        }
         val items = apps.map {
             val mark = if (it.second == current) "✓ " else ""
             "$mark${it.first}\n${it.second}"
         }.toTypedArray()
         AlertDialog.Builder(this)
-            .setTitle(title)
+            .setTitle("$title（共 ${apps.size} 个）")
             .setItems(items) { _, i -> onPick(apps[i].second) }
+            .setNeutralButton("手动输入包名") { _, _ -> editPackage(title, current, onPick) }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /** 手动输入目标包名（列表为空时的兜底） */
+    private fun editPackage(title: String, current: String, onPick: (String) -> Unit) {
+        val input = EditText(this).apply {
+            setText(current)
+            setSelectAllOnFocus(true)
+            setHint("例如 com.android.settings")
+            setSingleLine(true)
+        }
+        val box = FrameLayout(this)
+        val lp = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+        )
+        lp.leftMargin = dp(24)
+        lp.rightMargin = dp(24)
+        lp.topMargin = dp(8)
+        box.addView(input, lp)
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(box)
+            .setPositiveButton("保存") { _, _ ->
+                val pkg = input.text.toString().trim()
+                if (pkg.isBlank()) {
+                    toast("包名不能为空")
+                } else {
+                    onPick(pkg)
+                }
+            }
             .setNegativeButton("取消", null)
             .show()
     }
@@ -311,13 +356,16 @@ class ButtonDetailActivity : Activity() {
                 prefs.setMixKeys(slot, keys)
                 pickAction("${keys.joinToString(" + ") { Prefs.buttonLabel(it) }} → 映射动作") { picked ->
                     prefs.setMixAction(slot, picked)
-                    if (picked == Action.KEY_COMBO) {
-                        editCombo("组合的键盘快捷键", prefs.mixValue(slot)) { v ->
+                    when (picked) {
+                        Action.KEY_COMBO -> editCombo("组合的键盘快捷键", prefs.mixValue(slot)) { v ->
                             prefs.setMixValue(slot, v)
                             rebuild()
                         }
-                    } else {
-                        rebuild()
+                        Action.OPEN_APP -> pickApp("组合 → 打开哪个应用", prefs.mixValue(slot)) { pkg ->
+                            prefs.setMixValue(slot, pkg)
+                            rebuild()
+                        }
+                        else -> rebuild()
                     }
                 }
             }
@@ -342,13 +390,16 @@ class ButtonDetailActivity : Activity() {
                 prefs.setMixKeys(slot, keys)
                 pickAction("${Prefs.buttonLabel(button)} + … → 映射动作") { picked ->
                     prefs.setMixAction(slot, picked)
-                    if (picked == Action.KEY_COMBO) {
-                        editCombo("组合的键盘快捷键", prefs.mixValue(slot)) { v ->
+                    when (picked) {
+                        Action.KEY_COMBO -> editCombo("组合的键盘快捷键", prefs.mixValue(slot)) { v ->
                             prefs.setMixValue(slot, v)
                             rebuild()
                         }
-                    } else {
-                        rebuild()
+                        Action.OPEN_APP -> pickApp("组合 → 打开哪个应用", prefs.mixValue(slot)) { pkg ->
+                            prefs.setMixValue(slot, pkg)
+                            rebuild()
+                        }
+                        else -> rebuild()
                     }
                 }
             }
@@ -363,19 +414,25 @@ class ButtonDetailActivity : Activity() {
 
     private fun mixActionLabel(slot: Int): String {
         val action = prefs.mixAction(slot)
-        return if (action == Action.KEY_COMBO) {
-            "键盘快捷键（${KeyCombo.pretty(prefs.mixValue(slot))}）"
-        } else {
-            Action.label(action)
+        return when (action) {
+            Action.KEY_COMBO -> "键盘快捷键（${KeyCombo.pretty(prefs.mixValue(slot))}）"
+            Action.OPEN_APP -> {
+                val pkg = prefs.mixValue(slot)
+                if (pkg.isBlank()) "打开应用（未选择）" else "打开应用（$pkg）"
+            }
+            else -> Action.label(action)
         }
     }
 
     private fun summaryOf(btn: String): String {
         val action = prefs.action(btn)
-        return if (action == Action.KEY_COMBO) {
-            "键盘快捷键（${KeyCombo.pretty(prefs.combo(btn))}）"
-        } else {
-            Action.label(action)
+        return when (action) {
+            Action.KEY_COMBO -> "键盘快捷键（${KeyCombo.pretty(prefs.combo(btn))}）"
+            Action.OPEN_APP -> {
+                val pkg = prefs.param(btn)
+                if (pkg.isBlank()) "打开应用（未选择）" else "打开应用（$pkg）"
+            }
+            else -> Action.label(action)
         }
     }
 
