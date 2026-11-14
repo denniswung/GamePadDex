@@ -1,80 +1,62 @@
-# v1.61 发布说明（2026-11-14）
+# v1.62 发布说明（2026-11-14）
 
-包名：`com.dennis.dexpad`　versionCode **63** / versionName **1.61**
-配套：KernelSU 模块 `gpm_dex` v1.61 · 助手 `gpminput` v1.61 · 测试台 `com.dennis.padtest`
+包名：`com.dennis.dexpad`　versionCode **64** / versionName **1.62**
+配套：KernelSU 模块 `gpm_dex` v1.62 · 助手 `gpminput` v1.62 · 测试台 `com.dennis.padtest`
 
-## 修的问题：d-pad 选中后按 A 无法确认
+## 1. 双击无效（例如 X 双击进不了多任务）—— 根因
 
-这次是**两个独立缺陷叠在一起**，所以之前"时好时坏"：
+双击检测一直在工作（日志里有 `double x -> recents`），但**"最近任务"键注入错了**：
 
-### 缺陷 1：确认键注入错了（KEY_OK 不生效）
+- Android 的 `KEYCODE_APP_SWITCH(187)` 被映射成 Linux `KEY_COMPOSE/125`；
+- 而本机 `Generic.kl` 里 **`key 580 APP_SWITCH`** 才是最近任务；
+- 结果：按了"最近任务"实际上是按了"Windows 键"，页面当然没反应。
 
-A 在 d-pad 导航模式下会注入 `DPAD_CENTER`，助手把它映射成 Linux `KEY_OK(352)`。
-但在这台三星上 **`KEY_OK` 根本不会触发确认**——实测：
+已改为 **187 → 580（APP_SWITCH）**。实测：
 
-| 注入的键 | 结果 |
-|---|---|
-| `KEY_OK(352)` | ❌ 无反应 |
-| `KEY_ENTER(28)` | ✅ 确认成功 |
-| `KEY_SELECT(353)` / `KEY_KPENTER(96)` | ✅ 也可以 |
+```
+engine: double x -> recents
+helper: KEYUIN 0 187 lcode=580
+after : com.sec.android.app.launcher/com.android.quickstep.RecentsActivity
+```
 
-已改为 `KEY_ENTER(28)`。这正是"d-pad 能选中、按 A 没反应"的直接原因。
+另外把双击窗口从 **320ms 放宽到 400ms**（人手双击 300ms 左右很常见）。
 
-### 缺陷 2：导航模式 1.2 秒就过期
+## 2. X+LB / X+RB 功能对调
 
-`nativeNav` 原来 1.2 秒后自动退出，超时后 A 又变回"在光标位置点击"。
-而人的正常节奏是：d-pad 选中 → 看一眼 → 再按 A，很容易超过 1.2 秒。
+按要求把两个方向对调：
 
-现在改为**粘性导航模式**：
-- 按过 d-pad 就进入导航模式，**A = 确认**，不再按时间过期；
-- **移动左摇杆 = 回到鼠标模式**，A 恢复为鼠标点击（这是明确的切换动作）；
-- 关闭鼠标模式也会退出导航模式。
+| 组合 | 现在的行为 | 效果 |
+|---|---|---|
+| **X + LB** | 手指向右滑 | 内容向右 → **上一页** |
+| **X + RB** | 手指向左滑 | 内容向左 → **下一页** |
 
-## 测试（28/28 通过，全部设备实测）
+实测：`X+LB: 1280→2540`（向右）、`X+RB: 1280→20`（向左）。
 
-新增 d-pad 专项用例：
+## 3. 测试（32/32 通过）
+
+新增 4 条用例：
 
 | ID | 用例 | 结果 |
 |---|---|---|
-| F1 | d-pad 选中后**等 2 秒**再按 A → 测试台按钮被真正点中（T10） | PASS |
-| F2 | A 走出的是 `DPAD_CENTER`，不是鼠标点击（click=0） | PASS |
-| F3 | d-pad 后推左摇杆 → A 恢复为鼠标点击 | PASS |
-| F4 | d-pad 按住连发（1.6 秒 12 次） | PASS |
+| G1 | X 双击 → 多任务页面（实测进入 RecentsActivity） | PASS |
+| G2 | 慢一点的双击（间隔 300ms）也能识别 | PASS |
+| G3 | X+LB 手指向右（1280→2540） | PASS |
+| G4 | X+RB 手指向左（1280→20） | PASS |
 
 完整结果：
 
 ```
-A1 版本 1.61   A2 测试台   A3 链路   A4 鼠标模式
-B1-T1 指针移动  B1-T2 点击  B1-T3 长按  B1-T4 方向键焦点
-B1-T5 滚动      B1-T6 缩放  B1-T7 键盘组合
-B2-T8 返回键    B3-T9 触摸点击
-F1 d-pad 确认   F2 注入方式  F3 摇杆切鼠标  F4 连发
+A1 版本 1.62  A2 测试台  A3 链路  A4 鼠标模式
+B1-T1..T7（指针/点击/长按/方向键焦点/滚动/双指缩放/键盘组合）
+B2-T8 返回键  B3-T9 触摸点击
+F1 d-pad 选中后 A 确认  F2 注入方式  F3 摇杆切鼠标  F4 d-pad 连发
+G1 X 双击多任务  G2 慢双击  G3 X+LB  G4 X+RB
 C1 主屏  C2 返回  C3 通知栏  C4 静音  C5 音量  C6 杀前台  C7 电源
 D1 打开目标应用  E1 无崩溃  E2 无 ANR
-PASS=28 FAIL=0
+PASS=32 FAIL=0
 ```
 
-测试台报告（AutoTestActivity 自己判定）：
+## 4. 已知限制
 
-```json
-{ "T1 指针移动": true, "T2 鼠标点击": true, "T3 长按": true,
-  "T4 方向键焦点": true, "T5 滚动": true, "T6 双指缩放": true,
-  "T7 键盘组合": true, "T8 返回键": true, "T9 触摸点击": true,
-  "T10 方向键确认": true, "focusMoves": 4, "scrollRange": "0..335" }
-```
-
-## 使用说明（d-pad / 鼠标怎么切）
-
-| 你想做的事 | 操作 |
-|---|---|
-| 用方向键选条目 | 按 d-pad（自动进入导航模式） |
-| 确认/打开选中的条目 | 按 **A**（此时是 `DPAD_CENTER`，不是点击） |
-| 回到鼠标模式 | 推一下**左摇杆**（A 立刻恢复成鼠标点击） |
-
-## 安装校验
-
-| 检查 | 结果 |
-|---|---|
-| 设备 APK sha256 = `dexpad-v1.61.apk` | ✅ |
-| `/data/adb/gpm/gpminput` = 构建产物 | ✅ |
-| 模块目录里的助手/`module.prop` | ✅ 已同步 v1.61/63 |
+- 双击窗口 400ms：带双击动作的按键（X、R3）单击会延迟 400ms 才生效（这是双击判定的代价）。
+- 其余同前。
