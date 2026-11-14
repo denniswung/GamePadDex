@@ -323,6 +323,9 @@ class RootInput(
     /** inject one Android key code on a display (root helper runs `input -d`) */
     fun pointKey(displayId: Int, keyCode: Int) = send("D $displayId $keyCode")
 
+    /** 把光标放到绝对坐标（助手内部：有界到左上角再一步到位） */
+    fun positionPointer(x: Int, y: Int, w: Int, h: Int) = send("P $x $y $w $h")
+
     /** 方向键走虚拟手柄 HAT（系统会翻成 DPAD_*），dir: 1上 2下 3左 4右 */
     /** 查询当前前台包名（助手回 TOP <pkg>） */
     fun queryTop() = send("t")
