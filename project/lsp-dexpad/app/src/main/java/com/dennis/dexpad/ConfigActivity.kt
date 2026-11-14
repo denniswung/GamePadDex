@@ -187,52 +187,13 @@ class ConfigActivity : Activity() {
         refreshStatus()
     }
 
-    /** "打开目标应用"动作的目标包名选择器 */
-    private fun buildTargetApp() {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(12), dp(18), dp(12))
-            isClickable = true
-        }
-        row.addView(android.widget.TextView(this).apply {
-            text = "打开目标应用"
-            textSize = 16f
-            setTextColor(0xFF202124.toInt())
-        })
-        row.addView(android.widget.TextView(this).apply {
-            val pkg = prefs.targetPackage
-            text = if (pkg.isBlank()) "未设置（点击选择）" else pkg
-            textSize = 13f
-            setTextColor(0xFF5F6368.toInt())
-        })
-        row.setOnClickListener { pickTargetApp() }
-        content.addView(card(row))
-    }
-
-    private fun pickTargetApp() {
-        val pm = packageManager
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val apps = pm.queryIntentActivities(intent, 0)
-            .map { it.loadLabel(pm).toString() to it.activityInfo.packageName }
-            .distinctBy { it.second }
-            .sortedBy { it.first }
-        if (apps.isEmpty()) {
-            android.widget.Toast.makeText(this, "没有可启动的应用", android.widget.Toast.LENGTH_SHORT).show()
-            return
-        }
-        val items = apps.map { "${it.first}\n${it.second}" }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("选择目标应用")
-            .setItems(items) { _, i ->
-                prefs.targetPackage = apps[i].second
-                rebuild()
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
     private fun buildPointer() {
         content.addView(card(
+            switchRow(
+                "左键注入方式：触摸点击",
+                "关（默认）= 鼠标左键，最可靠；开 = 在光标位置注入真实触摸（部分 App 只认触摸）",
+                prefs.leftClickTouch,
+            ) { v -> prefs.leftClickTouch = v },
             sliderRow("手机指针速度", 5, 100, prefs.speedPhone, " px/帧") { v -> prefs.speedPhone = v },
             sliderRow("摇杆死区", 0, 40, prefs.deadzone / 10, "%") { v -> prefs.deadzone = v * 10 },
             sliderRow("精准移动（X+左摇杆）", 5, 50, prefs.precisionScale, "% 速度") { v -> prefs.precisionScale = v },
@@ -527,15 +488,23 @@ class ConfigActivity : Activity() {
                     .putExtra("button", button),
             )
         }
+        // 长按：不进去详情页，直接换这个键的动作（更快）
+        row.setOnLongClickListener {
+            chooseAction(button)
+            true
+        }
         return row
     }
 
     private fun summaryOf(button: String): String {
         val action = prefs.action(button)
-        val single = if (action == Action.KEY_COMBO) {
-            "键盘快捷键（${KeyCombo.pretty(prefs.combo(button))}）"
-        } else {
-            Action.label(action)
+        val single = when (action) {
+            Action.KEY_COMBO -> "键盘快捷键（${KeyCombo.pretty(prefs.combo(button))}）"
+            Action.OPEN_APP -> {
+                val pkg = prefs.param(button)
+                if (pkg.isBlank()) "打开应用（未选择）" else "打开应用（$pkg）"
+            }
+            else -> Action.label(action)
         }
         val dbl = prefs.doubleAction(button)
         return if (dbl == Action.NONE) single
@@ -544,15 +513,78 @@ class ConfigActivity : Activity() {
 
     private fun chooseAction(button: String) {
         pickAction("${Prefs.buttonLabel(button)} → 映射动作") { picked ->
-            prefs.setAction(button, picked)
-            if (picked == Action.KEY_COMBO) {
-                editCombo("${Prefs.buttonLabel(button)} 的键盘快捷键", prefs.combo(button)) { v ->
-                    prefs.setCombo(button, v)
+            when (picked) {
+                Action.KEY_COMBO -> {
+                    prefs.setAction(button, picked)
+                    editCombo("${Prefs.buttonLabel(button)} 的键盘快捷键", prefs.combo(button)) { v ->
+                        prefs.setCombo(button, v)
+                    }
                 }
-            } else {
-                rebuild()
+                Action.OPEN_APP -> {
+                    // 「打开目标应用」必须跟着选一个 App，否则运行时点了没反应
+                    prefs.setAction(button, picked)
+                    pickAppForButton(button)
+                }
+                else -> {
+                    prefs.setAction(button, picked)
+                    rebuild()
+                }
             }
         }
+    }
+
+    /** 给某个按键选「打开目标应用」的目标包名 */
+    private fun pickAppForButton(button: String) {
+        val pm = packageManager
+        val intent = android.content.Intent(android.content.Intent.ACTION_MAIN)
+            .addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+        val apps = try {
+            pm.queryIntentActivities(intent, 0)
+                .map { it.loadLabel(pm).toString() to it.activityInfo.packageName }
+                .distinctBy { it.second }
+                .sortedBy { it.first }
+        } catch (t: Throwable) {
+            Log.w("DexPad", "pickAppForButton query failed: ${t.message}")
+            emptyList()
+        }
+        if (apps.isEmpty()) {
+            editPackageManually(button)
+            return
+        }
+        val items = apps.map {
+            val mark = if (it.second == prefs.param(button)) "✓ " else ""
+            "$mark${it.first}\n${it.second}"
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("${Prefs.buttonLabel(button)} → 打开哪个应用（${apps.size} 个）")
+            .setItems(items) { _, i ->
+                prefs.setParam(button, apps[i].second)
+                rebuild()
+            }
+            .setNeutralButton("手动输入包名") { _, _ -> editPackageManually(button) }
+            .setNegativeButton("取消") { _, _ -> rebuild() }
+            .show()
+    }
+
+    private fun editPackageManually(button: String) {
+        val input = android.widget.EditText(this).apply {
+            setText(prefs.param(button))
+            setHint("例如 com.android.settings")
+            setSingleLine(true)
+        }
+        val box = android.widget.FrameLayout(this)
+        box.setPadding(dp(24), dp(8), dp(24), dp(0))
+        box.addView(input)
+        AlertDialog.Builder(this)
+            .setTitle("${Prefs.buttonLabel(button)} → 目标包名")
+            .setView(box)
+            .setPositiveButton("保存") { _, _ ->
+                val pkg = input.text.toString().trim()
+                if (pkg.isNotEmpty()) prefs.setParam(button, pkg)
+                rebuild()
+            }
+            .setNegativeButton("取消") { _, _ -> rebuild() }
+            .show()
     }
 
     private fun pickAction(title: String, onPicked: (String) -> Unit) {
