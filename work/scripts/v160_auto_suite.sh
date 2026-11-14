@@ -43,7 +43,7 @@ svc_set(){ XML=$(xmlp); awk -v k="$1" -v v="$2" 'BEGIN{d=0}
 svc_setbool(){ XML=$(xmlp); awk -v k="$1" -v v="$2" 'BEGIN{d=0}
   /<\/map>/ { if(!d){ printf "    <boolean name=\"%s\" value=\"%s\" />\n", k, v; d=1 } }
   { print }' "$XML" > /data/local/tmp/pp.xml; cat /data/local/tmp/pp.xml > "$XML"; chmod 600 "$XML"; }
-clean_prefs(){ XML=$(xmlp); awk '!/name="btn_y"/ && !/name="par_y"/ && !/name="left_touch"/ && !/name="btn_a"/ && !/name="mix_0_/' "$XML" > /data/local/tmp/pp.xml; cat /data/local/tmp/pp.xml > "$XML"; chmod 600 "$XML"; }
+clean_prefs(){ XML=$(xmlp); awk '!/name="(btn_|par_|left_touch|mix_|combo_|dbl_|lng_)/' "$XML" > /data/local/tmp/pp.xml; cat /data/local/tmp/pp.xml > "$XML"; chmod 600 "$XML"; }
 
 wake; sleep 1
 ps -A -o PID,NAME | grep gpminput | grep -v grep | awk '{print $1}' | xargs -r kill -9
@@ -213,7 +213,7 @@ echo "===== H. 打开应用 / 光标重居中（v1.63 修复）====="
 # H1: Start+上 -> 打开 PiliPlus（用 keyvhat 模拟竖直方向键）
 stop_engine
 svc_del_keys(){ XML=$(xmlp); awk -v pat="$1" '$0 !~ pat' "$XML" > /data/local/tmp/pp.xml; cat /data/local/tmp/pp.xml > "$XML"; chmod 600 "$XML"; }
-svc_del_keys 'name="mix_(0|1|9|11|12)_'
+svc_del_keys 'name="mix_'
 svc_set mix_11_keys start+up
 svc_set mix_11_action open_app
 svc_set mix_11_value com.example.piliplus
@@ -226,19 +226,31 @@ sleep 3
 O=$(top)
 case "$O" in com.example.piliplus*) ok "H1 Start+上 打开 PiliPlus（$O）";; *) bad "H1 Start+上 打开应用（$O）";; esac
 
-# H2: 指针空闲隐藏后重建 -> 自动回中心（不再卡边界）
+# H2: 指针空闲隐藏后重建 -> 恢复到"上次的位置"（不是回中心）
 am force-stop $PAD; sleep 1
-am start -n $PAD/.ui.AutoTestActivity >/dev/null 2>&1
+am start -n $PAD/.ui.CursorTestActivity >/dev/null 2>&1
 sleep 2.5
 $VG key 317 100 1200 >/dev/null 2>&1
 sleep 1.2
-$VG hat 0 1 250 >/dev/null 2>&1
-sleep 10
 logcat -c
-$VG stick 0 20000 1200 2000 >/dev/null 2>&1
+$VG stick 0 20000 700 2000 >/dev/null 2>&1
+$VG stick 1 20000 500 0 >/dev/null 2>&1
 sleep 0.6
-R=$(logcat -d -s DexPad | grep -ac 're-centred')
-[ "$R" -ge 1 ] && ok "H2 指针重建后自动回中心（$R 次）" || bad "H2 指针重建未回中心"
+LM=$(logcat -d -s DexPad | grep -a 'ptr move' | tail -1)
+EX=$(echo "$LM" | sed -n 's/.*at \([0-9]*\),.*/\1/p')
+EY=$(echo "$LM" | sed -n 's/.*,\([0-9]*\)$/\1/p')
+sleep 9
+logcat -c
+$VG stick 0 14000 300 2000 >/dev/null 2>&1
+sleep 1.2
+SH=$(logcat -d -s DexPad | grep -a 'pointer shown at last position' | tail -1)
+RX=$(echo "$SH" | sed -n 's/.*position \([0-9]*\),.*/\1/p')
+RY=$(echo "$SH" | sed -n 's/.*,\([0-9]*\) .*/\1/p')
+DX=$(( RX > EX ? RX - EX : EX - RX ))
+DY=$(( RY > EY ? RY - EY : EY - RY ))
+[ -n "$RX" ] && [ "$DX" -le 200 ] && [ "$DY" -le 200 ] \
+  && ok "H2 恢复上次位置（上次≈$EX,$EY 恢复=$RX,$RY）" \
+  || bad "H2 恢复位置（上次≈$EX,$EY 恢复=$RX,$RY）"
 
 # H3: d-pad 确认后摇杆四个方向都能动（不卡边界）
 am start -a android.settings.SETTINGS >/dev/null 2>&1; sleep 2
@@ -260,7 +272,7 @@ NEGY=$(echo "$LOG" | grep -ac 'dy=-')
 
 # 清掉测试组合
 stop_engine
-svc_del_keys 'name="mix_(0|1|9|10|11|12)_'
+svc_del_keys 'name="mix_'
 start_engine
 
 echo "===== C. 系统动作实际效果 ====="
@@ -280,7 +292,17 @@ A=$(top)
 [ "$B" != "$A" ] && ok "C2 B 返回生效（$B -> $A）" || bad "C2 B 返回（$B -> $A）"
 
 wake; sleep 1.2
+i=0
+while [ $i -lt 4 ]; do
+  input keyevent KEYCODE_WAKEUP >/dev/null 2>&1
+  wm dismiss-keyguard >/dev/null 2>&1
+  sleep 0.8
+  screencap -p /data/local/tmp/n0.png 2>/dev/null
+  [ "$(wc -c < /data/local/tmp/n0.png)" -gt 100000 ] && break
+  i=$((i+1))
+done
 am start -n $PAD/.ui.SelfCheckActivity >/dev/null 2>&1; sleep 2
+wake; sleep 0.4
 screencap -p /data/local/tmp/n0.png 2>/dev/null
 : > /data/adb/gpm/helper.log
 $VG key 314 150 1200 >/dev/null 2>&1
@@ -288,7 +310,7 @@ sleep 2.5
 screencap -p /data/local/tmp/n1.png 2>/dev/null
 S0=$(wc -c < /data/local/tmp/n0.png); S1=$(wc -c < /data/local/tmp/n1.png)
 D=$(( S1 - S0 )); D=${D#-}
-grep -aq 'NOTIF uinput=1' /data/adb/gpm/helper.log && [ "$D" -gt 200 ] && ok "C3 SELECT 通知栏（$S0->$S1）" || bad "C3 SELECT 通知栏（$S0->$S1）"
+grep -aq 'NOTIF swipe' /data/adb/gpm/helper.log && [ "$D" -gt 500000 ] && ok "C3 SELECT 通知栏（$S0->$S1）" || bad "C3 SELECT 通知栏（$S0->$S1）"
 input keyevent KEYCODE_BACK >/dev/null 2>&1; sleep 1
 
 : > /data/adb/gpm/helper.log
