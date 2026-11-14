@@ -1,102 +1,211 @@
-# Gamepad Mouse · DeX 复刻版
+# GamePadDex · 手柄鼠标
 
-对 `com.pkyul13.gamepadmouse`（Google Play "Gamepad mouse" v2.0.2）的净室复刻：
-把有线 DeX 下的手柄变成鼠标/键盘，并解决原版「进入鼠标模式后手柄仍被 DeX 当方向键」的核心问题。
+把手柄（Xbox / 通用 XInput 系）变成 **DeX 与手机可用的鼠标 + 键盘**，并顺手解决一个老问题：
+进入鼠标模式后，手柄按键**仍然**被系统当成方向键/焦点键，跟鼠标光标打架。
 
-- 模块形态：**LSPosed 模块** `com.dennis.dexpad`（入口注入三星设置页）+ **root 助手** `gpminput`（EVIOCGRAB + uinput）
-- 目标设备：SM-F9360（Android 16 / KernelSU），也支持手机（非 DeX）模式
-- 详细说明：[LSP-手柄映射](docs/LSP-手柄映射.md) ｜ [代码结构](docs/ARCHITECTURE.md) ｜ [测试清单](docs/TEST-CHECKLIST.md) ｜ [测试结果](docs/TEST-RESULTS.md) ｜ [发布说明](release/RELEASE-NOTES.md)
+> 这是对 Google Play 应用 **Gamepad mouse**（`com.pkyul13.gamepadmouse`）的净室复刻：
+> 原版用无障碍手势注入，本项目改成 **KernelSU root 助手 + LSPosed 模块**，不依赖无障碍，
+> 也不需要在系统里常驻一个假光标。目标机型 SM-F9360（Galaxy Z Fold4，Android 16）。
 
-## 1. 能力
+**当前版本：v1.53** ｜ [发布说明](release/RELEASE-NOTES.md) ｜ [架构说明](docs/ARCHITECTURE.md) ｜ [测试台说明](docs/PADTEST-README.md)
 
-- **鼠标**：左摇杆光标（死区 + 曲线可调）、A 左键、B 右键、中键、LB/RB 滚轮、L3 光标居中（含折叠屏旋转补偿）
-- **滚动**：右摇杆上下 = 真实触摸拖动（竖向信息流/短剧能正常吸附翻页），左右 = 水平触摸拖动
-- **方向键（原生）**：d-pad 在无其他按键按住时转发成系统方向键（原生焦点导航）；按住 X 等键时照常上报，
-  `X+↑/↓/←/→` 组合可匹配；A 在原生导航态变为 `DPAD_CENTER` 激活焦点
-- **模式**：全局鼠标模式开关；插入有线 DeX 自动开启；「手机上也启用（非 DeX）」默认开
-- **DeX 判定**：用 `DexTaskbarWindow` 区分真 DeX 与 HDMI 屏幕镜像；镜像/手机时动作发往手机焦点屏
-- **动作表**：音量/媒体、方向键、窗口（最大化/最小化/对齐/关闭/截图/切 DeX）、通知栏、切应用、组合键 24 槽、双击
-- **手机降级**：最大化/对齐/切 DeX 跳过；最小化→HOME；关闭应用→force-stop 前台包；截图→SYSRQ
-- **后台**：前台服务 + KSU 守护（8 s 轮询），关配置页/划掉任务不停止
+---
 
-## 2. 结构（详见 docs/ARCHITECTURE.md）
+## 1. 它是怎么工作的
+
+```
+手柄 ──evdev──> gpminput（root 助手，EVIOCGRAB 独占）──unix socket──> DexPad App（LSPosed 模块）
+                    │                                                      │
+                    ├─ 虚拟鼠标  /dev/uinput (REL + 按键 + 滚轮)  <───────┤ 光标移动 / 点击 / 滚动
+                    ├─ 虚拟键盘  /dev/uinput (KEY_*)              <───────┤ 方向键 / 组合键 / 电源键
+                    └─ 虚拟绝对指针（仅备用）                              │
+                                                                           └─ 决定每个按键做什么
+```
+
+- **助手** `gpminput`（C，静态 aarch64）用 `EVIOCGRAB` **独占**手柄：系统、DeX 桌面、前台应用都收不到手柄事件，
+  于是标题里那个"手柄还会被当方向键"的问题从根上消失。
+- 助手把归一化事件经 unix socket 发给 App，App 用 8 ms 的循环把摇杆换算成光标位移、把按键翻译成动作，
+  再让助手用 `uinput` 注入回系统——于是系统看到的只是一只普通鼠标和一只普通键盘。
+- **LSPosed 模块**负责注入三星设置页入口 + 绕过系统对后台服务的限制（免费冻结、后台弹窗等）。
+
+## 2. 功能
+
+### 鼠标 / 滚动
+- 左摇杆移动光标：死区、曲线、速度、边缘减速、精确模式（按住 X）全部可调
+- 松手**立刻停**：摇杆回死区就重置滤波并丢弃 < 0.6 px 的亚像素位移，不会"再滑一段"
+- 空闲 **8 秒**自动隐藏指针（可关）：助手销毁虚拟鼠标设备，系统没有指针设备可画；
+  一动摇杆/按键立刻恢复
+- 右摇杆上下 = **真实触摸拖动**（竖向信息流、短剧能正常吸附翻页）；左右 = 水平拖动
+- LB / RB = 手持上滑 / 下滑（相当于"内容下一页 / 上一页"），桌面与系统弹窗上自动转成方向键
+
+### 按键
+- A 左键、B 返回、X 长按菜单（双击多任务）、Y 主屏
+- L3 **一次性居中**：40 个有界小步归零 + 一步到屏幕中心，不跳、不丢光标（增益可调）
+- R3 静音（双击播放/暂停）、START 切换应用、SELECT 通知栏
+- **GUIDE（Xbox 键）短按 = 杀掉前台应用**（长按显示帮助；X+GUIDE 也可强杀）
+- 扳机 LT/RT = 缩小 / 放大
+
+### 方向键与组合键
+- d-pad 默认 = **系统方向键**（焦点导航），不会跟光标抢
+- 组合键 24 槽，默认：`X+↑/↓` 音量、`X+←/→` 上/下一曲、`X+LB/RB` 左右翻页、`Y+L3` **开关屏幕**
+- 每个按键都能自定义：单击 / 双击 / 长按 / 组合（动作表见 `Actions.kt`）
+
+### 模式
+- **鼠标模式**开关（SHARE 键切换）：关掉时手柄立即交还系统，所有映射按键不动作
+- 「手机上也启用」：手机（非 DeX）模式同样可用
+- DeX 判定用 `DexTaskbarWindow`，区分真 DeX 与 HDMI 镜像
+- 前台服务 + KernelSU 守护，关掉配置页 / 划掉任务不会停
+
+## 3. 默认键位表
+
+| 手柄 | 默认动作 | 备注 |
+|---|---|---|
+| 左摇杆 | 移动光标 | 按住 X = 精确模式（慢速） |
+| 右摇杆 ↑↓ / ←→ | 竖向 / 横向触摸拖动 | 真实触摸事件，能触发翻页吸附 |
+| A | 鼠标左键 | |
+| B | 返回 | |
+| X | 无（长按菜单 / 双击多任务） | 也是组合键的修饰键 |
+| Y | 主屏 | |
+| LB / RB | 手指下滑 / 上滑 | 桌面等不可滚界面自动转方向键 |
+| LT / RT | 缩小 / 放大 | `Ctrl+-` / `Ctrl++`，进程内 uinput |
+| L3 | 光标居中 | 一次性，可调增益 |
+| R3 | 静音（双击播放/暂停） | |
+| START | 切换应用 | |
+| SELECT | 通知栏 | |
+| GUIDE | 杀前台应用 | 长按 = 帮助；X+GUIDE = 强杀 |
+| d-pad | 系统方向键 | |
+| SHARE | 切换鼠标模式 | 关 = 手柄交还系统 |
+| X + ↑ / ↓ | 音量 + / − | |
+| X + ← / → | 上一曲 / 下一曲 | |
+| X + LB / RB | 向左 / 向右翻页 | |
+| Y + L3 | 开 / 关屏幕 | 走虚拟键盘 KEY_POWER |
+
+## 4. 安装
+
+### 前置
+- Root：**KernelSU**（Magisk 理论上也行，模块格式相同）
+- **LSPosed**（或 Vector），作用域必须勾选 **系统设置 `com.android.settings`**
+- Android 12L 及以上（`minSdk 32`）
+
+### 步骤
+1. 安装 `dexpad-v1.53.apk`；
+2. LSPosed 里启用本模块，**作用域勾选「设置」**，重启；
+3. 把 `gpm_dex-v1.53.zip` 作为 **KernelSU 模块**安装（或解压到 `/data/adb/modules/gpm_dex/`），重启；
+4. 打开 **设置 → 手柄鼠标**，打开开关（通知栏会出现"鼠标模式：开"）；
+5. 接上手柄，按 SHARE 切换鼠标模式。
+
+> **late-load KernelSU 的机器注意**：部分机型（含 SM-F9360）的 KernelSU 是 late-load 模式，
+> 模块脚本开机不会自动执行，需要手动拉起助手：
+> `adb shell "setsid /data/adb/gpm/gpminput --socket /data/data/com.dennis.dexpad/files/gpm.sock &"`
+> （也可以用 `release/dexpad_start.sh`）。
+
+## 5. 目录结构
 
 ```
 project/
-  lsp-dexpad/                    LSPosed 模块（Kotlin，AGP 9.3.1 / JDK 17）
+  lsp-dexpad/                      LSPosed 模块（Kotlin）
     app/src/main/java/com/dennis/dexpad/
-      Hook.java                往三星设置页注入入口
-      ConfigActivity / ButtonDetailActivity   配置页 / 单键详情
-      EngineService.kt         8ms 映射循环（摇杆/滑动/缩放/组合调度）
-      ActionRouter.kt          一次性动作执行（手机/DeX 分支）
-      Actions.kt               动作表（唯一来源）
-      DisplayState.kt          DeX/手机屏判定、尺寸、旋转、DEX/FOCUS 上报
-      RootInput.kt             助手 socket 客户端
-      KeyCodes.kt              Linux→Android、Android→按钮名
-      Prefs.kt                 偏好
-  app/src/main/assets/gpminput.c  root 助手源码（evdev/协议/注入）
-  app/src/main/assets/display.c   助手显示辅助（DeX 判定/分辨率/任务栏）
-  app/src/main/assets/gpminput    aarch64 静态二进制
-  ksu-module/                    KernelSU 模块（service.sh 守护）
-docs/                            模块说明、架构、注入速查
-release/                         发布物 + SHA256SUMS + RELEASE-NOTES
-backup/                          源码备份 zip
-export/toolchain/                通用工具链（助手/脚本/测试/文档）
+      Hook.java                    注入三星设置页入口
+      ConfigActivity.kt            配置页
+      ButtonDetailActivity.kt      单键详情（单击/双击/长按/组合）
+      EngineService.kt             8 ms 映射循环（光标/滚动/组合/模式）
+      ActionRouter.kt              一次性动作执行（手机 / DeX 分支）
+      Actions.kt                   动作表（唯一来源）
+      Prefs.kt                     偏好与默认值
+      RootInput.kt                 助手 socket 客户端
+      KeyCodes.kt                  Linux → Android → 按钮名
+      DisplayState.kt              显示判定（尺寸/旋转/DeX）
+  app/src/main/assets/
+      gpminput.c                   root 助手源码（evdev + 协议 + 注入）
+      display.c                    显示辅助（DeX 判定 / 分辨率 / 任务栏）
+      gpminput                     aarch64 静态二进制（构建产物）
+  ksu-module/                      KernelSU 模块（service.sh 守护 + inject.dex）
+  padtest/                         独立测试台 App（见下）
+docs/                              设计文档 / 测试用例 / 测试结果
+release/                           打包产物（APK、模块 zip、助手、校验和）
+work/scripts/                      adb 自动化测试脚本
 ```
 
-## 3. 构建
+## 6. 构建
+
+环境：Linux 或 WSL（Ubuntu 22.04+）、**JDK 17**、Android SDK（platform 36）、NDK 可选。
 
 ```bash
-# 模块（WSL）
+# 模块 App
 cd project/lsp-dexpad
-JAVA_HOME=~/tools/jdk-17.0.20.1+1 ANDROID_HOME=~/android-sdk \
-  ./gradlew --no-daemon --no-build-cache clean assembleRelease
+JAVA_HOME=~/tools/jdk-17 ANDROID_HOME=~/android-sdk \
+  ./gradlew --no-daemon assembleRelease     # 产物 app/build/outputs/apk/release/
 
 # root 助手（aarch64 静态）
 cd project/app/src/main/assets
 aarch64-linux-gnu-gcc -O2 -static -o gpminput gpminput.c display.c -lm
 ```
 
-## 4. 安装
+测试台 App：
 
 ```bash
-adb install -r release/dexpad-v1.43.apk
-adb shell /data/adb/lspd/cli modules enable com.dennis.dexpad
-adb shell /data/adb/lspd/cli scope add com.dennis.dexpad com.android.settings/0
-# KernelSU 里刷 gpm_dex-v1.43.zip，或手动：
-adb push gpminput-v1.43 /data/adb/gpm/gpminput
-adb shell chmod 755 /data/adb/gpm/gpminput
-adb shell sh dexpad_start.sh
+cd project/padtest
+./gradlew assembleDebug
 ```
 
-本机 KernelSU 是 late-load：**每次重启都要手动跑一次 `dexpad_start.sh`**（或重新打开无线调试后跑）。
+## 7. 测试台（project/padtest）
 
-## 5. 测试
+一个**不需要 root、不需要 LSPosed** 的独立 App，用来验证手柄本身和映射行为：
+7 个页面（链路自检 / 光标 / 滚动滑动 / 按键 / 系统动作 / 日志面板 / 结果汇总），
+事件全部来自 `dispatchKeyEvent` / `dispatchGenericMotionEvent` / `dispatchTouchEvent`，
+可导出 CSV / JSON / TXT 报告。详见 [docs/PADTEST-README.md](docs/PADTEST-README.md)。
 
-```bash
-# 虚拟手柄（aarch64）
-vgpad key 304 150 3000        # A
-vgpad hat 0 1 400 3000        # d-pad 下
-vgpad combo 309 310 600 3000  # X+LB
-vgpad double 307 60 90 3000   # 双击 X
+> 注：因为助手用 `EVIOCGRAB` 独占手柄，普通 App **看不到**被独占的按键；
+> 测试台用「监听窗口」+ 助手日志来验证映射结果。
+
+## 8. 验证方式
+
+所有改动都用 adb 脚本在真机上端到端自测，不靠肉眼：
+
+| 套件 | 内容 | 结果 |
+|---|---|---|
+| `work/scripts/v145_checklist.sh` | 按键/组合/摇杆/点亮/居中 | 16/16 |
+| `work/scripts/v147_checklist.sh` | 自检/双后端/任务范围/延迟 | 9/9 |
+| `work/scripts/v153_release_smoke.sh` | **Release 冒烟**：杀应用 / 电源键 / 居中 | 8/8 |
+| `work/scripts/padtest_smoke.sh` | 测试台 7 页 + 导出 | 17/17 |
+
+Release v1.53 冒烟实测输出：
+
+```
+PASS  版本 1.53            PASS  助手链路
+PASS  鼠标模式开            PASS  GUIDE 短按杀应用（进程 -> 已死）
+PASS  电源键 (Awake -> Dozing)
+PASS  居中命令执行          PASS  居中落点 x≈1319（目标 1280）
+PASS  无崩溃                PASS=8 FAIL=0
 ```
 
-回归脚本在 `work/scripts/`（组合、方向键、关闭应用、居中、滑动），发布前会在真机上逐项跑一遍。
+## 9. 已知限制
 
-## 6. 发布 / 备份（v1.43，2026-11-08）
+- **鼠标模式关闭时所有映射按键都不动作**——这是设计（手柄已交还系统）。按 SHARE 打开。
+- 助手用 `EVIOCGRAB` 独占手柄，其它 App 看不到手柄输入（这是屏蔽系统默认行为的代价）。
+- 本机型上系统**指针坐标读不到可靠值**（`dumpsys input` 的 hover 会坐标对调/超范围），
+  所以"是否正好居中"靠肉眼 + 落点日志，偏了请调设置里的「居中增益」。
+- `settings global display_size_forced` 会改变指针空间与增益标定，换分辨率后需重新标定。
+- 只支持 A/B/X/Y + 双摇杆 + 肩键/扳机 + d-pad 的标准手柄；非标准 HID 需要改 `is_gamepad()`。
+- 未在 DeX 外接屏（display 9）上做完整回归，仅验证了手机屏路径。
 
-| 文件 | 说明 |
+## 10. 版本历史
+
+| 版本 | 主要变化 |
 |---|---|
-| `release/dexpad-v1.43.apk` | LSPosed 模块（versionCode 31 / versionName 1.30，debug 证书签名，可覆盖升级） |
-| `release/gpm_dex-v1.43.zip` | KernelSU 模块（v1.43 助手 + 守护） |
-| `release/gpminput-v1.43` | root 助手二进制 |
-| `release/dexpad_start.sh` | 重启后手动启动助手（含 Doze 白名单） |
-| `release/SHA256SUMS.txt` | 校验 |
-| `backup/GamePadDex-v1.43-src-*.zip` | 源码 + 文档 + 产物 |
+| **v1.53** | GUIDE 短按杀应用（+SIGKILL 兜底）、电源键改走 uinput `KEY_POWER`、L3 改「有界小步归零 + 一步居中」 |
+| v1.52 | 居中改到引擎侧一次性相对位移 |
+| v1.51 | 回退失效的绝对指针方案；L3 先重建被空闲隐藏的指针 |
+| v1.50 | 指针空闲 8 s 自动隐藏（销毁虚拟鼠标设备） |
+| v1.49 | 尝试绝对指针一次性居中（该设备不生效，已回退） |
+| v1.48 | 修 Y 键锁屏、松手滑行、LB/RB 方向、d-pad 架构、桌面滑动转方向键 |
+| v1.44 - v1.47 | 鼠标/滚动/组合键/居中/DeX 判定的基础实现 |
 
-**v1.43 改动**：A 键跟随焦点覆盖全部路径（助手 `PAD` + App 注入方向键都会进入 nativeNav），助手设备移除时清空“按键按住”状态。\n\n**v1.22 改动**：继续拆分——`ActionRouter.kt`（一次性动作执行）+ `KeyCodes.kt`（按键映射）+
-助手 `display.c/gpminput.h`；`EngineService` 1166→965 行。回归测试：`X+↓`→`mix 1 x+down -> volume_down`、
-单独 ↓→`PAD 108`（App 注入 0 次）、GUIDE→`alt+f4 -> close app on phone`→`CLOSE_APP ... rc=0`、
-L3→`CENTER(park) -> 801,1272 (target 800,1280)`。
+完整说明见 [release/RELEASE-NOTES.md](release/RELEASE-NOTES.md)。
 
-历史版本见 `release/RELEASE-NOTES.md`。
+## 11. 免责声明
+
+- 仅供**个人学习与自用**，未声明开源许可证；请勿用于商业分发。
+- 需要 root 与 LSPosed，刷写模块/改系统行为有风险，出问题请自行承担。
+- 与 `com.pkyul13.gamepadmouse` 的开发者无关，本项目是独立实现（净室复刻）。
+- 手柄映射涉及输入注入，部分游戏/应用可能判定为异常输入。
