@@ -176,7 +176,7 @@ class EngineService : Service(), RootInput.Listener {
     /** double-press support: the first press waits this long for a second tap */
     private val pendingDowns = HashMap<String, Runnable>()
     private val lastDownAt = HashMap<String, Long>()
-    private val DOUBLE_WINDOW = 320L
+    private val DOUBLE_WINDOW = 400L
     /** press order for combo leader detection (通用 §5.3) */
     private val pressAt = HashMap<String, Long>()
     private val longTimers = HashMap<String, Runnable>()
