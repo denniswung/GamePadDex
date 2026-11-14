@@ -251,8 +251,9 @@ class RootInput(
         send("r $rot")
     }
 
-    fun centerCursor(maxX: Int, maxY: Int, park: Boolean = false, rotation: Int = 0) {
-        send("O $maxX $maxY ${if (park) 1 else 0} $rotation")
+    fun centerCursor(maxX: Int, maxY: Int, park: Boolean = false, rotation: Int = 0, gain: Float = 2.16f) {
+        send(String.format(java.util.Locale.US, "O %d %d %d %d %.2f",
+            maxX, maxY, if (park) 1 else 0, rotation, gain))
     }
 
     /** switch to the next running app on the display (DeX ignores injected Alt+Tab) */

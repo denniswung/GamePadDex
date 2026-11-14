@@ -79,6 +79,8 @@ static int g_pad = -1;
 static int g_abs_ptr = -1;
 /* 居中用的 raw->px 增益（可被命令 G 修改，用于标定） */
 static double g_center_gain = 2.16;
+/* 最近一次解析到的前台包名（杀应用用） */
+static char g_top_pkg[192];
 /* forward the physical d-pad to the virtual gamepad (native d-pad for the OS) */
 static int g_dpad_native = 0;
 static volatile sig_atomic_t g_quit = 0;
@@ -925,23 +927,32 @@ static void move_display(double dx, double dy, int rot) {
 }
 
 /* move the pointer to the centre of the display: O <maxX> <maxY> [park] [rot] */
-/* 居中：先用一次超大位移把指针顶到左上角，再按实测增益一步走到中心。
- * 这台设备(1600x2560 强制分辨率 + 指针加速)下 raw→px 增益约 2.16。 */
+/* 居中：先用"多个有界小步"把指针推到左上角（一个 -30000 的大位移会把指针甩出屏幕、
+ * 之后连 hover 都没有），再按增益一步走到屏幕中心。
+ * 用法：O <w> <h> <park> <rot> [gain] */
 static void cmd_center(int maxX, int maxY, int park, int rot) {
     (void)park; (void)rot;
     if (maxX <= 0) maxX = 2560;
     if (maxY <= 0) maxY = 1600;
+    double gain = g_center_gain > 0.2 ? g_center_gain : 2.16;
     int tx = maxX / 2, ty = maxY / 2;
-    /* 指针可能正被「空闲隐藏」销毁了：先恢复设备，否则 L3 完全没反应 */
     if (g_mouse < 0) {
         g_mouse = make_mouse();
         usleep(120 * 1000);
         out("POINTER on (center)");
     }
-    cmd_mouse_move(-30000.0, -30000.0);
-    usleep(15 * 1000);
-    cmd_mouse_move((double)tx / g_center_gain, (double)ty / g_center_gain);
-    out("CENTER(clamp+gain %.2f) rot=%d -> %d,%d", g_center_gain, rot, tx, ty);
+    /* 1) 有界步进到左上角：总量约 1.2 屏，分成 40 步，每步很小 */
+    double totalX = -(double)maxX * 1.2 / gain;
+    double totalY = -(double)maxY * 1.2 / gain;
+    const int STEPS = 40;
+    for (int i = 0; i < STEPS; i++) {
+        cmd_mouse_move(totalX / STEPS, totalY / STEPS);
+        usleep(6 * 1000);
+    }
+    usleep(40 * 1000);
+    /* 2) 从(0,0)一步到中心 */
+    cmd_mouse_move((double)tx / gain, (double)ty / gain);
+    out("CENTER(steps+gain %.2f) rot=%d -> %d,%d", gain, rot, tx, ty);
 }
 
 static void cmd_wheel(int n, int horizontal) {
@@ -1233,6 +1244,11 @@ static void cmd_close_app(void) {
         out("CLOSE_APP skip %s", pkg);
         return;
     }
+    /* 真正杀：am force-stop + 直接 SIGKILL 兜底（保证"确实死了"） */
+    {
+        int n = kill_pkg_procs(pkg);
+        out("CLOSE_APP sigkill %s n=%d", pkg, n);
+    }
     char cmd[320];
     snprintf(cmd, sizeof(cmd), "am force-stop %s", pkg);
     pid_t child = fork();
@@ -1453,28 +1469,34 @@ static void handle_line(char *line) {
             ungrab_all();
             break;
         case 'f': {
-            /* force-stop the current foreground package (whitelisted, root) */
-            FILE *fp = popen("/system/bin/dumpsys activity activities 2>/dev/null | /system/bin/grep -m1 topResumedActivity | /system/bin/sed 's/.*u0 \\([^ ]*\\)\\/.*/\\1/'", "r");
+            /* 杀前台：包名依次尝试 dumpsys activity / dumpsys window / 缓存，
+             * 然后 am force-stop（functional）+ 直接 SIGKILL 所有进程（兜底） */
             char pkg[192] = {0};
-            if (fp) {
-                if (!fgets(pkg, sizeof(pkg), fp)) pkg[0] = 0;
-                pclose(fp);
-            }
-            char *nl = strchr(pkg, '\n');
-            if (nl) *nl = 0;
-            if (pkg[0]) {
-                char cmd[320];
-                snprintf(cmd, sizeof(cmd), "/system/bin/sh -c \"PATH=/system/bin cmd activity force-stop %s\"", pkg);
-                int rc = system(cmd);
-                out("FORCE_STOP %s rc=%d", pkg, rc);
-                /* the KSU SELinux domain may deny binder calls from `cmd`:
-                   kill the app's processes directly as a fallback */
-                if (rc != 0) {
-                    int n = kill_pkg_procs(pkg);
-                    out("FORCE_KILL %s killed=%d", pkg, n);
+            const char *pipes[2] = {
+                "/system/bin/dumpsys activity activities 2>/dev/null | /system/bin/grep -m1 topResumedActivity | /system/bin/sed 's/.*u0 \\([^ ]*\\)\\/.*/\\1/'",
+                "/system/bin/dumpsys window 2>/dev/null | /system/bin/grep -m1 mCurrentFocus | /system/bin/sed 's/.*u0 \\([^ /]*\\)\\/.*/\\1/'"
+            };
+            for (int i = 0; i < 2 && !pkg[0]; i++) {
+                FILE *fp = popen(pipes[i], "r");
+                if (!fp) continue;
+                if (fgets(pkg, sizeof(pkg), fp)) {
+                    char *nl = strchr(pkg, '\n');
+                    if (nl) *nl = 0;
                 }
+                pclose(fp);
+                if (pkg[0] == '\0') pkg[0] = 0;
+            }
+            if (!pkg[0] && g_top_pkg[0]) {
+                snprintf(pkg, sizeof(pkg), "%s", g_top_pkg);
+            }
+            if (pkg[0]) {
+                char cmd[360];
+                snprintf(cmd, sizeof(cmd), "/system/bin/am force-stop %s >/dev/null 2>&1", pkg);
+                int rc = system(cmd);
+                int n = kill_pkg_procs(pkg);
+                out("FORCE_STOP %s rc=%d killed=%d", pkg, rc, n);
             } else {
-                out("FORCE_STOP none");
+                out("FORCE_STOP none (no foreground package detected)");
             }
             break;
         }
@@ -1482,10 +1504,19 @@ static void handle_line(char *line) {
             cmd_selftest();
             break;
         case 'p': {
-            /* 模拟电源键：helper 以 root 运行，input 命令可以直接注入
-             * KEYCODE_POWER(26)，屏幕亮灭都生效。 */
-            system("input keyevent 26");
-            out("POWER");
+            /* 模拟电源键：优先用我们自己虚拟键盘的 KEY_POWER（内核级，不依赖
+             * SELinux/binder），失败再退回 `input keyevent 26`。 */
+            int ok = 0;
+            if (g_kbd >= 0) {
+                ev_emit(g_kbd, EV_KEY, 116 /* KEY_POWER */, 1);
+                ev_syn(g_kbd);
+                usleep(40 * 1000);
+                ev_emit(g_kbd, EV_KEY, 116, 0);
+                ev_syn(g_kbd);
+                ok = 1;
+            }
+            if (!ok) system("input keyevent 26");
+            out("POWER uinput=%d", ok);
             break;
         }
         case 'r': {
@@ -1647,6 +1678,28 @@ static void handle_line(char *line) {
                     hd);
                 int rc = system(cmd);
                 out("HOMEDEX %d rc=%d", hd, rc);
+            }
+            break;
+        }
+        case 'q': {
+            /* 试验：用 `input mouse motionevent MOVE x y` 绝对定位指针 */
+            int ax = 0, ay = 0;
+            if (sscanf(line, "%d %d", &ax, &ay) == 2) {
+                char c2[160];
+                snprintf(c2, sizeof(c2), "/system/bin/input mouse motionevent MOVE %d %d", ax, ay);
+                int rc = system(c2);
+                out("ABS_MOVE %d %d rc=%d", ax, ay, rc);
+            }
+            break;
+        }
+        case 'k': {
+            /* 试验：直接从本域执行 am force-stop */
+            char pkg2[192] = {0};
+            if (sscanf(line, "%191s", pkg2) == 1 && pkg2[0]) {
+                char c3[320];
+                snprintf(c3, sizeof(c3), "/system/bin/am force-stop %s", pkg2);
+                int rc = system(c3);
+                out("KILLTEST %s rc=%d", pkg2, rc);
             }
             break;
         }

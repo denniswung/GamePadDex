@@ -222,6 +222,8 @@ class EngineService : Service(), RootInput.Listener {
     private var guideHelpRunnable: Runnable? = null
     private var forceRunnable: Runnable? = null
     private var forceArmed = false
+    /** X+GUIDE 已经触发过强杀：GUIDE 松开时不要再补一次短按动作 */
+    private var forceFired = false
     private var screenRunnable: Runnable? = null
     private var screenArmed = false
     /** continuous mix output (X+volume, X+LB/RB): start after 300 ms, repeat 100-150 ms */
@@ -609,12 +611,21 @@ class EngineService : Service(), RootInput.Listener {
                 guideHelpShown = false
                 if (pressedButtons.contains("x")) startForceTimer() else startGuideHelpTimer()
             } else {
+                val consumedByCombo = forceFired
                 cancelGuideHelp()
                 cancelForce()
                 if (guideHelpShown) {
                     guideHelpShown = false
                     Log.i(TAG, "guide help closed")
+                } else if (!consumedByCombo && modeOn && root.helperReady) {
+                    // 短按 GUIDE = 执行它的映射动作（默认"杀前台应用"）
+                    val mapped = prefs.action("guide")
+                    if (mapped != Action.NONE) {
+                        Log.i(TAG, "guide short press -> $mapped")
+                        actions.fire(mapped, prefs.combo("guide"))
+                    }
                 }
+                forceFired = false
                 guideDownAt = 0L
             }
             return true
@@ -676,6 +687,7 @@ class EngineService : Service(), RootInput.Listener {
             forceRunnable = null
             if (forceArmed && pressedButtons.contains("x") && pressedButtons.contains("guide")) {
                 forceArmed = false
+                forceFired = true
                 Log.i(TAG, "force stop by X+GUIDE")
                 actions.fire(Action.FORCE_STOP, "")
                 vibrate(120)

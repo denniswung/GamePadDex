@@ -134,12 +134,13 @@ class ActionRouter(private val host: ActionHost) {
             Action.CENTER_CURSOR -> {
                 // 指针可能被「空闲隐藏」销毁了：先恢复，否则居中看不到结果
                 host.onPointerNeeded()
-                host.centerPointer()
                 val (w, h) = host.displayState().size(display)
                 val rot = host.displayState().rotation(display)
-                host.lockCenterFor(300)
-                // 位移已由 centerPointer() 一步完成，这里不再用助手的"夹角"算法
-                log("cursor centered on ${w}x$h (display $display, rot $rot)")
+                val gain = host.prefs().centerGain
+                host.lockCenterFor(700)
+                // 助手侧：有界小步夹角 + 按增益一步到中心（见 gpminput.c cmd_center）
+                root.centerCursor(w, h, host.isPhone(), rot, gain)
+                log("cursor centered on ${w}x$h (display $display, rot $rot, gain $gain)")
             }
             Action.POWER -> {
                 root.powerKey()

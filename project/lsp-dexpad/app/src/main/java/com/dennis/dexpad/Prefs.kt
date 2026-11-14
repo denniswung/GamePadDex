@@ -82,7 +82,7 @@ class Prefs(context: Context) {
             "r3" -> Action.VOLUME_MUTE
             "start" -> Action.SWITCH_APP
             "select" -> Action.NOTIFICATIONS
-            "guide" -> Action.NONE
+            "guide" -> Action.FORCE_STOP   // Xbox 键 = 杀掉前台应用
             // d-pad = system arrow keys: they move the focused selection
             // (list/grid navigation) instead of moving the mouse pointer
             "up" -> Action.ARROW_UP
