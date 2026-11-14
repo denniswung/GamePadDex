@@ -1614,7 +1614,7 @@ static int android_to_linux(int a) {
         case 33:  return 18;   /* E */
         case 122: return 172;  /* HOME -> KEY_HOMEPAGE */
         case 4:   return 158;  /* BACK */
-        case 187: return 125;  /* APP_SWITCH */
+        case 187: return 580;  /* APP_SWITCH（多任务/最近任务）*/
         case 3:   return 172;  /* HOME -> KEY_HOMEPAGE */
         case 24:  return 115;  /* VOLUME_UP */
         case 25:  return 114;  /* VOLUME_DOWN */
