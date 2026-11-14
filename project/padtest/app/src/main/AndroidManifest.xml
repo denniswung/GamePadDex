@@ -48,6 +48,12 @@
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <activity
+            android:name=".ui.AutoTestActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ui.ReportActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
