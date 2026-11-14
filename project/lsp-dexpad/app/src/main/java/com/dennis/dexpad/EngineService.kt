@@ -100,6 +100,13 @@ class EngineService : Service(), RootInput.Listener {
 
             override fun launchApp(pkg: String) = launchTargetApp(pkg)
 
+            override fun onCentered() {
+                val (vw, vh) = displaySize(activeDisplay())
+                ptrX = vw / 2f
+                ptrY = vh / 2f
+                lastUserInputAt = SystemClock.elapsedRealtime()
+            }
+
             override fun onPointerNeeded() {
                 lastUserInputAt = SystemClock.elapsedRealtime()
                 showPointer()
@@ -150,8 +157,6 @@ class EngineService : Service(), RootInput.Listener {
     private var vSwipeArmed = true
     private var vSwipeCooldownUntil = 0L
     /** LT/RT zoom: -1 out, +1 in, 0 idle; repeated while held */
-    private var zoomHold = 0
-    private var lastZoomAt = 0L
     /** after "光标居中": ignore stick motion until it returns to neutral (or timeout) */
     private var centerLock = false
     private var centerLockUntil = 0L
@@ -632,7 +637,7 @@ class EngineService : Service(), RootInput.Listener {
                     val mapped = prefs.action("guide")
                     if (mapped != Action.NONE) {
                         Log.i(TAG, "guide short press -> $mapped")
-                        actions.fire(mapped, prefs.combo("guide"))
+                        actions.fire(mapped, valueFor("guide", mapped))
                     }
                 }
                 forceFired = false
@@ -968,7 +973,6 @@ class EngineService : Service(), RootInput.Listener {
             }
             Action.WHEEL_UP, Action.WHEEL_DOWN -> wheelHold = 0
             Action.WHEEL_LEFT, Action.WHEEL_RIGHT -> hScrollDir = 0
-            Action.ZOOM_IN, Action.ZOOM_OUT -> zoomHold = 0
             else -> {
             }
         }
@@ -1032,15 +1036,21 @@ class EngineService : Service(), RootInput.Listener {
                     // instead of clicking at the (untouched) cursor position
                     root.pointKey(activeDisplay(), KeyEvent.KEYCODE_DPAD_CENTER)
                     Log.i(TAG, "A -> DPAD_CENTER (native nav)")
-                } else {
-                    // 鼠标左键 = 在光标位置模拟一次屏幕点击（真实触摸事件，
-                    // 按住不放就是长按）；这样信息流/短剧类应用也认得
+                } else if (prefs.leftClickTouch) {
+                    // 可选：在光标位置注入真实触摸（只给"只认触摸"的 App 用）
                     val (px, py) = pointerPos()
                     showPointer()
                     root.touch(px, py, true)
                     leftIsTouch = true
                     pressedMouse.add(0)
                     Log.i(TAG, "left touch down at ${px.toInt()},${py.toInt()}")
+                } else {
+                    // 默认：鼠标左键事件——系统按真实光标位置处理，永远点得中
+                    showPointer()
+                    root.button(0, true)
+                    leftIsTouch = false
+                    pressedMouse.add(0)
+                    Log.i(TAG, "left button down")
                 }
             }
             Action.RIGHT -> {
@@ -1065,14 +1075,6 @@ class EngineService : Service(), RootInput.Listener {
             Action.WHEEL_DOWN -> wheelHold = -1
             Action.WHEEL_LEFT -> hScrollDir = 1
             Action.WHEEL_RIGHT -> hScrollDir = -1
-            Action.ZOOM_IN -> {
-                zoomHold = 1
-                lastZoomAt = 0L
-            }
-            Action.ZOOM_OUT -> {
-                zoomHold = -1
-                lastZoomAt = 0L
-            }
             else -> actions.fire(mapped, valueFor(name, mapped))
         }
         if (mapped.startsWith("arrow_")) startDpadRepeat(name, mapped)
@@ -1129,7 +1131,7 @@ class EngineService : Service(), RootInput.Listener {
 
     /** 丢弃所有“按住”状态（断线/重连/卡键自愈时调用） */
     private fun clearPressedState(reason: String) {
-        if (pressedButtons.isNotEmpty() || pressedButtons.isNotEmpty()) {
+        if (pressedButtons.isNotEmpty() || pressedMouse.isNotEmpty()) {
             Log.i(TAG, "clear pressed state ($reason): ${pressedButtons.joinToString(",")}")
         }
         pressedButtons.clear()
@@ -1227,6 +1229,17 @@ class EngineService : Service(), RootInput.Listener {
 
     /** releases everything we may be holding (mouse button / wheel hold / axis state) */
     private fun releaseHeld() {
+        // 触摸点击模式下可能有一个触点还按着（断链/关模式/掉线时），必须抬起，
+        // 否则那块屏幕区域会一直"被按住"。
+        if (leftIsTouch) {
+            val (px, py) = pointerPos()
+            root.touch(px, py, false)
+            leftIsTouch = false
+        }
+        if (zooming) {
+            root.pinch(0, 0f, 0f)
+            zooming = false
+        }
         for (b in pressedMouse.toList()) {
             root.button(b, false)
         }
@@ -1251,7 +1264,6 @@ class EngineService : Service(), RootInput.Listener {
         wheelButtons.clear()
         hSwipeArmed = true
         vSwipeArmed = true
-        zoomHold = 0
     }
 
     private fun setMode(on: Boolean, force: Boolean = false) {
@@ -1436,8 +1448,7 @@ class EngineService : Service(), RootInput.Listener {
             wheelButtons.clear()
             hSwipeArmed = true
             vSwipeArmed = true
-            zoomHold = 0
-            return
+                return
         }
         // right after "光标居中" ignore stick motion until the stick is back in
         // the dead zone (or a timeout) — otherwise the release of a slightly
@@ -1522,17 +1533,22 @@ class EngineService : Service(), RootInput.Listener {
                 val my = dy * speed * dtScale
                 // 亚像素抖动不发：1px 的残余移动在慢速下会被看成“滑”
                 if (Math.abs(mx) < 0.6f && Math.abs(my) < 0.6f) return
-                root.move(mx, my)
+                // 按"引擎跟踪到的位置"把这一帧的位移夹在屏幕内：系统不会把注入的
+                // REL 位移夹回屏幕，一旦推出去，光标就再也不出现（点击全部落空）。
+                val gNow = prefs.centerGain
+                val rx = mx.coerceIn((0f - ptrX) / gNow, (vw - ptrX) / gNow)
+                val ry = my.coerceIn((0f - ptrY) / gNow, (vh - ptrY) / gNow)
+                if (Math.abs(rx) < 0.01f && Math.abs(ry) < 0.01f) return
+                root.move(rx, ry)
                 // sampled trail: lets the tests verify sensitivity without
                 // reading the system pointer position
                 val nowPtr = SystemClock.elapsedRealtime()
                 if (nowPtr - lastPtrLogAt > 300) {
                     lastPtrLogAt = nowPtr
-                    Log.i(TAG, "ptr move dx=${mx.toInt()} dy=${my.toInt()} sens=${prefs.sensX()}")
+                    Log.i(TAG, "ptr move dx=${rx.toInt()} dy=${ry.toInt()} at ${ptrX.toInt()},${ptrY.toInt()}")
                 }
-                val g = prefs.centerGain
-                ptrX = (ptrX + mx * g).coerceIn(0f, vw.toFloat())
-                ptrY = (ptrY + my * g).coerceIn(0f, vh.toFloat())
+                ptrX = (ptrX + rx * gNow).coerceIn(0f, vw.toFloat())
+                ptrY = (ptrY + ry * gNow).coerceIn(0f, vh.toFloat())
             }
         }
 
@@ -1618,7 +1634,7 @@ class EngineService : Service(), RootInput.Listener {
             if (nowH >= swipeCooldownUntil) {
                 hSwipeArmed = false
                 swipeStep(if (nx > 0) -1 else 1)
-                swipeCooldownUntil = nowH + swipeRepeatMs()
+                swipeCooldownUntil = nowH + hSwipeRepeatMs()
             }
         } else if (SystemClock.elapsedRealtime() >= swipeCooldownUntil) {
             hSwipeArmed = true
@@ -1636,17 +1652,6 @@ class EngineService : Service(), RootInput.Listener {
             if (now - lastWheelHoldAt >= wheelIntervalMs()) {
                 lastWheelHoldAt = now
                 root.wheel(wheelHold)
-            }
-        }
-
-        if (zoomHold != 0) {
-            val now = SystemClock.elapsedRealtime()
-            if (now - lastZoomAt >= 250) {
-                lastZoomAt = now
-                actions.fire(
-                    if (zoomHold > 0) Action.ZOOM_IN else Action.ZOOM_OUT,
-                    "",
-                )
             }
         }
     }
@@ -1719,6 +1724,10 @@ class EngineService : Service(), RootInput.Listener {
     private fun swipeRepeatMs(): Long =
         (620L - prefs.scrollSpeed * 30L).coerceIn(260L, 700L)
 
+    /** 横向翻页节奏：受「水平滑动速度」控制（原来这个滑杆是无效的） */
+    private fun hSwipeRepeatMs(): Long =
+        (680L - prefs.hswipeSpeed * 40L).coerceIn(220L, 760L)
+
     private fun displaySize(id: Int): Pair<Int, Int> = displayState.size(id)
 
     /** one-shot horizontal swipe used by mix slots / wheel-left-right actions */
@@ -1751,11 +1760,17 @@ class EngineService : Service(), RootInput.Listener {
     /** 手柄掉线：它的 up 事件永远不会来了，必须清状态，否则组合会卡在“已触发” */
     override fun onDeviceGone() {
         clearPressedState("device gone")
+        releaseHeld()
     }
 
     override fun onReady() {
         // 链路自检: report missing root capabilities instead of failing silently
         root.selftest()
+        // 助手重启后鼠标设备可能仍处于「被空闲隐藏」状态，触摸面尺寸也可能变了：
+        // 两个状态都重置，保证第一下点击/缩放就正确
+        pointerHidden = false
+        touchSizeSent = ""
+        root.raw("j")
         EngineState.connected = true
         EngineState.lastError = ""
         if (prefs.forceLandscape) root.setRotation(1)
@@ -1777,6 +1792,8 @@ class EngineService : Service(), RootInput.Listener {
     }
 
     override fun onLinkLost() {
+        pointerHidden = false
+        touchSizeSent = ""
         EngineState.connected = false
         EngineState.modeOn = false
         modeOn = false
