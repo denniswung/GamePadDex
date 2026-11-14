@@ -63,6 +63,7 @@ class RootInput(
     /** drop the current socket and reconnect (helper restarted / stalled) */
     fun restart() {
         Log.i(TAG, "restarting link")
+        linkGen++          // 让旧线程立刻退出
         running.set(false)
         try {
             socket?.shutdownInput()
@@ -80,13 +81,18 @@ class RootInput(
         start()
     }
 
+    /** 连接线程的代次：restart 后旧线程看到代次变化就退出，避免两个线程抢 socket */
+    @Volatile
+    private var linkGen = 0
+
     fun start() {
         if (running.getAndSet(true)) return
-        Thread({ loop() }, "dexpad-link").apply { isDaemon = true }.start()
+        val gen = ++linkGen
+        Thread({ loop(gen) }, "dexpad-link").apply { isDaemon = true }.start()
     }
 
-    private fun loop() {
-        while (running.get()) {
+    private fun loop(gen: Int) {
+        while (running.get() && gen == linkGen) {
             var opened: LocalSocket? = null
             try {
                 if (!File(socketPath).exists()) {
@@ -114,7 +120,7 @@ class RootInput(
                 } catch (_: Throwable) {
                 }
                 socket = null
-                if (running.get()) listener.onLinkLost()
+                if (running.get() && gen == linkGen) listener.onLinkLost()
             }
             if (!running.get()) break
             sleepQuietly(1500)
@@ -122,8 +128,9 @@ class RootInput(
     }
 
     private fun readLoop(s: LocalSocket) {
+        val gen = linkGen
         val reader = BufferedReader(InputStreamReader(s.inputStream))
-        while (running.get()) {
+        while (running.get() && gen == linkGen) {
             val line = reader.readLine() ?: break
             lastLineAt = SystemClock.elapsedRealtime()
             try {
