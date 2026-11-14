@@ -996,7 +996,7 @@ static void ungrab_all(void) {
         if (g_devs[i].grabbed) {
             ioctl(g_devs[i].fd, EVIOCGRAB, 0);
             g_devs[i].grabbed = 0;
-            out("GONE %d", g_devs[i].id);
+            out("GONE %d %s", g_devs[i].id, g_devs[i].name);
         }
     }
 }
@@ -1008,7 +1008,15 @@ static float normalize_abs(gpdev_t *d, int code, int value) {
             return (float)value;
         case ABS_GAS: case ABS_BRAKE:
             return (hi > lo) ? (float)(value - lo) / (float)(hi - lo) : 0.0f;
-        case ABS_X: case ABS_Y: case ABS_Z: case ABS_RX: case ABS_RY: case ABS_RZ:
+        case ABS_Z: case ABS_RZ:
+            /* 有右摇杆的手柄：Z/RZ 是扳机，按 0..1 归一（否则要按到 75% 才触发） */
+            if (d->has_abs[ABS_RX] || d->has_abs[ABS_RY]) {
+                if (hi <= lo) return 0.0f;
+                return (float)(value - lo) / (float)(hi - lo);
+            }
+            if (hi <= lo) return 0.0f;
+            return 2.0f * ((float)(value - lo) / (float)(hi - lo)) - 1.0f;
+        case ABS_X: case ABS_Y: case ABS_RX: case ABS_RY:
             if (hi <= lo) return 0.0f;
             return 2.0f * ((float)(value - lo) / (float)(hi - lo)) - 1.0f;
         default:
@@ -1020,7 +1028,19 @@ static float normalize_abs(gpdev_t *d, int code, int value) {
 // ------------------------------------------------------------- commands ----
 static double g_mouse_acc_x = 0.0, g_mouse_acc_y = 0.0;
 
+/* 鼠标设备可能被「空闲隐藏」销毁了：任何一次移动/点击前都确保它存在，
+ * 否则 App 侧状态一旦不同步，就会表现为「光标不见了/点了没反应」。 */
+static void ensure_mouse(void) {
+    if (g_mouse >= 0) return;
+    g_mouse = make_mouse();
+    if (g_mouse >= 0) {
+        usleep(120 * 1000);
+        out("MOUSE_REOPEN (auto)");
+    }
+}
+
 static void cmd_mouse_move(double dx, double dy) {
+    ensure_mouse();
     if (g_mouse < 0) return;
     g_mouse_acc_x += dx;
     g_mouse_acc_y += dy;
@@ -1034,6 +1054,7 @@ static void cmd_mouse_move(double dx, double dy) {
 }
 
 static void cmd_mouse_button(int btn, int down) {
+    ensure_mouse();
     if (g_mouse < 0) return;
     int code = btn == 0 ? BTN_LEFT : btn == 1 ? BTN_RIGHT : BTN_MIDDLE;
     ev_emit(g_mouse, EV_KEY, code, down ? 1 : 0);
@@ -1090,6 +1111,7 @@ static void cmd_center(int maxX, int maxY, int park, int rot) {
 }
 
 static void cmd_wheel(int n, int horizontal) {
+    ensure_mouse();
     if (g_mouse < 0) return;
     if (n == 0) return;
     ev_emit(g_mouse, EV_REL, horizontal ? REL_HWHEEL : REL_WHEEL, n);
@@ -1129,26 +1151,93 @@ static void cmd_selftest(void) {
     out("SELFTEST end");
 }
 
-/* 读取当前前台包名（topResumedActivity） */
-static void top_package(char *out_pkg, size_t n) {
+/* 读取当前前台包名（topResumedActivity）。
+ *
+ * `dumpsys activity activities` 要 100~300 ms，如果直接在命令循环里同步跑，
+ * 每 2 秒就会卡住输入处理一次（游戏中能感觉到顿）。所以这里改成：
+ *   1) 立即返回上一次缓存的结果（/data/adb/gpm/top.txt）
+ *   2) 后台 fork 一个子进程去刷新缓存，下一次查询就是新的
+ * 前台包名只用于「桌面/系统弹窗」判定，晚 2 秒完全没问题。 */
+#define TOP_CACHE "/data/adb/gpm/top.txt"
+
+static void top_cache_read(char *out_pkg, size_t n) {
     out_pkg[0] = 0;
+    FILE *f = fopen(TOP_CACHE, "r");
+    if (!f) return;
+    if (!fgets(out_pkg, (int)n, f)) out_pkg[0] = 0;
+    fclose(f);
+    char *nl = strchr(out_pkg, '\n');
+    if (nl) *nl = 0;
+}
+
+static void top_cache_refresh_async(void) {
+    pid_t c = fork();
+    if (c != 0) return;
+    /* 子进程：跑 dumpsys，把包名写进缓存文件 */
     FILE *p = popen("/system/bin/dumpsys activity activities 2>/dev/null | "
                     "/system/bin/grep -m1 topResumedActivity", "r");
-    if (!p) return;
-    char line[512];
-    if (fgets(line, sizeof(line), p)) {
-        char *u = strstr(line, "u0 ");
-        if (u) {
-            u += 3;
-            size_t i = 0;
-            while (u[i] && u[i] != '/' && u[i] != ' ' && i + 1 < n) {
-                out_pkg[i] = u[i];
-                i++;
+    char pkg[192] = {0};
+    if (p) {
+        char line[512];
+        if (fgets(line, sizeof(line), p)) {
+            char *u = strstr(line, "u0 ");
+            if (u) {
+                u += 3;
+                size_t i = 0;
+                while (u[i] && u[i] != '/' && u[i] != ' ' && i + 1 < sizeof(pkg)) {
+                    pkg[i] = u[i];
+                    i++;
+                }
+                pkg[i] = 0;
             }
-            out_pkg[i] = 0;
+        }
+        pclose(p);
+    }
+    if (pkg[0]) {
+        FILE *f = fopen(TOP_CACHE ".tmp", "w");
+        if (f) {
+            fprintf(f, "%s\n", pkg);
+            fclose(f);
+            rename(TOP_CACHE ".tmp", TOP_CACHE);
         }
     }
-    pclose(p);
+    _exit(0);
+}
+
+static void top_package(char *out_pkg, size_t n) {
+    top_cache_read(out_pkg, n);
+    /* 缓存为空时同步查一次，保证第一次调用就有值 */
+    if (!out_pkg[0]) {
+        FILE *p = popen("/system/bin/dumpsys activity activities 2>/dev/null | "
+                        "/system/bin/grep -m1 topResumedActivity", "r");
+        if (p) {
+            char line[512];
+            if (fgets(line, sizeof(line), p)) {
+                char *u = strstr(line, "u0 ");
+                if (u) {
+                    u += 3;
+                    size_t i = 0;
+                    while (u[i] && u[i] != '/' && u[i] != ' ' && i + 1 < n) {
+                        out_pkg[i] = u[i];
+                        i++;
+                    }
+                    out_pkg[i] = 0;
+                }
+            }
+            pclose(p);
+        }
+        if (out_pkg[0]) {
+            FILE *f = fopen(TOP_CACHE ".tmp", "w");
+            if (f) {
+                fprintf(f, "%s\n", out_pkg);
+                fclose(f);
+                rename(TOP_CACHE ".tmp", TOP_CACHE);
+            }
+        }
+    } else {
+        /* 有缓存：让子进程去刷新，主循环立刻返回 */
+        top_cache_refresh_async();
+    }
 }
 
 static void cmd_swipe(int display, int delta, int ms, int maxX, int maxY, int vertical, int startPct) {
@@ -1461,7 +1550,10 @@ static int android_to_linux(int a) {
         case 59:  return 42;   /* SHIFT_LEFT */
         case 60:  return 54;   /* SHIFT_RIGHT */
         case 61:  return 15;   /* TAB */
-        case 131: return 62;   /* F4 */
+        case 131: return 59;   /* F1 */
+        case 132: return 60;   /* F2 */
+        case 133: return 61;   /* F3 */
+        case 134: return 62;   /* F4 */
         case 69:  return 12;   /* MINUS */
         case 81:  return 13;   /* PLUS */
         case 67:  return 14;   /* DEL */
@@ -1480,6 +1572,60 @@ static int android_to_linux(int a) {
         case 85:  return 164;  /* MEDIA_PLAY_PAUSE */
         case 87:  return 163;  /* MEDIA_NEXT */
         case 88:  return 165;  /* MEDIA_PREVIOUS */
+        /* 常用字符 / 功能键（自定义快捷键用） */
+        case 62:  return 57;   /* SPACE */
+        case 66:  return 28;   /* ENTER */
+        case 160: return 28;   /* NUMPAD_ENTER */
+        case 111: return 1;    /* ESCAPE */
+        case 112: return 111;  /* FORWARD_DEL */
+        case 19:  return 103;  /* DPAD_UP */
+        case 20:  return 108;  /* DPAD_DOWN */
+        case 21:  return 105;  /* DPAD_LEFT */
+        case 22:  return 106;  /* DPAD_RIGHT */
+        case 123: return 107;  /* MOVE_END */
+        case 92:  return 104;  /* PAGE_UP */
+        case 93:  return 109;  /* PAGE_DOWN */
+        case 117: return 125;  /* META_LEFT (win) */
+        case 118: return 126;  /* META_RIGHT */
+        case 7:   return 2;    /* 0 */
+        case 8:   return 3;    /* 1 */
+        case 9:   return 4;    /* 2 */
+        case 10:  return 5;    /* 3 */
+        case 11:  return 6;    /* 4 */
+        case 12:  return 7;    /* 5 */
+        case 13:  return 8;    /* 6 */
+        case 14:  return 9;    /* 7 */
+        case 15:  return 10;   /* 8 */
+        case 16:  return 11;   /* 9 */
+        case 34:  return 33;   /* F */
+        case 35:  return 34;   /* G */
+        case 36:  return 35;   /* H */
+        case 37:  return 23;   /* I */
+        case 38:  return 36;   /* J */
+        case 39:  return 37;   /* K */
+        case 40:  return 38;   /* L */
+        case 41:  return 50;   /* M */
+        case 42:  return 49;   /* N */
+        case 43:  return 24;   /* O */
+        case 44:  return 25;   /* P */
+        case 45:  return 16;   /* Q */
+        case 46:  return 19;   /* R */
+        case 47:  return 31;   /* S */
+        case 48:  return 20;   /* T */
+        case 49:  return 22;   /* U */
+        case 50:  return 47;   /* V */
+        case 51:  return 17;   /* W */
+        case 52:  return 45;   /* X */
+        case 53:  return 21;   /* Y */
+        case 54:  return 44;   /* Z */
+        case 135: return 63;   /* F5 */
+        case 136: return 64;   /* F6 */
+        case 137: return 65;   /* F7 */
+        case 138: return 66;   /* F8 */
+        case 139: return 67;   /* F9 */
+        case 140: return 68;   /* F10 */
+        case 141: return 87;   /* F11 */
+        case 142: return 88;   /* F12 */
         default:  return -1;
     }
 }
@@ -1569,7 +1715,9 @@ static void handle_line(char *line) {
         }
         case 'O': {
             int w, h, park = 0, rot = 0;
-            int n = sscanf(line, "%d %d %d %d", &w, &h, &park, &rot);
+            double gain = 0;
+            int n = sscanf(line, "%d %d %d %d %lf", &w, &h, &park, &rot, &gain);
+            if (n >= 5 && gain > 0.5 && gain < 20.0) g_center_gain = gain;
             if (n >= 2) cmd_center(w, h, park, rot);
             break;
         }
@@ -1649,7 +1797,14 @@ static void handle_line(char *line) {
                 ev_syn(g_kbd);
                 ok = 1;
             }
-            if (!ok) system("input keyevent 26");
+            if (!ok) {
+                /* 兜底放到子进程里跑：`input` 在这个域里可能长时间不返回，
+                 * 它会卡住整个命令循环（表现为按键全部失灵）。 */
+                if (fork() == 0) {
+                    system("/system/bin/input keyevent 26");
+                    _exit(0);
+                }
+            }
             out("POWER uinput=%d", ok);
             break;
         }
@@ -1730,11 +1885,8 @@ static void handle_line(char *line) {
         }
         case 'j': {
             /* 重新创建虚拟鼠标（指针重新出现） */
-            if (g_mouse < 0) {
-                g_mouse = make_mouse();
-                usleep(120 * 1000);
-                out("POINTER on");
-            }
+            ensure_mouse();
+            out("POINTER on");
             break;
         }
         case 'A': {
@@ -2053,7 +2205,7 @@ int main(int argc, char **argv) {
                     /* d-pad 一律上报给 App（软件在虚拟控制器层之上）：
                      * App 决定这是组合键还是普通方向键，再由 H 命令回写到虚拟手柄 */
                     if (ev->code == 3 || ev->code == 4 || ev->code == 2 || ev->code == 5) {
-                        out("AXMAP raw=%d android=%d rx=%d ry=%d name=%s",
+                        if (0) out("AXMAP raw=%d android=%d rx=%d ry=%d name=%s",
                             ev->code, axis_to_android(&g_devs[i], ev->code),
                             g_devs[i].has_abs[3] ? 1 : 0, g_devs[i].has_abs[4] ? 1 : 0,
                             g_devs[i].name);
