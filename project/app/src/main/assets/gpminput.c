@@ -2050,14 +2050,47 @@ static void handle_line(char *line) {
              * 走 root 的 am start 才可靠） */
             char pkg3[192] = {0};
             if (sscanf(line, "%191s", pkg3) == 1 && pkg3[0]) {
-                char cmd4[400];
-                snprintf(cmd4, sizeof(cmd4),
-                         "/system/bin/am start -a android.intent.action.MAIN "
-                         "-c android.intent.category.LAUNCHER -p %s >/dev/null 2>&1", pkg3);
                 pid_t ch = fork();
                 if (ch == 0) {
-                    int rc = system(cmd4);
-                    out("OPEN_APP %s rc=%d", pkg3, rc);
+                    /* 先解析出启动 Activity 再 am start -n：
+                     * `am start -p <pkg>` 对部分应用会 "unable to resolve Intent"（实测 PiliPlus），
+                     * 解析后用组件名启动最可靠。 */
+                    char comp[256] = {0};
+                    char rcmd[460];
+                    snprintf(rcmd, sizeof(rcmd),
+                             "/system/bin/cmd package resolve-activity --brief -a android.intent.action.MAIN "
+                             "-c android.intent.category.LAUNCHER %s 2>/dev/null | /system/bin/tail -1", pkg3);
+                    FILE *pr = popen(rcmd, "r");
+                    if (pr) {
+                        if (fgets(comp, sizeof(comp), pr)) {
+                            char *nl = strpbrk(comp, "\r\n");
+                            if (nl) *nl = 0;
+                        }
+                        pclose(pr);
+                    }
+                    int rc = -1;
+                    if (strchr(comp, '/')) {
+                        char cmd4[520];
+                        snprintf(cmd4, sizeof(cmd4),
+                                 "/system/bin/am start -n %s -f 0x10000000 >/dev/null 2>&1", comp);
+                        rc = system(cmd4);
+                        out("OPEN_APP %s via %s rc=%d", pkg3, comp, rc);
+                    } else {
+                        char cmd4[420];
+                        snprintf(cmd4, sizeof(cmd4),
+                                 "/system/bin/am start -a android.intent.action.MAIN "
+                                 "-c android.intent.category.LAUNCHER -p %s >/dev/null 2>&1", pkg3);
+                        rc = system(cmd4);
+                        out("OPEN_APP %s (pkg) rc=%d", pkg3, rc);
+                    }
+                    if (rc != 0) {
+                        /* 最后兜底：monkey 启动（老办法，几乎总能拉起主界面） */
+                        char cmd5[320];
+                        snprintf(cmd5, sizeof(cmd5),
+                                 "/system/bin/monkey -p %s -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1", pkg3);
+                        int rc2 = system(cmd5);
+                        out("OPEN_APP %s monkey rc=%d", pkg3, rc2);
+                    }
                     _exit(0);
                 }
                 out("OPEN_APP %s async", pkg3);
