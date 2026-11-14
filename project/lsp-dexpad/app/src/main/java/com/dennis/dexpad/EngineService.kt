@@ -353,13 +353,16 @@ class EngineService : Service(), RootInput.Listener {
         // 所以重建后直接把光标拉回屏幕中心，并同步估算值。
         val display = activeDisplay()
         val (vw, vh) = displaySize(display)
-        val rot = displayState.rotation(display)
-        root.centerCursor(vw, vh, onPhone(), rot, prefs.centerGain)
-        ptrX = vw / 2f
-        ptrY = vh / 2f
+        // 恢复到"上次的位置"：重建设备后指针真实位置未知，但助手可以先把光标
+        // 有界推到左上角(0,0)，再按增益一步放到 (ptrX, ptrY) —— 绝对定位。
+        val tx = (if (ptrX.isNaN()) vw / 2f else ptrX).coerceIn(0f, vw.toFloat())
+        val ty = (if (ptrY.isNaN()) vh / 2f else ptrY).coerceIn(0f, vh.toFloat())
+        root.positionPointer(tx.toInt(), ty.toInt(), vw, vh)
+        ptrX = tx
+        ptrY = ty
         centerLock = true
-        centerLockUntil = SystemClock.elapsedRealtime() + 300
-        Log.i(TAG, "pointer shown + re-centred ${vw}x$vh (rot $rot)")
+        centerLockUntil = SystemClock.elapsedRealtime() + 260
+        Log.i(TAG, "pointer shown at last position ${tx.toInt()},${ty.toInt()} (${vw}x$vh)")
     }
 
     /** 调试/测试用：把一条原始命令转发给 root 助手 */
@@ -1789,12 +1792,14 @@ class EngineService : Service(), RootInput.Listener {
         runCatching {
             val display = activeDisplay()
             val (vw, vh) = displaySize(display)
-            root.centerCursor(vw, vh, onPhone(), displayState.rotation(display), prefs.centerGain)
-            ptrX = vw / 2f
-            ptrY = vh / 2f
+            val tx = (if (ptrX.isNaN()) vw / 2f else ptrX).coerceIn(0f, vw.toFloat())
+            val ty = (if (ptrY.isNaN()) vh / 2f else ptrY).coerceIn(0f, vh.toFloat())
+            root.positionPointer(tx.toInt(), ty.toInt(), vw, vh)
+            ptrX = tx
+            ptrY = ty
             centerLock = true
-            centerLockUntil = SystemClock.elapsedRealtime() + 300
-            Log.i(TAG, "helper ready: pointer re-centred ${vw}x$vh")
+            centerLockUntil = SystemClock.elapsedRealtime() + 260
+            Log.i(TAG, "helper ready: pointer restored at ${tx.toInt()},${ty.toInt()}")
         }
         EngineState.connected = true
         EngineState.lastError = ""
