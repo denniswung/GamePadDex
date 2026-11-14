@@ -1,62 +1,58 @@
-# v1.62 发布说明（2026-11-14）
+# v1.63 发布说明（2026-11-14）
 
-包名：`com.dennis.dexpad`　versionCode **64** / versionName **1.62**
-配套：KernelSU 模块 `gpm_dex` v1.62 · 助手 `gpminput` v1.62 · 测试台 `com.dennis.padtest`
+包名：`com.dennis.dexpad`　versionCode **65** / versionName **1.63**
+配套：KernelSU 模块 `gpm_dex` v1.63 · 助手 `gpminput` v1.63 · 测试台 `com.dennis.padtest` v1.1
 
-## 1. 双击无效（例如 X 双击进不了多任务）—— 根因
+## 1. 「打开应用」无效（Start + 上 → PiliPlus）
 
-双击检测一直在工作（日志里有 `double x -> recents`），但**"最近任务"键注入错了**：
+**根因**：助手用 `am start -a MAIN -c LAUNCHER -p <包名>` 启动目标应用。
+这个写法对**部分应用会解析失败**（实测 PiliPlus 直接返回
+`Error: Activity not started, unable to resolve Intent`），所以按了没反应。
 
-- Android 的 `KEYCODE_APP_SWITCH(187)` 被映射成 Linux `KEY_COMPOSE/125`；
-- 而本机 `Generic.kl` 里 **`key 580 APP_SWITCH`** 才是最近任务；
-- 结果：按了"最近任务"实际上是按了"Windows 键"，页面当然没反应。
-
-已改为 **187 → 580（APP_SWITCH）**。实测：
+**改法**：先解析出真正的启动 Activity，再按组件名启动：
 
 ```
-engine: double x -> recents
-helper: KEYUIN 0 187 lcode=580
-after : com.sec.android.app.launcher/com.android.quickstep.RecentsActivity
+cmd package resolve-activity --brief -a MAIN -c LAUNCHER <pkg>
+  → com.example.piliplus/.MainActivity
+am start -n com.example.piliplus/.MainActivity
 ```
 
-另外把双击窗口从 **320ms 放宽到 400ms**（人手双击 300ms 左右很常见）。
+解析失败时依次回退：`am start -p` → `monkey -p <pkg>`。
+实测：
 
-## 2. X+LB / X+RB 功能对调
+```
+OPEN_APP com.example.piliplus via com.example.piliplus/.MainActivity rc=0
+top: com.example.piliplus/.MainActivity
+```
 
-按要求把两个方向对调：
+## 2. d-pad 确认后再用左摇杆，光标会在某些方向卡住
 
-| 组合 | 现在的行为 | 效果 |
-|---|---|---|
-| **X + LB** | 手指向右滑 | 内容向右 → **上一页** |
-| **X + RB** | 手指向左滑 | 内容向左 → **下一页** |
+**根因**：空闲会自动隐藏光标（销毁虚拟鼠标设备）。等你用 d-pad 导航一段时间后，
+光标早就被隐藏了；这时一推左摇杆，助手会**重建**鼠标设备——而系统里光标的真实位置
+在重建后就变了（不可知），但引擎里的位置估算还停在旧地方。
+位移夹取是按估算值做的，于是某个方向被"算成到边了"，光标就再也推不过去。
 
-实测：`X+LB: 1280→2540`（向右）、`X+RB: 1280→20`（向左）。
+**改法**：鼠标设备重建后立刻
+1. 用有界步进把真实光标**拉回屏幕中心**（和 L3 居中同一套逻辑）；
+2. 同步引擎的位置估算到中心；
+3. 300ms 内忽略摇杆（避免居中惯性把光标又推走）。
 
-## 3. 测试（32/32 通过）
+助手重启（重连）后也一样重居中。这样估算和真实光标始终一致，不会再"某些区域过不去"。
 
-新增 4 条用例：
+## 3. 测试（35/35 通过）
+
+新增 3 条用例：
 
 | ID | 用例 | 结果 |
 |---|---|---|
-| G1 | X 双击 → 多任务页面（实测进入 RecentsActivity） | PASS |
-| G2 | 慢一点的双击（间隔 300ms）也能识别 | PASS |
-| G3 | X+LB 手指向右（1280→2540） | PASS |
-| G4 | X+RB 手指向左（1280→20） | PASS |
+| H1 | Start+上 → 打开 PiliPlus（组件解析启动） | PASS |
+| H2 | 光标空闲隐藏 → 摇杆恢复时自动回中心 | PASS |
+| H3 | 光标四方向都能移动（+x / -x / +y / -y 都有位移） | PASS |
 
-完整结果：
+完整：`PASS=35 FAIL=0`（A/B/F/G/H/C/D/E 各组全部通过）
 
-```
-A1 版本 1.62  A2 测试台  A3 链路  A4 鼠标模式
-B1-T1..T7（指针/点击/长按/方向键焦点/滚动/双指缩放/键盘组合）
-B2-T8 返回键  B3-T9 触摸点击
-F1 d-pad 选中后 A 确认  F2 注入方式  F3 摇杆切鼠标  F4 d-pad 连发
-G1 X 双击多任务  G2 慢双击  G3 X+LB  G4 X+RB
-C1 主屏  C2 返回  C3 通知栏  C4 静音  C5 音量  C6 杀前台  C7 电源
-D1 打开目标应用  E1 无崩溃  E2 无 ANR
-PASS=32 FAIL=0
-```
+## 4. 使用提示
 
-## 4. 已知限制
-
-- 双击窗口 400ms：带双击动作的按键（X、R3）单击会延迟 400ms 才生效（这是双击判定的代价）。
-- 其余同前。
+- 「打开目标应用」现在对第三方 App（PiliPlus 等）也可靠了；如果某个应用连
+  `resolve-activity` 都查不到启动入口，最后会用 `monkey` 兜底。
+- 光标空闲隐藏后第一次推摇杆，会从**屏幕中心**出现（这是保证不卡边界的前提）。
