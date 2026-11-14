@@ -7,7 +7,7 @@
 > 原版用无障碍手势注入，本项目改成 **KernelSU root 助手 + LSPosed 模块**，不依赖无障碍，
 > 也不需要在系统里常驻一个假光标。目标机型 SM-F9360（Galaxy Z Fold4，Android 16）。
 
-**当前版本：v1.60** ｜ **[下载 APK / 模块](https://github.com/denniswung/GamePadDex/releases/latest)** ｜ [发布说明](release/RELEASE-NOTES.md) ｜ [架构说明](docs/ARCHITECTURE.md) ｜ [测试台说明](docs/PADTEST-README.md)
+**当前版本：v1.61** ｜ **[下载 APK / 模块](https://github.com/denniswung/GamePadDex/releases/latest)** ｜ [发布说明](release/RELEASE-NOTES.md) ｜ [架构说明](docs/ARCHITECTURE.md) ｜ [测试台说明](docs/PADTEST-README.md)
 
 ---
 
@@ -219,7 +219,8 @@ PASS  无崩溃                PASS=8 FAIL=0
 
 | 版本 | 主要变化 |
 |---|---|
-| **v1.60** | 修复 HOME/返回/音量/静音/截图/通知栏之前其实注入失败（input 在 root 域 rc=512 → 改进程内 uinput）；主屏改用 KEY_HOMEPAGE；横向翻页方向修正；新增专用测试台 AutoTestActivity + 24 条自动化用例（全部通过） |
+| **v1.61** | 修复 d-pad 选中后 A 无法确认：确认键 `KEY_OK(352)` 在三星上无效 → 改 `KEY_ENTER(28)`；导航模式改粘性（不再 1.2 秒过期，推左摇杆才回到鼠标点击） |
+| v1.60 | 修复 HOME/返回/音量/静音/截图/通知栏之前其实注入失败（input 在 root 域 rc=512 → 改进程内 uinput）；主屏改用 KEY_HOMEPAGE；横向翻页方向修正；新增专用测试台 AutoTestActivity + 24 条自动化用例（全部通过） |
 | v1.59 | 滑动不再同步 `dumpsys`（task 边界缓存 + 光标坐标随命令下发），滑动准备耗时 200–600ms → 0.4–1.1ms |
 | v1.58 | 映射列表精简（46→38）、修复"打开目标应用"选不了 App（Android 11+ 包可见性）、代码审计修 12 处（扳机阈值/居中增益/自定义快捷键/重连竞态/掉线释放等） |
 | v1.57 | 左键真正改为鼠标事件（触摸点击变可选）、鼠标设备自动重建、光标不再被推出屏幕 |

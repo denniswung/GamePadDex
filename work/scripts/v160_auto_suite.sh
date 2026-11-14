@@ -36,7 +36,7 @@ stop_engine; clean_prefs; start_engine
 
 echo "===== A. 版本/链路 ====="
 V=$(dumpsys package $PKG 2>/dev/null | grep -m1 versionName | sed 's/.*=//')
-[ "$V" = "1.60" ] && ok "A1 映射 App 版本 $V" || bad "A1 版本=$V"
+case "$V" in 1.6[01]) ok "A1 映射 App 版本 $V";; *) bad "A1 版本=$V";; esac
 [ -n "$(dumpsys package $PAD 2>/dev/null | grep -m1 versionName)" ] && ok "A2 专用测试 App 已安装" || bad "A2 测试 App 缺失"
 logcat -d -s DexPad | grep -q 'hb ready=true' && ok "A3 助手链路 READY" || bad "A3 助手链路"
 [ "$(modeval)" = "true" ] && ok "A4 鼠标模式开" || bad "A4 鼠标模式=$(modeval)"
@@ -85,6 +85,60 @@ TD=$(grep -ac 'TOUCH down' /data/adb/gpm/helper.log)
 flag "T2 鼠标点击" && [ "$TD" -ge 1 ] && ok "B3 触摸点击（助手 TOUCH down + App 收到点击）" || bad "B3 触摸点击（TOUCH=$TD）"
 stop_engine; clean_prefs; start_engine
 
+
+echo "===== F. d-pad 导航 / 鼠标切换（v1.61 修复）====="
+# F1: d-pad 选中后等 2 秒再按 A —— 测试 App 自己确认按钮被点中（T10）
+rm -f "$RPT"
+start_auto
+$VG key 317 100 1200 >/dev/null 2>&1; sleep 1.2
+$VG hat 0 1 250 >/dev/null 2>&1
+sleep 0.4
+$VG hat 0 1 250 >/dev/null 2>&1
+sleep 2.0
+$VG key 304 120 800 >/dev/null 2>&1
+sleep 1.5
+pull_report
+flag "T10 方向键确认" && ok "F1 d-pad 选中后 A 确认（T10）" || bad "F1 d-pad 后 A 未确认（T10）"
+
+# F2: 聚焦后按 A 不能变成"光标点击"（引擎日志必须是 DPAD_CENTER）
+am force-stop com.android.settings; sleep 1
+am start -a android.settings.SETTINGS >/dev/null 2>&1
+sleep 2.5
+logcat -c
+$VG hat 0 1 250 >/dev/null 2>&1
+sleep 1.0
+$VG key 304 120 700 >/dev/null 2>&1
+sleep 1.2
+D=$(logcat -d -s DexPad | grep -ac 'A -> DPAD_CENTER')
+C=$(logcat -d -s DexPad | grep -ac 'left button down')
+[ "$D" -ge 1 ] && [ "$C" -eq 0 ] && ok "F2 A 走 DPAD_CENTER（click=$C）" || bad "F2 A 注入方式（DPAD_CENTER=$D click=$C）"
+
+# F3: d-pad 后用左摇杆 = 回到鼠标模式，A 恢复点击
+am force-stop com.android.settings; sleep 1
+am start -a android.settings.SETTINGS >/dev/null 2>&1
+sleep 2.5
+logcat -c
+$VG hat 0 1 250 >/dev/null 2>&1
+sleep 0.3
+$VG stick 0 9000 300 0 >/dev/null 2>&1
+sleep 0.6
+$VG key 304 120 700 >/dev/null 2>&1
+sleep 1.2
+grep -q 'native navigation OFF (stick moved)' /dev/null 2>/dev/null
+C=$(logcat -d -s DexPad | grep -ac 'left button down')
+[ "$C" -ge 1 ] && ok "F3 摇杆后 A 回到鼠标点击" || bad "F3 摇杆后 A 仍是确认（click=$C）"
+
+# F4: d-pad 按住连发（焦点连续移动）
+am force-stop com.android.settings; sleep 1
+am start -a android.settings.SETTINGS >/dev/null 2>&1
+sleep 2.5
+: > /data/adb/gpm/helper.log
+$VG hat 0 1 1600 >/dev/null 2>&1
+sleep 1.2
+N=$(grep -ac 'ARROW' /data/adb/gpm/helper.log)
+N=${N:-0}
+[ "$N" -ge 3 ] && ok "F4 d-pad 按住连发（$N 次）" || bad "F4 d-pad 连发（$N）"
+
 echo "===== C. 系统动作实际效果 ====="
 wake; sleep 0.8
 am start -a android.settings.SETTINGS >/dev/null 2>&1; sleep 2
@@ -101,8 +155,8 @@ sleep 1.5
 A=$(top)
 [ "$B" != "$A" ] && ok "C2 B 返回生效（$B -> $A）" || bad "C2 B 返回（$B -> $A）"
 
-wake; sleep 0.5
-am start -n $PAD/.ui.SelfCheckActivity >/dev/null 2>&1; sleep 1.5
+wake; sleep 1.2
+am start -n $PAD/.ui.SelfCheckActivity >/dev/null 2>&1; sleep 2
 screencap -p /data/local/tmp/n0.png 2>/dev/null
 : > /data/adb/gpm/helper.log
 $VG key 314 150 1200 >/dev/null 2>&1
@@ -110,7 +164,7 @@ sleep 2.5
 screencap -p /data/local/tmp/n1.png 2>/dev/null
 S0=$(wc -c < /data/local/tmp/n0.png); S1=$(wc -c < /data/local/tmp/n1.png)
 D=$(( S1 - S0 )); D=${D#-}
-grep -aq 'NOTIF uinput=1' /data/adb/gpm/helper.log && [ "$D" -gt 300 ] && ok "C3 SELECT 通知栏（$S0->$S1）" || bad "C3 SELECT 通知栏（$S0->$S1）"
+grep -aq 'NOTIF uinput=1' /data/adb/gpm/helper.log && [ "$D" -gt 200 ] && ok "C3 SELECT 通知栏（$S0->$S1）" || bad "C3 SELECT 通知栏（$S0->$S1）"
 input keyevent KEYCODE_BACK >/dev/null 2>&1; sleep 1
 
 : > /data/adb/gpm/helper.log

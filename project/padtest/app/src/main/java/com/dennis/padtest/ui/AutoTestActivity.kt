@@ -63,6 +63,7 @@ class AutoTestActivity : Activity() {
     private var keyComboSeen = false
     private var backSeen = false
     private var touchDownSeen = false
+    private var confirmSeen = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,6 +109,7 @@ class AutoTestActivity : Activity() {
                 text = "焦点项 $i"
                 isFocusable = true
                 isFocusableInTouchMode = true
+                setOnClickListener { confirmSeen = true; pushReport(); refreshStatus() }
                 setOnFocusChangeListener { _, hasFocus ->
                     if (hasFocus) {
                         if (lastFocus != i) {
@@ -131,7 +133,7 @@ class AutoTestActivity : Activity() {
         )
 
         // 状态列表
-        for (k in listOf("T1 指针移动", "T2 鼠标点击", "T3 长按", "T4 方向键焦点", "T5 滚动", "T6 双指缩放", "T7 键盘组合", "T8 返回键", "T9 触摸点击")) {
+        for (k in listOf("T1 指针移动", "T2 鼠标点击", "T3 长按", "T4 方向键焦点", "T5 滚动", "T6 双指缩放", "T7 键盘组合", "T8 返回键", "T9 触摸点击", "T10 方向键确认")) {
             val tv = TextView(this).apply {
                 text = "…  $k"
                 setTextColor(0xFF7A7A7A.toInt())
@@ -259,6 +261,7 @@ class AutoTestActivity : Activity() {
         "T7 键盘组合" to keyComboSeen,
         "T8 返回键" to backSeen,
         "T9 触摸点击" to touchDownSeen,
+        "T10 方向键确认" to (dpadSeen && confirmSeen),
     )
 
     private fun refreshStatus() {

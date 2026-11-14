@@ -1634,7 +1634,9 @@ static int android_to_linux(int a) {
         case 22:  return 106;  /* DPAD_RIGHT */
         case 123: return 107;  /* MOVE_END */
         case 120: return 99;   /* SYSRQ (截图) */
-        case 23:  return 352;  /* DPAD_CENTER -> KEY_OK */
+        /* DPAD_CENTER：Samsung 上 KEY_OK(352) 不会触发确认，KEY_ENTER(28) 可以
+         * （实测 KEY_SELECT 353 / KPENTER 96 也可以，取最通用的 ENTER） */
+        case 23:  return 28;
         case 82:  return 139;  /* MENU */
         case 92:  return 104;  /* PAGE_UP */
         case 93:  return 109;  /* PAGE_DOWN */

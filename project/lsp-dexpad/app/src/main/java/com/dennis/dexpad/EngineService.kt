@@ -942,6 +942,7 @@ class EngineService : Service(), RootInput.Listener {
         if (!modeOn || !root.helperReady) return
         when (mapped) {
             Action.LEFT -> {
+                Log.i(TAG, "A release: nativeNav=$nativeNav navActive=${navActive()} leftIsTouch=$leftIsTouch")
                 if (navActive()) {
                     // the press was translated into DPAD_CENTER, nothing to release
                     pressedMouse.remove(0)
@@ -1031,6 +1032,7 @@ class EngineService : Service(), RootInput.Listener {
     private fun fireSingle(name: String, mapped: String) {
         when (mapped) {
             Action.LEFT -> {
+                Log.i(TAG, "A pressed: nativeNav=$nativeNav navActive=${navActive()} leftTouch=${prefs.leftClickTouch}")
                 if (navActive()) {
                     // native d-pad navigation: A activates the focused control
                     // instead of clicking at the (untouched) cursor position
@@ -1352,10 +1354,12 @@ class EngineService : Service(), RootInput.Listener {
         }
     }
 
-    private fun navActive(): Boolean =
-        nativeNav && SystemClock.elapsedRealtime() < navUntil
+    // d-pad 导航模式：进入后一直有效，直到移动摇杆（想用鼠标）或关闭鼠标模式。
+    // 不再用 1.2 秒超时——"d-pad 选中完再按 A 确认"是人的正常节奏，几秒钟很常见。
+    private fun navActive(): Boolean = nativeNav
 
     private fun markNativeNav() {
+        // 新的 d-pad 按下 = 明确要用方向键导航（刷新一次时间戳仅用于日志/兼容）
         if (!nativeNav) {
             // baseline: only a *change* of the stick leaves native navigation,
             // a stick that was already deflected must not switch out at once
@@ -1367,6 +1371,7 @@ class EngineService : Service(), RootInput.Listener {
         }
         nativeNav = true
         navUntil = SystemClock.elapsedRealtime() + prefs.focusWindowMs()
+        Log.i(TAG, "A 确认模式：d-pad 导航中（移动左摇杆回到鼠标点击）")
     }
 
     /** actions are going to the phone itself (no DeX display in use) */
@@ -1425,12 +1430,7 @@ class EngineService : Service(), RootInput.Listener {
             }
         }
         if (!root.helperReady) return
-        // leaving the native d-pad navigation: any stick movement resumes the
-        // mouse mode (A goes back to being a mouse click)
-        if (nativeNav && !navActive()) {
-            nativeNav = false
-            Log.i(TAG, "native navigation OFF (window elapsed)")
-        }
+        // d-pad 导航模式只由摇杆移动退出（时间到不再自动退出）
         if (nativeNav && modeOn) {
             val dead = prefs.deadzone / 1000f
             val sd = prefs.scrollDeadzone / 1000f

@@ -2,8 +2,8 @@ import io, re, sys
 G = "/mnt/e/Dennis/GamePadDex复刻/project/lsp-dexpad/app/build.gradle.kts"
 M = "/mnt/e/Dennis/GamePadDex复刻/project/ksu-module/module.prop"
 
-VER = "1.60"
-CODE = 62
+VER = "1.61"
+CODE = 63
 
 g = io.open(G, encoding="utf-8").read()
 g2 = re.sub(r"versionCode\s*=\s*\d+", f"versionCode = {CODE}", g, count=1)
