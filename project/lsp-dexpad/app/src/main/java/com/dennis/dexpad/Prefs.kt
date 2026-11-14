@@ -64,6 +64,7 @@ class Prefs(context: Context) {
         const val KEY_IDLE_HIDE_SEC = "idle_hide_sec"
         const val KEY_CENTER_GAIN = "center_gain"
         const val KEY_TARGET_PACKAGE = "target_package"
+        const val KEY_LEFT_TOUCH = "left_touch"
         const val KEY_SENS_X = "sens_x"
         const val KEY_SENS_Y = "sens_y"
         const val KEY_EDGE_SLOW = "edge_slow"
@@ -284,6 +285,15 @@ class Prefs(context: Context) {
      * How long A keeps acting as "activate focus" after the last d-pad press.
      * Short by design: the user must be able to click again immediately.
      */
+    /**
+     * 左键注入方式：
+     *  false（默认）= 鼠标左键事件，系统按真实光标位置点击，最可靠；
+     *  true = 在光标位置注入真实触摸（部分 App 只认触摸，但坐标来自估算，可能点偏）。
+     */
+    var leftClickTouch: Boolean
+        get() = shared.getBoolean(KEY_LEFT_TOUCH, false)
+        set(v) = shared.edit().putBoolean(KEY_LEFT_TOUCH, v).apply()
+
     /** "打开目标应用"动作要启动的包名（空 = 未设置） */
     var targetPackage: String
         get() = shared.getString(KEY_TARGET_PACKAGE, "") ?: ""
@@ -378,6 +388,8 @@ class Prefs(context: Context) {
         }
         // anything else that was stored by hand (unknown keys survive a round trip)
         for ((k, v) in shared.all) {
+            // profiles / profile_* 是"配置快照"本身，导出会造成自我嵌套与互相覆盖
+            if (k == "profiles" || k.startsWith("profile_")) continue
             if (!o.has(k)) putRaw(o, k, v)
         }
         o.put("_version", 2)
