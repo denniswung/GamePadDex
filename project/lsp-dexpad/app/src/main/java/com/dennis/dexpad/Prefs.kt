@@ -135,8 +135,8 @@ class Prefs(context: Context) {
             1 -> Action.VOLUME_DOWN
             2 -> Action.PREV_TRACK
             3 -> Action.NEXT_TRACK
-            4 -> Action.WHEEL_LEFT    // X + LB = 向左滑动（上一页）
-            5 -> Action.WHEEL_RIGHT   // X + RB = 向右滑动（下一页）
+            4 -> Action.WHEEL_RIGHT   // X + LB = 内容向右（上一页）
+            5 -> Action.WHEEL_LEFT    // X + RB = 内容向左（下一页）
             9 -> Action.POWER         // Y + L3 = 开/关屏幕
             else -> Action.NONE
         }
