@@ -56,6 +56,7 @@ class Prefs(context: Context) {
         const val KEY_FOCUS_WINDOW_MS = "focus_window_ms"
         const val KEY_IDLE_HIDE_SEC = "idle_hide_sec"
         const val KEY_CENTER_GAIN = "center_gain"
+        const val KEY_TARGET_PACKAGE = "target_package"
         const val KEY_SENS_X = "sens_x"
         const val KEY_SENS_Y = "sens_y"
         const val KEY_EDGE_SLOW = "edge_slow"
@@ -264,6 +265,11 @@ class Prefs(context: Context) {
      * How long A keeps acting as "activate focus" after the last d-pad press.
      * Short by design: the user must be able to click again immediately.
      */
+    /** "打开目标应用"动作要启动的包名（空 = 未设置） */
+    var targetPackage: String
+        get() = shared.getString(KEY_TARGET_PACKAGE, "") ?: ""
+        set(v) = shared.edit().putString(KEY_TARGET_PACKAGE, v).apply()
+
     /** 居中时 raw 单位 → 屏幕像素 的增益（实测约 2.16；指针加速不同会变） */
     val centerGain: Float
         get() = shared.getInt(KEY_CENTER_GAIN, 216).coerceIn(100, 400) / 100f
@@ -333,6 +339,7 @@ class Prefs(context: Context) {
         o.put(KEY_LONG_MS, longMs().toInt())
         o.put(KEY_FOCUS_WINDOW_MS, focusWindowMs().toInt())
         o.put(KEY_IDLE_HIDE_SEC, idleHideSec)
+        o.put(KEY_TARGET_PACKAGE, targetPackage)
         o.put(KEY_SENS_X, (sensX() * 100).toInt())
         o.put(KEY_SENS_Y, (sensY() * 100).toInt())
         o.put(KEY_EDGE_SLOW, edgeSlow())

@@ -37,6 +37,9 @@ class ActionRouter(private val host: ActionHost) {
         /** ignore stick input while the pointer is being centred */
         fun lockCenterFor(ms: Long)
 
+        /** 启动"目标应用"动作里配置的包 */
+        fun launchApp(pkg: String)
+
         /** the pointer must be visible again (e.g. it was hidden while idle) */
         fun onPointerNeeded()
 
@@ -183,7 +186,17 @@ class ActionRouter(private val host: ActionHost) {
                 log("slow swipe right on display $display")
             }
             // zoom = Ctrl + Plus / Ctrl + Minus (browsers and most apps)
-            Action.ZOOM_IN -> combo(display, "zoom in", KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_PLUS)
+            Action.OPEN_APP -> {
+                val pkg = prefs.targetPackage
+                if (pkg.isBlank()) log("open app: 目标应用未设置")
+                else {
+                    host.launchApp(pkg)
+                    log("open app $pkg")
+                }
+            }
+            // 缩放：普通模式由引擎用双指手势（以光标为基准，按住连续）；
+            // 只有 d-pad 原生导航模式才用 Ctrl +/- 快捷键
+            Action.ZOOM_IN -> combo(display, "zoom in (d-pad mode)", KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_PLUS)
             Action.ZOOM_OUT -> combo(display, "zoom out", KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_MINUS)
             // media / volume keys; they act on the phone volume stream
             Action.VOLUME_UP -> {

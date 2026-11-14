@@ -2,6 +2,7 @@ package com.dennis.dexpad
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -147,6 +148,7 @@ class ConfigActivity : Activity() {
     private fun rebuild() {
         content.removeAllViews()
         buildGeneral()
+        buildTargetApp()
         buildStatus()
         buildPointer()
         buildWheel()
@@ -184,6 +186,50 @@ class ConfigActivity : Activity() {
             infoRow("链路自检", statusCaps!!),
         ))
         refreshStatus()
+    }
+
+    /** "打开目标应用"动作的目标包名选择器 */
+    private fun buildTargetApp() {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(12), dp(18), dp(12))
+            isClickable = true
+        }
+        row.addView(android.widget.TextView(this).apply {
+            text = "打开目标应用"
+            textSize = 16f
+            setTextColor(0xFF202124.toInt())
+        })
+        row.addView(android.widget.TextView(this).apply {
+            val pkg = prefs.targetPackage
+            text = if (pkg.isBlank()) "未设置（点击选择）" else pkg
+            textSize = 13f
+            setTextColor(0xFF5F6368.toInt())
+        })
+        row.setOnClickListener { pickTargetApp() }
+        content.addView(card(row))
+    }
+
+    private fun pickTargetApp() {
+        val pm = packageManager
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val apps = pm.queryIntentActivities(intent, 0)
+            .map { it.loadLabel(pm).toString() to it.activityInfo.packageName }
+            .distinctBy { it.second }
+            .sortedBy { it.first }
+        if (apps.isEmpty()) {
+            android.widget.Toast.makeText(this, "没有可启动的应用", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        val items = apps.map { "${it.first}\n${it.second}" }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("选择目标应用")
+            .setItems(items) { _, i ->
+                prefs.targetPackage = apps[i].second
+                rebuild()
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     private fun buildPointer() {

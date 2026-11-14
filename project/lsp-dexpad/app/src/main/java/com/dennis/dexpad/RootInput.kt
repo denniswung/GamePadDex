@@ -279,6 +279,22 @@ class RootInput(
     /** force-stop the current foreground package (root helper, whitelisted) */
     fun forceStopTop() = send("f")
 
+    /** 启动目标应用（走 root 的 am start，绕过后台启动限制） */
+    fun openApp(pkg: String) = send("w $pkg")
+
+    /* ---- 虚拟触摸屏：点击 / 长按 / 双指缩放 ---- */
+
+    /** 触摸面尺寸（像素），用于把屏幕坐标换算成触摸坐标 */
+    fun touchSize(w: Int, h: Int) = send("q $w $h")
+
+    /** 单指触摸 down/up（真实触摸事件，支持长按） */
+    fun touch(x: Float, y: Float, down: Boolean) =
+        send(String.format(Locale.US, "k %d %d %d", x.toInt(), y.toInt(), if (down) 1 else 0))
+
+    /** 双指缩放：dir 1=放大 -1=缩小 0=停止 */
+    fun pinch(dir: Int, x: Float, y: Float) =
+        send(String.format(Locale.US, "l %d %d %d", dir, x.toInt(), y.toInt()))
+
     /** inject one Android key code on a display (root helper runs `input -d`) */
     fun pointKey(displayId: Int, keyCode: Int) = send("D $displayId $keyCode")
 

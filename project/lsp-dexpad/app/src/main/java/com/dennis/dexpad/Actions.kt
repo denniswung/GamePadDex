@@ -44,6 +44,9 @@ object Action {
     const val ZOOM_IN = "zoom_in"               // CTRL + PLUS
     const val ZOOM_OUT = "zoom_out"             // CTRL + MINUS
 
+    /** 打开指定应用（目标包名在设置页选择，默认不绑定任何按键） */
+    const val OPEN_APP = "open_app"
+
     // media / volume keys
     const val VOLUME_UP = "volume_up"
     const val VOLUME_DOWN = "volume_down"
@@ -72,7 +75,7 @@ object Action {
         SWIPE_UP, SWIPE_DOWN, SWIPE_LEFT, SWIPE_RIGHT,
         SCROLL_SWIPE_UP, SCROLL_SWIPE_DOWN, SCROLL_SWIPE_LEFT, SCROLL_SWIPE_RIGHT,
         SLOW_SWIPE_UP, SLOW_SWIPE_DOWN, SLOW_SWIPE_LEFT, SLOW_SWIPE_RIGHT, TOGGLE,
-        ZOOM_IN, ZOOM_OUT,
+        ZOOM_IN, ZOOM_OUT, OPEN_APP,
         VOLUME_UP, VOLUME_DOWN, VOLUME_MUTE, PLAY_PAUSE, NEXT_TRACK, PREV_TRACK,
         MINIMIZE, CLOSE_WINDOW, SCREENSHOT,
         CENTER_CURSOR, SWITCH_APP, POWER,
@@ -103,6 +106,7 @@ object Action {
         TOGGLE -> "切换鼠标模式"
         ZOOM_IN -> "放大（Ctrl + +）"
         ZOOM_OUT -> "缩小（Ctrl + -）"
+        OPEN_APP -> "打开目标应用"
         VOLUME_UP -> "音量增加"
         VOLUME_DOWN -> "音量减小"
         VOLUME_MUTE -> "静音"

@@ -98,6 +98,8 @@ class EngineService : Service(), RootInput.Listener {
                 Log.i(TAG, "center pointer dx=${dx.toInt()} dy=${dy.toInt()} gain=$gain -> ${vw / 2},${vh / 2}")
             }
 
+            override fun launchApp(pkg: String) = launchTargetApp(pkg)
+
             override fun onPointerNeeded() {
                 lastUserInputAt = SystemClock.elapsedRealtime()
                 showPointer()
@@ -236,6 +238,11 @@ class EngineService : Service(), RootInput.Listener {
     private val RAW_TO_PX = 2.16f
     /** 系统指针是否已被我们隐藏（销毁虚拟鼠标 = 没有指针设备 = 指针消失） */
     private var pointerHidden = false
+    /** 当前 A 键按下走的是"触摸点击"（而不是鼠标左键） */
+    private var leftIsTouch = false
+    private var zooming = false
+    /** 最近一次下发给助手的触摸面尺寸 */
+    private var touchSizeSent = ""
     /** 最近一次用户操作时间（摇杆/按键/点击），用于空闲自动隐藏 */
     private var lastUserInputAt = 0L
 
@@ -930,6 +937,12 @@ class EngineService : Service(), RootInput.Listener {
                 if (navActive()) {
                     // the press was translated into DPAD_CENTER, nothing to release
                     pressedMouse.remove(0)
+                } else if (leftIsTouch) {
+                    val (px, py) = pointerPos()
+                    root.touch(px, py, false)
+                    leftIsTouch = false
+                    pressedMouse.remove(0)
+                    Log.i(TAG, "left touch up at ${px.toInt()},${py.toInt()}")
                 } else {
                     root.button(0, false)
                     pressedMouse.remove(0)
@@ -942,6 +955,13 @@ class EngineService : Service(), RootInput.Listener {
             Action.MIDDLE -> {
                 root.button(2, false)
                 pressedMouse.remove(2)
+            }
+            Action.ZOOM_IN, Action.ZOOM_OUT -> {
+                if (zooming) {
+                    root.pinch(0, 0f, 0f)
+                    zooming = false
+                    Log.i(TAG, "pinch zoom stop")
+                }
             }
             Action.WHEEL_UP, Action.WHEEL_DOWN -> wheelHold = 0
             Action.WHEEL_LEFT, Action.WHEEL_RIGHT -> hScrollDir = 0
@@ -968,9 +988,14 @@ class EngineService : Service(), RootInput.Listener {
                     root.pointKey(activeDisplay(), KeyEvent.KEYCODE_DPAD_CENTER)
                     Log.i(TAG, "A -> DPAD_CENTER (native nav)")
                 } else {
-                    root.button(0, true)
+                    // 鼠标左键 = 在光标位置模拟一次屏幕点击（真实触摸事件，
+                    // 按住不放就是长按）；这样信息流/短剧类应用也认得
+                    val (px, py) = pointerPos()
+                    showPointer()
+                    root.touch(px, py, true)
+                    leftIsTouch = true
                     pressedMouse.add(0)
-                    Log.i(TAG, "left button down")
+                    Log.i(TAG, "left touch down at ${px.toInt()},${py.toInt()}")
                 }
             }
             Action.RIGHT -> {
@@ -980,6 +1005,16 @@ class EngineService : Service(), RootInput.Listener {
             Action.MIDDLE -> {
                 root.button(2, true)
                 pressedMouse.add(2)
+            }
+            Action.ZOOM_IN, Action.ZOOM_OUT -> {
+                if (navActive()) {
+                    actions.fire(mapped, "")
+                } else {
+                    val (px, py) = pointerPos()
+                    root.pinch(if (mapped == Action.ZOOM_IN) 1 else -1, px, py)
+                    zooming = true
+                    Log.i(TAG, "pinch zoom ${if (mapped == Action.ZOOM_IN) "in" else "out"} at ${px.toInt()},${py.toInt()}")
+                }
             }
             Action.WHEEL_UP -> wheelHold = 1
             Action.WHEEL_DOWN -> wheelHold = -1
@@ -1217,6 +1252,46 @@ class EngineService : Service(), RootInput.Listener {
      * d-pad forwarding is off (remapped direction, stale helper, ...).
      */
     /** true while A should activate the focused control instead of clicking */
+    /** 光标当前位置（引擎跟踪值），用于触摸点击 / 双指缩放的基准点 */
+    private fun pointerPos(): Pair<Float, Float> {
+        val (vw, vh) = displaySize(activeDisplay())
+        val cx = if (ptrX.isNaN()) vw / 2f else ptrX
+        val cy = if (ptrY.isNaN()) vh / 2f else ptrY
+        return Pair(
+            cx.coerceIn(0f, vw.toFloat()),
+            cy.coerceIn(0f, vh.toFloat()),
+        )
+    }
+
+    /** 把触摸面尺寸同步给助手（旋转/分辨率变化时重发） */
+    private fun syncTouchSize() {
+        if (!root.helperReady) return
+        val (vw, vh) = displaySize(activeDisplay())
+        val key = "${vw}x$vh"
+        if (key != touchSizeSent) {
+            touchSizeSent = key
+            root.touchSize(vw, vh)
+        }
+    }
+
+    /** "打开目标应用"动作 */
+    fun launchTargetApp(pkg: String) {
+        try {
+            val i = packageManager.getLaunchIntentForPackage(pkg)
+            if (i == null) {
+                Log.w(TAG, "open app: no launch intent for $pkg")
+                toast("找不到应用 $pkg")
+                return
+            }
+            i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            // 后台服务直接 startActivity 会被系统拦截：优先让 root 助手 am start
+            if (root.helperReady) root.openApp(pkg)
+            else startActivity(i)
+        } catch (t: Throwable) {
+            Log.w(TAG, "open app failed: ${t.message}")
+        }
+    }
+
     private fun navActive(): Boolean =
         nativeNav && SystemClock.elapsedRealtime() < navUntil
 
@@ -1265,6 +1340,7 @@ class EngineService : Service(), RootInput.Listener {
         // settings change must not leave the engine in the wrong state)
         if (ticks % 250 == 0L) applyDesiredMode()
         if (ticks % 125 == 0L && root.helperReady) root.queryTop()
+        if (ticks % 250 == 0L) syncTouchSize()
         // 空闲自动隐藏指针：一段时间没有任何操作就销毁虚拟鼠标（系统就没指针可画），
         // 下次摇杆/按键操作时自动重建。
         run {
