@@ -7,7 +7,7 @@
 > 原版用无障碍手势注入，本项目改成 **KernelSU root 助手 + LSPosed 模块**，不依赖无障碍，
 > 也不需要在系统里常驻一个假光标。目标机型 SM-F9360（Galaxy Z Fold4，Android 16）。
 
-**当前版本：v1.56** ｜ **[下载 APK / 模块](https://github.com/denniswung/GamePadDex/releases/latest)** ｜ [发布说明](release/RELEASE-NOTES.md) ｜ [架构说明](docs/ARCHITECTURE.md) ｜ [测试台说明](docs/PADTEST-README.md)
+**当前版本：v1.57** ｜ **[下载 APK / 模块](https://github.com/denniswung/GamePadDex/releases/latest)** ｜ [发布说明](release/RELEASE-NOTES.md) ｜ [架构说明](docs/ARCHITECTURE.md) ｜ [测试台说明](docs/PADTEST-README.md)
 
 ---
 
@@ -198,6 +198,8 @@ PASS  无崩溃                PASS=8 FAIL=0
   所以"是否正好居中"靠肉眼 + 落点日志，偏了请调设置里的「居中增益」。
 - `settings global display_size_forced` 会改变指针空间与增益标定，换分辨率后需重新标定。
 - 只支持 A/B/X/Y + 双摇杆 + 肩键/扳机 + d-pad 的标准手柄；非标准 HID 需要改 `is_gamepad()`。
+- 光标位置由引擎估算（读不到系统真实指针坐标），已做"不出屏"夹取，但长时间使用后仍可能有少量偏差；
+  按 **L3** 会把光标和估计值一起拉回中心。
 - 未在 DeX 外接屏（display 9）上做完整回归，仅验证了手机屏路径。
 - 触摸点击/双指缩放走"默认显示"的虚拟触摸屏，DeX 外接屏上的这两个功能暂未验证。
 - 「触摸点击」模式需要系统指针的精确坐标，而本机型读不到可靠值，因此坐标来自引擎估算，
@@ -208,7 +210,8 @@ PASS  无崩溃                PASS=8 FAIL=0
 
 | 版本 | 主要变化 |
 |---|---|
-| **v1.56** | 右摇杆上/下都改为中屏拖动（原来向上拨会触发通知栏）、目标应用改为每槽独立配置、d-pad 按住连发 |
+| **v1.57** | 左键真正改为鼠标事件（触摸点击变可选）、鼠标设备自动重建、光标不再被推出屏幕 |
+| v1.56 | 右摇杆上/下都改为中屏拖动（原来向上拨会触发通知栏）、目标应用改为每槽独立配置、d-pad 按住连发 |
 | v1.55 | 左键默认回到鼠标事件（触摸点击改为可选）：触摸点击依赖估算坐标，会点偏 |
 | v1.54 | 新增虚拟触摸屏：LT/RT = 以光标为基准的双指缩放（d-pad 模式走 `Ctrl±`）、新增「打开目标应用」动作 |
 | v1.53 | GUIDE 短按杀应用（+SIGKILL 兜底）、电源键改走 uinput `KEY_POWER`、L3 改「有界小步归零 + 一步居中」 |
