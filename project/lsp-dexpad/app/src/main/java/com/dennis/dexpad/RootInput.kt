@@ -235,16 +235,34 @@ class RootInput(
      * Horizontal scrolling for touch-first apps: the helper injects a touch
      * drag anchored at the mouse pointer (many apps ignore REL_HWHEEL).
      */
-    fun swipeH(display: Int, dx: Int, ms: Int, maxX: Int, maxY: Int, startPct: Int = -1) {
-        if (dx != 0) send("V $display $dx $ms $maxX $maxY $startPct")
+    fun swipeH(
+        display: Int, dx: Int, ms: Int, maxX: Int, maxY: Int, startPct: Int = -1,
+        cursorX: Int = -1, cursorY: Int = -1,
+    ) {
+        if (dx != 0) {
+            if (cursorX >= 0 && cursorY >= 0) {
+                send("V $display $dx $ms $maxX $maxY $startPct $cursorX $cursorY")
+            } else {
+                send("V $display $dx $ms $maxX $maxY $startPct")
+            }
+        }
     }
 
     /**
      * vertical touch drag. startPct >= 0 starts the drag at that percentage of
      * the task height (pull-down/drawer gestures need a top-edge start).
      */
-    fun swipeV(display: Int, dy: Int, ms: Int, maxX: Int, maxY: Int, startPct: Int = -1) {
-        if (dy != 0) send("Z $display $dy $ms $maxX $maxY $startPct")
+    fun swipeV(
+        display: Int, dy: Int, ms: Int, maxX: Int, maxY: Int, startPct: Int = -1,
+        cursorX: Int = -1, cursorY: Int = -1,
+    ) {
+        if (dy != 0) {
+            if (cursorX >= 0 && cursorY >= 0) {
+                send("Z $display $dy $ms $maxX $maxY $startPct $cursorX $cursorY")
+            } else {
+                send("Z $display $dy $ms $maxX $maxY $startPct")
+            }
+        }
     }
 
     /** move the pointer to the centre of the display (park=true: phone screens) */

@@ -1583,7 +1583,8 @@ class EngineService : Service(), RootInput.Listener {
                     val pct = if (up) 30 else 65
                     val dy = if (up) dist else -dist
                     val ms = if (up) 220 else 380
-                    root.swipeV(display, dy, ms, w, h, pct)
+                    val (cxp, cyp) = pointerPos()
+                    root.swipeV(display, dy, ms, w, h, pct, cxp.toInt(), cyp.toInt())
                     vSwipeCooldownUntil = now + ms + 30L
                     if (debugLogs) Log.i(TAG, "vswipe $dy on display $display")
                 }
@@ -1707,12 +1708,14 @@ class EngineService : Service(), RootInput.Listener {
             val dist = if (slow) (h * 0.25f).toInt().coerceIn(320, 900)
             else (h * 0.5f).toInt().coerceIn(420, 1800)
             // -1 = 以光标为锚点（在任务内时），助手只在光标不可用时退回任务中心
-            root.swipeV(display, if (dir > 0) dist else -dist, ms, w, h, -1)
+            val (cxp, cyp) = pointerPos()
+            root.swipeV(display, if (dir > 0) dist else -dist, ms, w, h, -1, cxp.toInt(), cyp.toInt())
         } else {
             val dist = if (widthPct > 0) (w * widthPct / 100f).toInt().coerceIn(400, 1600)
             else if (slow) (w * 0.25f).toInt().coerceIn(320, 900)
             else (w * 0.4f).toInt().coerceIn(500, 1200)
-            root.swipeH(display, dir * dist, ms, w, h, -1)
+            val (cxp, cyp) = pointerPos()
+            root.swipeH(display, dir * dist, ms, w, h, -1, cxp.toInt(), cyp.toInt())
         }
         swipeCooldownUntil = now + ms + if (slow) 20 else 170
         if (debugLogs) Log.i(TAG, "swipe vertical=$vertical dir=$dir slow=$slow ms=$ms on display $display")
