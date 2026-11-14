@@ -348,7 +348,18 @@ class EngineService : Service(), RootInput.Listener {
         if (!pointerHidden || !root.helperReady) return
         root.raw("j")
         pointerHidden = false
-        Log.i(TAG, "pointer shown (mouse device recreated)")
+        // 关键：销毁再重建鼠标设备后，系统里光标的真实位置是不可知的（会被重置），
+        // 而我们的估算还停在旧位置——位移夹取就会把某些方向锁死（"有些区域过不去"）。
+        // 所以重建后直接把光标拉回屏幕中心，并同步估算值。
+        val display = activeDisplay()
+        val (vw, vh) = displaySize(display)
+        val rot = displayState.rotation(display)
+        root.centerCursor(vw, vh, onPhone(), rot, prefs.centerGain)
+        ptrX = vw / 2f
+        ptrY = vh / 2f
+        centerLock = true
+        centerLockUntil = SystemClock.elapsedRealtime() + 300
+        Log.i(TAG, "pointer shown + re-centred ${vw}x$vh (rot $rot)")
     }
 
     /** 调试/测试用：把一条原始命令转发给 root 助手 */
@@ -1775,6 +1786,16 @@ class EngineService : Service(), RootInput.Listener {
         pointerHidden = false
         touchSizeSent = ""
         root.raw("j")
+        runCatching {
+            val display = activeDisplay()
+            val (vw, vh) = displaySize(display)
+            root.centerCursor(vw, vh, onPhone(), displayState.rotation(display), prefs.centerGain)
+            ptrX = vw / 2f
+            ptrY = vh / 2f
+            centerLock = true
+            centerLockUntil = SystemClock.elapsedRealtime() + 300
+            Log.i(TAG, "helper ready: pointer re-centred ${vw}x$vh")
+        }
         EngineState.connected = true
         EngineState.lastError = ""
         if (prefs.forceLandscape) root.setRotation(1)
