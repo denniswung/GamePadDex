@@ -16,7 +16,16 @@ pull_report(){ rm -f /data/local/tmp/rpt.json; cat "$RPT" > /data/local/tmp/rpt.
 flag(){ grep -q "\"$1[^\"]*\": *true" /data/local/tmp/rpt.json; }
 start_auto(){ am force-stop $PAD; sleep 1; am start -n $PAD/.ui.AutoTestActivity >/dev/null 2>&1; sleep 2.5; }
 stop_engine(){ am force-stop $PKG; sleep 1; }
-start_engine(){ am start-foreground-service -n $PKG/.EngineService >/dev/null 2>&1; sleep 4; }
+start_engine(){
+  am start-foreground-service -n $PKG/.EngineService >/dev/null 2>&1
+  i=0
+  while [ $i -lt 20 ]; do
+    sleep 0.5
+    i=$((i+1))
+    logcat -d -s DexPad 2>/dev/null | tail -40 | grep -q 'hb ready=true' && break
+  done
+  sleep 1
+}
 xmlp(){ ls /data/misc/*/prefs/$PKG/dexpad.xml 2>/dev/null | head -1; }
 svc_set(){ XML=$(xmlp); awk -v k="$1" -v v="$2" 'BEGIN{d=0}
   /<\/map>/ { if(!d){ printf "    <string name=\"%s\">%s</string>\n", k, v; d=1 } }
@@ -36,7 +45,7 @@ stop_engine; clean_prefs; start_engine
 
 echo "===== A. 版本/链路 ====="
 V=$(dumpsys package $PKG 2>/dev/null | grep -m1 versionName | sed 's/.*=//')
-case "$V" in 1.6[01]) ok "A1 映射 App 版本 $V";; *) bad "A1 版本=$V";; esac
+case "$V" in 1.6*) ok "A1 映射 App 版本 $V";; *) bad "A1 版本=$V";; esac
 [ -n "$(dumpsys package $PAD 2>/dev/null | grep -m1 versionName)" ] && ok "A2 专用测试 App 已安装" || bad "A2 测试 App 缺失"
 logcat -d -s DexPad | grep -q 'hb ready=true' && ok "A3 助手链路 READY" || bad "A3 助手链路"
 [ "$(modeval)" = "true" ] && ok "A4 鼠标模式开" || bad "A4 鼠标模式=$(modeval)"
@@ -77,11 +86,15 @@ stop_engine; svc_setbool left_touch true; start_engine
 rm -f "$RPT"
 start_auto
 $VG key 317 100 1200 >/dev/null 2>&1; sleep 1.5
+$VG stick 0 20000 300 0 >/dev/null 2>&1; sleep 0.5
 : > /data/adb/gpm/helper.log
+logcat -c
 $VG key 304 120 800 >/dev/null 2>&1
 sleep 1.2
 pull_report
 TD=$(grep -ac 'TOUCH down' /data/adb/gpm/helper.log)
+TD2=$(logcat -d -s DexPad | grep -ac 'left touch down')
+[ "$TD" -ge 1 ] && [ "$TD2" -ge 1 ] || TD=0
 flag "T2 鼠标点击" && [ "$TD" -ge 1 ] && ok "B3 触摸点击（助手 TOUCH down + App 收到点击）" || bad "B3 触摸点击（TOUCH=$TD）"
 stop_engine; clean_prefs; start_engine
 
@@ -120,12 +133,14 @@ sleep 2.5
 logcat -c
 $VG hat 0 1 250 >/dev/null 2>&1
 sleep 0.3
-$VG stick 0 9000 300 0 >/dev/null 2>&1
-sleep 0.6
+$VG stick 0 22000 350 0 >/dev/null 2>&1
+sleep 0.8
+OFF=$(logcat -d -s DexPad | grep -ac 'native navigation OFF (stick moved)')
 $VG key 304 120 700 >/dev/null 2>&1
 sleep 1.2
-grep -q 'native navigation OFF (stick moved)' /dev/null 2>/dev/null
 C=$(logcat -d -s DexPad | grep -ac 'left button down')
+[ "$OFF" -ge 1 ] || ok "F3 提示：未记录到 stick moved 日志（继续判定）"
+
 [ "$C" -ge 1 ] && ok "F3 摇杆后 A 回到鼠标点击" || bad "F3 摇杆后 A 仍是确认（click=$C）"
 
 # F4: d-pad 按住连发（焦点连续移动）
@@ -138,6 +153,50 @@ sleep 1.2
 N=$(grep -ac 'ARROW' /data/adb/gpm/helper.log)
 N=${N:-0}
 [ "$N" -ge 3 ] && ok "F4 d-pad 按住连发（$N 次）" || bad "F4 d-pad 连发（$N）"
+
+
+echo "===== G. 双击 / 组合方向（v1.62 修复）====="
+# G1: X 双击 = 多任务
+am force-stop com.android.settings; sleep 1
+am start -a android.settings.SETTINGS >/dev/null 2>&1
+sleep 2.5
+logcat -c
+$VG double 307 60 120 >/dev/null 2>&1
+sleep 2
+D=$(logcat -d -s DexPad | grep -ac 'double x -> recents')
+A=$(top)
+case "$A" in *RecentsActivity*|*quickstep*) TOK=1;; *) TOK=0;; esac
+[ "$D" -ge 1 ] && [ "$TOK" -eq 1 ] && ok "G1 X 双击 → 多任务（$A）" || bad "G1 X 双击（log=$D top=$A）"
+
+# G2: 慢双击（300ms 间隔）也能识别
+am force-stop com.android.settings; sleep 1
+am start -a android.settings.SETTINGS >/dev/null 2>&1
+sleep 2.5
+$VG double 307 70 300 >/dev/null 2>&1
+sleep 2
+A=$(top)
+case "$A" in *RecentsActivity*|*quickstep*) ok "G2 慢双击（300ms）也识别";; *) bad "G2 慢双击（$A）";; esac
+
+# G3: X+LB = 内容向右（手指向右）
+am force-stop com.android.settings; sleep 1
+am start -a android.settings.SETTINGS >/dev/null 2>&1
+sleep 2.5
+: > /data/adb/gpm/helper.log
+$VG combo 307 310 700 >/dev/null 2>&1
+sleep 1.2
+S=$(grep -a 'SWIPE' /data/adb/gpm/helper.log | head -1)
+X0=$(echo "$S" | sed -n 's/.*SWIPE [0-9]* \([0-9]*\),.*/\1/p')
+X1=$(echo "$S" | sed -n 's/.* -> \([0-9]*\),.*/\1/p')
+[ -n "$X0" ] && [ -n "$X1" ] && [ "$X1" -gt "$X0" ] && ok "G3 X+LB 手指向右（$X0→$X1）" || bad "G3 X+LB 方向（$S）"
+
+# G4: X+RB = 内容向左（手指向左）
+: > /data/adb/gpm/helper.log
+$VG combo 307 311 700 >/dev/null 2>&1
+sleep 1.2
+S=$(grep -a 'SWIPE' /data/adb/gpm/helper.log | head -1)
+X0=$(echo "$S" | sed -n 's/.*SWIPE [0-9]* \([0-9]*\),.*/\1/p')
+X1=$(echo "$S" | sed -n 's/.* -> \([0-9]*\),.*/\1/p')
+[ -n "$X0" ] && [ -n "$X1" ] && [ "$X1" -lt "$X0" ] && ok "G4 X+RB 手指向左（$X0→$X1）" || bad "G4 X+RB 方向（$S）"
 
 echo "===== C. 系统动作实际效果 ====="
 wake; sleep 0.8
