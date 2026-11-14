@@ -226,31 +226,33 @@ sleep 3
 O=$(top)
 case "$O" in com.example.piliplus*) ok "H1 Start+上 打开 PiliPlus（$O）";; *) bad "H1 Start+上 打开应用（$O）";; esac
 
-# H2: 指针空闲隐藏后重建 -> 恢复到"上次的位置"（不是回中心）
+# H2: 指针空闲隐藏后再用摇杆 -> 光标"隐形恢复"到上次位置（没有可见的修正移动）
 am force-stop $PAD; sleep 1
 am start -n $PAD/.ui.CursorTestActivity >/dev/null 2>&1
 sleep 2.5
 $VG key 317 100 1200 >/dev/null 2>&1
 sleep 1.2
 logcat -c
-$VG stick 0 20000 700 2000 >/dev/null 2>&1
-$VG stick 1 20000 500 0 >/dev/null 2>&1
-sleep 0.6
-LM=$(logcat -d -s DexPad | grep -a 'ptr move' | tail -1)
-EX=$(echo "$LM" | sed -n 's/.*at \([0-9]*\),.*/\1/p')
-EY=$(echo "$LM" | sed -n 's/.*,\([0-9]*\)$/\1/p')
+$VG stick 0 20000 600 2000 >/dev/null 2>&1
+sleep 0.5
+H1L=$(logcat -d -s PadProbe | grep -a 'MOUSE/hover' | tail -1)
+P1X=$(echo "$H1L" | sed -n 's/.*hover x=\([0-9]*\) y=.*/\1/p')
+P1Y=$(echo "$H1L" | sed -n 's/.*hover x=[0-9]* y=\([0-9]*\).*/\1/p')
 sleep 9
 logcat -c
-$VG stick 0 14000 300 2000 >/dev/null 2>&1
-sleep 1.2
-SH=$(logcat -d -s DexPad | grep -a 'pointer shown at last position' | tail -1)
-RX=$(echo "$SH" | sed -n 's/.*position \([0-9]*\),.*/\1/p')
-RY=$(echo "$SH" | sed -n 's/.*,\([0-9]*\) .*/\1/p')
-DX=$(( RX > EX ? RX - EX : EX - RX ))
-DY=$(( RY > EY ? RY - EY : EY - RY ))
-[ -n "$RX" ] && [ "$DX" -le 200 ] && [ "$DY" -le 200 ] \
-  && ok "H2 恢复上次位置（上次≈$EX,$EY 恢复=$RX,$RY）" \
-  || bad "H2 恢复位置（上次≈$EX,$EY 恢复=$RX,$RY）"
+$VG stick 0 6000 250 2000 >/dev/null 2>&1
+sleep 0.8
+logcat -c
+$VG key 304 120 700 >/dev/null 2>&1
+sleep 1
+CL=$(logcat -d -s PadProbe | grep -a 'MOUSE/click-down' | tail -1)
+P2X=$(echo "$CL" | sed -n 's/.*click-down x=\([0-9]*\) y=.*/\1/p')
+P2Y=$(echo "$CL" | sed -n 's/.*click-down x=[0-9]* y=\([0-9]*\).*/\1/p')
+DX=$(( P2X > P1X ? P2X - P1X : P1X - P2X ))
+DY=$(( P2Y > P1Y ? P2Y - P1Y : P1Y - P2Y ))
+[ -n "$P2X" ] && [ "$DX" -le 120 ] && [ "$DY" -le 120 ] \
+  && ok "H2 光标隐形恢复到上次位置（隐藏前 $P1X,$P1Y → 点击 $P2X,$P2Y）" \
+  || bad "H2 恢复位置（隐藏前 $P1X,$P1Y → 点击 $P2X,$P2Y）"
 
 # H3: d-pad 确认后摇杆四个方向都能动（不卡边界）
 am start -a android.settings.SETTINGS >/dev/null 2>&1; sleep 2
