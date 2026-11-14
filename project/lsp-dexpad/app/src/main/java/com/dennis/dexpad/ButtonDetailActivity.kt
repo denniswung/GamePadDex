@@ -2,6 +2,7 @@ package com.dennis.dexpad
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
@@ -119,12 +120,15 @@ class ButtonDetailActivity : Activity() {
         get() = actionRow("当前动作", summaryOf(button)) {
             pickAction("${Prefs.buttonLabel(button)} → 映射动作") { picked ->
                 prefs.setAction(button, picked)
-                if (picked == Action.KEY_COMBO) {
-                    editCombo("${Prefs.buttonLabel(button)} 的键盘快捷键", prefs.combo(button)) { v ->
+                when (picked) {
+                    Action.KEY_COMBO -> editCombo("${Prefs.buttonLabel(button)} 的键盘快捷键", prefs.combo(button)) { v ->
                         prefs.setCombo(button, v)
                     }
-                } else {
-                    rebuild()
+                    Action.OPEN_APP -> pickApp("${Prefs.buttonLabel(button)} → 打开哪个应用", prefs.param(button)) { v ->
+                        prefs.setParam(button, v)
+                        rebuild()
+                    }
+                    else -> rebuild()
                 }
             }
         }
@@ -134,6 +138,7 @@ class ButtonDetailActivity : Activity() {
         return when (d) {
             Action.NONE -> "无（关闭）"
             Action.KEY_COMBO -> "键盘快捷键（${KeyCombo.pretty(prefs.combo(button))}）"
+            Action.OPEN_APP -> "打开应用（${appLabel(prefs.paramDbl(button)).replace("\n", " ") }）"
             else -> Action.label(d)
         }
     }
@@ -143,6 +148,7 @@ class ButtonDetailActivity : Activity() {
         return when (d) {
             Action.NONE -> "无（关闭）"
             Action.KEY_COMBO -> "键盘快捷键（${KeyCombo.pretty(prefs.combo(button))}）"
+            Action.OPEN_APP -> "打开应用（${appLabel(prefs.paramLng(button)).replace("\n", " ") }）"
             else -> Action.label(d)
         }
     }
@@ -150,12 +156,15 @@ class ButtonDetailActivity : Activity() {
     private fun pickLong() {
         pickAction("${Prefs.buttonLabel(button)} → 长按动作") { picked ->
             prefs.setLongAction(button, picked)
-            if (picked == Action.KEY_COMBO) {
-                editCombo("${Prefs.buttonLabel(button)} 长按的键盘快捷键", prefs.combo(button)) { v ->
+            when (picked) {
+                Action.KEY_COMBO -> editCombo("${Prefs.buttonLabel(button)} 长按的键盘快捷键", prefs.combo(button)) { v ->
                     prefs.setCombo(button, v)
                 }
-            } else {
-                rebuild()
+                Action.OPEN_APP -> pickApp("${Prefs.buttonLabel(button)} 长按 → 打开哪个应用", prefs.paramLng(button)) { v ->
+                    prefs.setParamLng(button, v)
+                    rebuild()
+                }
+                else -> rebuild()
             }
         }
     }
@@ -163,13 +172,45 @@ class ButtonDetailActivity : Activity() {
     private fun pickDouble() {
         pickAction("${Prefs.buttonLabel(button)} → 双击动作") { picked ->
             prefs.setDoubleAction(button, picked)
-            if (picked == Action.KEY_COMBO) {
-                editCombo("${Prefs.buttonLabel(button)} 双击的键盘快捷键", prefs.combo(button)) { v ->
+            when (picked) {
+                Action.KEY_COMBO -> editCombo("${Prefs.buttonLabel(button)} 双击的键盘快捷键", prefs.combo(button)) { v ->
                     prefs.setCombo(button, v)
                 }
-            } else {
-                rebuild()
+                Action.OPEN_APP -> pickApp("${Prefs.buttonLabel(button)} 双击 → 打开哪个应用", prefs.paramDbl(button)) { v ->
+                    prefs.setParamDbl(button, v)
+                    rebuild()
+                }
+                else -> rebuild()
             }
+        }
+    }
+
+    /** 选目标应用（给 OPEN_APP 用）：返回 (label, package) 列表对话框 */
+    private fun pickApp(title: String, current: String, onPick: (String) -> Unit) {
+        val pm = packageManager
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val apps = pm.queryIntentActivities(intent, 0)
+            .map { it.loadLabel(pm).toString() to it.activityInfo.packageName }
+            .distinctBy { it.second }
+            .sortedBy { it.first }
+        val items = apps.map {
+            val mark = if (it.second == current) "✓ " else ""
+            "$mark${it.first}\n${it.second}"
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(items) { _, i -> onPick(apps[i].second) }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun appLabel(pkg: String): String {
+        if (pkg.isBlank()) return "未选择应用（点击选择）"
+        return try {
+            val pm = packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() + "\n" + pkg
+        } catch (_: Throwable) {
+            pkg
         }
     }
 

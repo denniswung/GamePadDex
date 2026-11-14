@@ -187,8 +187,9 @@ class ActionRouter(private val host: ActionHost) {
             }
             // zoom = Ctrl + Plus / Ctrl + Minus (browsers and most apps)
             Action.OPEN_APP -> {
-                val pkg = prefs.targetPackage
-                if (pkg.isBlank()) log("open app: 目标应用未设置")
+                // 每个映射槽自己配的目标包名（空则回退到全局设置）
+                val pkg = comboValue.ifBlank { prefs.targetPackage }
+                if (pkg.isBlank()) log("open app: 该按键还没选目标应用")
                 else {
                     host.launchApp(pkg)
                     log("open app $pkg")

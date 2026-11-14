@@ -241,6 +241,9 @@ class EngineService : Service(), RootInput.Listener {
     /** 当前 A 键按下走的是"触摸点击"（而不是鼠标左键） */
     private var leftIsTouch = false
     private var zooming = false
+    /** d-pad 长按连发 */
+    private var dpadRepeatRunnable: Runnable? = null
+    private var dpadRepeatName: String? = null
     /** 最近一次下发给助手的触摸面尺寸 */
     private var touchSizeSent = ""
     /** 最近一次用户操作时间（摇杆/按键/点击），用于空闲自动隐藏 */
@@ -564,8 +567,7 @@ class EngineService : Service(), RootInput.Listener {
                     lastDownAt[name] = 0L
                     Log.i(TAG, "double $name -> $dbl")
                     if (modeOn && root.helperReady) {
-                        if (dbl == Action.KEY_COMBO) actions.fire(dbl, prefs.combo(name))
-                        else actions.fire(dbl, "")
+                        actions.fire(dbl, dblValue(name, dbl))
                     }
                     return
                 }
@@ -585,6 +587,7 @@ class EngineService : Service(), RootInput.Listener {
             }
             processDown(name)
         } else {
+            cancelDpadRepeat(name)
             stopWheel(name)
             releaseMixFor(name)
             val consumed = mixConsumed.remove(name)
@@ -905,7 +908,7 @@ class EngineService : Service(), RootInput.Listener {
             pendingDowns.remove(name)?.let { handler.removeCallbacks(it) }
             deferredSingles.remove(name)
             Log.i(TAG, "long $name -> $action")
-            if (modeOn && root.helperReady) actions.fire(action, "")
+            if (modeOn && root.helperReady) actions.fire(action, longValue(name, action))
             vibrate(30)
         }
         longTimers[name] = r
@@ -971,6 +974,48 @@ class EngineService : Service(), RootInput.Listener {
         }
     }
 
+    /** 每个映射槽的参数：KEY_COMBO = 快捷键，OPEN_APP = 目标包名 */
+    private fun valueFor(name: String, mapped: String): String = when (mapped) {
+        Action.OPEN_APP -> prefs.param(name)
+        else -> prefs.combo(name)
+    }
+
+    private fun dblValue(name: String, mapped: String): String = when (mapped) {
+        Action.OPEN_APP -> prefs.paramDbl(name)
+        Action.KEY_COMBO -> prefs.combo(name)
+        else -> ""
+    }
+
+    private fun longValue(name: String, mapped: String): String = when (mapped) {
+        Action.OPEN_APP -> prefs.paramLng(name)
+        Action.KEY_COMBO -> prefs.combo(name)
+        else -> ""
+    }
+
+    /** d-pad 按住连发（键盘式）：400 ms 后每 110 ms 一次 */
+    private fun startDpadRepeat(name: String, mapped: String) {
+        if (!navActive()) return
+        cancelDpadRepeat()
+        dpadRepeatName = name
+        val r = object : Runnable {
+            override fun run() {
+                if (dpadRepeatName != name || !pressedButtons.contains(name)) return
+                if (!modeOn || !root.helperReady) return
+                actions.fire(mapped, "")
+                handler.postDelayed(this, 110L)
+            }
+        }
+        dpadRepeatRunnable = r
+        handler.postDelayed(r, 400L)
+    }
+
+    private fun cancelDpadRepeat(name: String? = null) {
+        if (name != null && dpadRepeatName != name) return
+        dpadRepeatRunnable?.let { handler.removeCallbacks(it) }
+        dpadRepeatRunnable = null
+        dpadRepeatName = null
+    }
+
     /** actions that fire once and do not need press/hold semantics */
     private fun isOneShot(action: String): Boolean = when (action) {
         Action.LEFT, Action.RIGHT, Action.MIDDLE,
@@ -1028,8 +1073,9 @@ class EngineService : Service(), RootInput.Listener {
                 zoomHold = -1
                 lastZoomAt = 0L
             }
-            else -> actions.fire(mapped, prefs.combo(name))
+            else -> actions.fire(mapped, valueFor(name, mapped))
         }
+        if (mapped.startsWith("arrow_")) startDpadRepeat(name, mapped)
         if (!isOneShot(mapped) && mapped != Action.TOGGLE) startedHolds.add(name)
     }
 
@@ -1193,6 +1239,7 @@ class EngineService : Service(), RootInput.Listener {
         pendingDowns.clear()
         lastDownAt.clear()
         startedHolds.clear()
+        cancelDpadRepeat()
         mixConsumed.clear()
         mixFired.fill(false)
         dpadX = 0f
@@ -1512,14 +1559,16 @@ class EngineService : Service(), RootInput.Listener {
                     // app-agnostic gesture policy: pull down = one shade pull
                     // from the top edge; push up = one long slow drag repeated
                     // back-to-back so the content keeps moving
-                    val down = ny <= 0
-                    val dist = if (down) (h * 0.45f).toInt().coerceIn(320, 1200)
-                               else (h * 0.35f).toInt().coerceIn(360, 1200)
-                    val pct = if (down) 3 else 65
-                    val ms = if (down) 200 else 450
-                    val dy = if (down) dist else -dist
+                    // 摇杆向上 = 想看上面的内容 = 手指向下拖（内容跟手指往下走）；
+                    // 摇杆向下 = 手指向上拖。起点用 30% / 65%，不要用 3%：
+                    // 从顶部手势区起手会被系统当成「拉通知栏」，页面完全不动。
+                    val up = ny < 0
+                    val dist = (h * (if (up) 0.35f else 0.30f)).toInt().coerceIn(320, 1100)
+                    val pct = if (up) 30 else 65
+                    val dy = if (up) dist else -dist
+                    val ms = if (up) 220 else 380
                     root.swipeV(display, dy, ms, w, h, pct)
-                    vSwipeCooldownUntil = now + if (down) swipeRepeatMs() else ms + 40L
+                    vSwipeCooldownUntil = now + ms + 30L
                     if (debugLogs) Log.i(TAG, "vswipe $dy on display $display")
                 }
             } else if (SystemClock.elapsedRealtime() >= vSwipeCooldownUntil) {

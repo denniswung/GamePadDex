@@ -52,6 +52,13 @@ class Prefs(context: Context) {
 
         fun longKey(button: String) = "lng_$button"
 
+        /** 每个映射槽的"参数"（KEY_COMBO = 快捷键，OPEN_APP = 目标包名） */
+        fun paramKey(button: String) = "par_$button"
+
+        fun paramDblKey(button: String) = "par_dbl_$button"
+
+        fun paramLngKey(button: String) = "par_lng_$button"
+
         const val KEY_LONG_MS = "long_ms"
         const val KEY_FOCUS_WINDOW_MS = "focus_window_ms"
         const val KEY_IDLE_HIDE_SEC = "idle_hide_sec"
@@ -246,6 +253,18 @@ class Prefs(context: Context) {
         if (button == "guide") android.util.Log.i("DexPad", "prefs guide key=${btnKey(button)} raw=$v default=${defaultAction(button)}")
         return v
     }
+
+    fun param(button: String): String = shared.getString(paramKey(button), "") ?: ""
+
+    fun setParam(button: String, v: String) = shared.edit().putString(paramKey(button), v).apply()
+
+    fun paramDbl(button: String): String = shared.getString(paramDblKey(button), "") ?: ""
+
+    fun setParamDbl(button: String, v: String) = shared.edit().putString(paramDblKey(button), v).apply()
+
+    fun paramLng(button: String): String = shared.getString(paramLngKey(button), "") ?: ""
+
+    fun setParamLng(button: String, v: String) = shared.edit().putString(paramLngKey(button), v).apply()
 
     fun setAction(button: String, action: String) {
         shared.edit().putString(btnKey(button), action).apply()

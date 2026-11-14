@@ -148,7 +148,6 @@ class ConfigActivity : Activity() {
     private fun rebuild() {
         content.removeAllViews()
         buildGeneral()
-        buildTargetApp()
         buildStatus()
         buildPointer()
         buildWheel()
