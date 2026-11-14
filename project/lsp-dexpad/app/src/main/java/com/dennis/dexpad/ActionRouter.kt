@@ -37,6 +37,9 @@ class ActionRouter(private val host: ActionHost) {
         /** ignore stick input while the pointer is being centred */
         fun lockCenterFor(ms: Long)
 
+        /** 光标已经被居中：引擎要把自己的位置估计重置到屏幕中心 */
+        fun onCentered()
+
         /** 启动"目标应用"动作里配置的包 */
         fun launchApp(pkg: String)
 
@@ -143,6 +146,7 @@ class ActionRouter(private val host: ActionHost) {
                 host.lockCenterFor(700)
                 // 助手侧：有界小步夹角 + 按增益一步到中心（见 gpminput.c cmd_center）
                 root.centerCursor(w, h, host.isPhone(), rot, gain)
+                host.onCentered()
                 log("cursor centered on ${w}x$h (display $display, rot $rot, gain $gain)")
             }
             Action.POWER -> {
@@ -188,8 +192,9 @@ class ActionRouter(private val host: ActionHost) {
             // zoom = Ctrl + Plus / Ctrl + Minus (browsers and most apps)
             Action.OPEN_APP -> {
                 // 每个映射槽自己配的目标包名（空则回退到全局设置）
-                val pkg = comboValue.ifBlank { prefs.targetPackage }
-                if (pkg.isBlank()) log("open app: 该按键还没选目标应用")
+                val pkg = comboValue.ifBlank { prefs.targetPackage }.trim()
+                // 没选应用、或把快捷键文本误存成包名时直接报错，不要盲目 am start
+                if (pkg.isBlank() || !pkg.contains('.')) log("open app: 未设置有效的目标应用（$pkg）")
                 else {
                     host.launchApp(pkg)
                     log("open app $pkg")
