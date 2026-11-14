@@ -1073,8 +1073,9 @@ class EngineService : Service(), RootInput.Listener {
             }
             Action.WHEEL_UP -> wheelHold = 1
             Action.WHEEL_DOWN -> wheelHold = -1
-            Action.WHEEL_LEFT -> hScrollDir = 1
-            Action.WHEEL_RIGHT -> hScrollDir = -1
+            // 手指方向 = 动作名字：向左滚动 = 手指往左（内容向左翻）
+            Action.WHEEL_LEFT -> hScrollDir = -1
+            Action.WHEEL_RIGHT -> hScrollDir = 1
             else -> actions.fire(mapped, valueFor(name, mapped))
         }
         if (mapped.startsWith("arrow_")) startDpadRepeat(name, mapped)
@@ -1176,8 +1177,8 @@ class EngineService : Service(), RootInput.Listener {
         when (mixHoldAction) {
             Action.VOLUME_UP -> actions.fire(Action.VOLUME_UP, "")
             Action.VOLUME_DOWN -> actions.fire(Action.VOLUME_DOWN, "")
-            Action.WHEEL_LEFT -> fireSwipeOnce(1, 60)
-            Action.WHEEL_RIGHT -> fireSwipeOnce(-1, 60)
+            Action.WHEEL_LEFT -> fireSwipeOnce(-1, 60)
+            Action.WHEEL_RIGHT -> fireSwipeOnce(1, 60)
         }
     }
 
@@ -1216,8 +1217,8 @@ class EngineService : Service(), RootInput.Listener {
             }
             Action.WHEEL_UP -> root.wheel(3)
             Action.WHEEL_DOWN -> root.wheel(-3)
-            Action.WHEEL_LEFT -> fireSwipeOnce(1, 60)
-            Action.WHEEL_RIGHT -> fireSwipeOnce(-1, 60)
+            Action.WHEEL_LEFT -> fireSwipeOnce(-1, 60)
+            Action.WHEEL_RIGHT -> fireSwipeOnce(1, 60)
             Action.TOGGLE -> {
                 // persist the user's switch: a supervisor restart must not undo it
                 prefs.modeOn = !modeOn
