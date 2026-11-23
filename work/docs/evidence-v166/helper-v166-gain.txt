@@ -1,0 +1,15 @@
+﻿== probe_v166_helper_cmds mode=gain Mon Nov 23 22:52:45 CST 2026 ==
+CHANNEL pid=28317 ready=1 err=
+== GAIN QUERY/SET ==
+  GAIN/CENTER lines:
+    GAIN center=0.000 ptr=3.250 effective=3.250
+    GAIN center=3.250 ptr=3.250 effective=3.250
+    GAIN center=0.000 ptr=4.680 effective=4.680
+    GAIN center=0.000 ptr=4.680 effective=4.680
+    CENTER(steps+gain 4.68) rot=1 -> 1280,800
+    GAIN center=3.250 ptr=3.250 effective=3.250
+    CENTER(steps+gain 3.25) rot=1 -> 1280,800
+    GAIN center=3.250 ptr=3.250 effective=3.250
+CHANNEL closed
+STARTED helper=28526 engine=28529 sock=srw-rw-rw- 1 root root 0 2026-11-23 22:52 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==

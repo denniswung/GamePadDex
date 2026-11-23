@@ -1,0 +1,106 @@
+v166_auto_suite mode=all start=Tue Nov 24 05:16:47 CST 2026
+
+===== 0 基线校验（不一致立即 FAIL 并停止） =====
+  versionName=1.66 versionCode=68
+  app_apk=/data/app/~~Fty6_K8_5xPfkTOgJ3E4fQ==/com.dennis.dexpad-rYlG-mEXqr11bB_VYzxyeQ==/base.apk
+  apk_sha256=d2194406a3d45dd768b02137af2aa1cd47a6c6f6363948d4aefa13c7a50bb475
+  helper_sha256=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf module_sha256=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+  screen=2560x1600 rotlock=lock 1 user_rotation=1 accel=0 pointer_speed=-1
+  prefs=<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map> <int name="hswipe_speed" value="3" /> <int name="scroll_speed" value="4" /> <boolean name="force_landscape" value="true" /> <float name="move_gain" value="3.2377949" /> <boolean name="mode_on" value="true" /> <int name="idle_hide_sec" value="8" /> <int name="speed_phone" value="48" /> <boolean name="enabled" value="true" /></map>
+  geometry=2560x1600
+
+===== A 修复1 滑动串扰：单次推杆只作用一个区域 =====
+     regions: PY 1415->80 HS 0->0 | SWIPE 0 1282,1040 -> 1282,560 (task 0..2560 / 0..1600) axis=Z n=19 pid=4264 queued=0 async prep=494us|SWIPE 0 1282,1040 -> 1282,560 (task 0..2560 / 0..1600) axis=Z n=20 pid=4285 queued=1 async prep=0us|
+     regions: PY 1415->1415 HS 0->512 | SWIPE 0 1282,800 -> 130,800 (task 0..2560 / 0..1600) axis=V n=21 pid=4710 queued=0 async prep=415us|
+  resident vgpad node=/dev/input/event19 (before=[/dev/input/event0 /dev/input/event1 /dev/input/event10 /dev/input/event11 /dev/input/event12 /dev/input/event13 /dev/input/event14 /dev/input/event15 /dev/input/event16 /dev/input/event17 /dev/input/event18 /dev/input/event2 /dev/input/event20 /dev/input/event21 /dev/input/event22 /dev/input/event3 /dev/input/event4 /dev/input/event5 /dev/input/event6 /dev/input/event7 /dev/input/event8 /dev/input/event9 ] after=[/dev/input/event0 /dev/input/event1 /dev/input/event10 /dev/input/event11 /dev/input/event12 /dev/input/event13 /dev/input/event14 /dev/input/event15 /dev/input/event16 /dev/input/event17 /dev/input/event18 /dev/input/event19 /dev/input/event2 /dev/input/event20 /dev/input/event21 /dev/input/event3 /dev/input/event4 /dev/input/event5 /dev/input/event6 /dev/input/event7 /dev/input/event8 /dev/input/event9 ])
+     arbitration: gesture axis arbitration: RY=0.7324 RX=0.36 -> vertical|gesture axis arbitration: RY=0.7324 RX=0.36 -> vertical|gesture axis arbitration: RY=0.7324 RX=0.36 -> vertical|
+     serials: starts=18 dones=18 overlaps=0 orphan=0 drops=0 queued=6 inflight=0
+
+===== A5 指针空闲隐藏后第一次推杆（t20 修复点） =====
+  A5 hidden=0->1 pointer_device=[off] focus=[Window{36cc85 u0 com.dennis.padtest/com.dennis.padtest.ui.ScrollTestActivity}] first-vertical: dPY=1415 Zn=4 Vn=0
+  A5 after second(h) push: dHS=512
+
+===== B 修复2 光标 dpi（左摇杆定长推 300ms） =====
+  full: n=31 from=81,800 to=2559,800 dt=284ms dx=2478 dy=0
+  对照: d150=1138px(折算2276px) d50=498 d80=873px
+  half: n=33 from=19,800 to=539,800 dt=297ms dx=520 dy=0
+  low: n=12 from=3,798 to=39,798 dt=240ms dx=36 dy=0
+  center half: 608px edge slow: 
+  B5 inputs: prefs_speed_phone=[speed_phone" value="48"] edge_slow_log=[] mid=608 half=520 low=36
+
+===== C 修复3 滑动速度（按住右摇杆 1.5s） =====
+  pass1: vertical n=6 total=3360px | horizontal n=3 total=3456px | ratio=1.029
+  vertical: n=6 total=3360px | horizontal: n=3 total=3456px | ratio=1.029
+  app: swipe vertical=false dir=-1 slow=false ms=200 dist=0 display=0|swipe vertical=false dir=-1 slow=false ms=200 dist=0 display=0|swipe vertical=false dir=-1 slow=false ms=200 dist=0 display=0|
+  C4 per-gesture: vertical=560px horizontal=1152px (prefs hswipe=3 scroll=4)
+  C5 actual scroll: dPY=1415px dHS=512px
+
+===== D 修复4 L3 居中（pointer_speed 0/3/7 × 3 次 + 新装机自标定 + A 恢复鼠标点击） =====
+  [D0 attempt 1] pid= move_gain_left=0
+  [D0 attempt 1] start: engine started, socket=/data/data/com.dennis.dexpad/files/gpm.sock prefs=cached moveGain=0.0
+  [D0] click=[1278 800] CENTER_OK_err=-2,0 gain=[moveGain calibrated 0.0 -> 3.2465813 (src=l3-initial center_gain=2.16)] start=[engine started, socket=/data/data/com.dennis.dexpad/files/gpm.sock prefs=cached moveGain=0.0]
+  L3 clears: 
+  D6: l3TookMs=578ms wallClock≈1530ms (9 次样本=[ 529 541 349 528 354 347 857 752 353] max=857)
+  D6 samples: [ 529 541 349 528 354 347 857 752 353] max=857
+  restored prefs: <?xml version='1.0' encoding='utf-8' standalone='yes' ?><map> <int name="hswipe_speed" value="3" /> <int name="scroll_speed" value="4" /> <boolean name="force_landscape" value="true" /> <float name="move_gain" value="3.2377949" /> <boolean name="mode_on" value="true" /> <int name="idle_hide_sec" value="8" /> <int name="speed_phone" value="48" /> <boolean name="enabled" value="true" /></map>
+
+===== E 修复5 边界卡死（四方向 + d-pad 后 + 空闲隐藏后） =====
+  左推 1400ms: real=[0,803] click=[0 803] est=[0 803] dEst=0,0 | ptr synced to real 0,803 (est was 0,803) gain=3.2377949|
+  右推 1400ms: real=[2559,803] click=[2559 803] est=[2560 803] dEst=1,0 | ptr synced to real 2559,803 (est was 2560,803) gain=3.2377949|
+  上推 1400ms: real=[1285,0] click=[] est=[1285 0] dEst=0,0 | ptr synced to real 1285,0 (est was 1285,0) gain=3.2377949|
+  下推 1400ms: real=[1285,1599] click=[1284 1599] est=[1285 1600] dEst=0,1 | ptr synced to real 1285,1599 (est was 1285,1600) gain=3.2377949|
+  left-edge stuck: P1=[0 800] after5x200=[0 800] reverse=[2559 800]
+
+===== F 功能6 摇杆唤醒（正例 0.92 / 负例 0.37·0.73·慢爬 2.1s） =====
+  resident vgpad pid=15491 node=/dev/input/event19 wakefulness=Awake
+  after sleep: Dozing
+  F3: riseCrossMs=0 sinceStartMs=205 log=[wake sent: helper u (m=0.9156 riseCrossMs=0ms sinceStartMs=205ms hold=205ms thr=0.8)|]
+
+===== G 功能7/8 Y+上→PiliPlus、Y+下→抖音（组件解析启动，非 am start -p） =====
+  installed: piliplus=1 douyin=1
+  Y+up top=com.example.piliplus/.MainActivity helper=[OPEN_APP com.example.piliplus via com.example.piliplus/.MainActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.example.piliplus/.MainActivity }] fallback=0 monkey=0
+  Y+down top=com.ss.android.ugc.aweme/.splash.SplashActivity helper=[OPEN_APP com.ss.android.ugc.aweme via com.ss.android.ugc.aweme/.splash.SplashActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.ss.android.ugc.aweme/.splash.SplashActivity }] fallback=0 monkey=0
+  custom mix_10: top=me.efesser.flauncher/.MainActivity OPEN_APP_count=0 prefs=mix_10_value">alt+tab< mix_10_keys">x+rb< mix_10_action">wheel_left< 
+  restored prefs: <?xml version='1.0' encoding='utf-8' standalone='yes' ?><map> <int name="hswipe_speed" value="3" /> <int name="scroll_speed" value="4" /> <boolean name="force_landscape" value="true" /> <float name="move_gain" value="3.2377949" /> <boolean name="mode_on" value="true" /> <int name="idle_hide_sec" value="8" /> <int name="speed_phone" value="48" /> <boolean name="enabled" value="true" /></map>
+
+===== H 提速与资源（事件→动作 / cmd_swipe prep / 60s 空闲 CPU / c 查询频度） =====
+  latency ms: 7 7 7 8 14 8 10 10 5 5 5 6 | median=7 max=14
+  prep us: [279 0 410 216 195 0 437 0 399 0 214 0 ] median=204 max=437
+  H5 越阈→helper SWIPE 间隔（含 vgpad 设备创建，仅记录）: 970ms
+  60s idle: pid=17726 threads_ticks=1126->1331 cpu=3.42% (proc_stat口径=5.93%) CURSORQ=0 CURSOR=0
+  per-thread: Profile Saver=0.07% dexpad-silent-a=0.73% dexpad-link=0.07% dexpad-engine=2.53% 
+
+===== I 回归 6 项（不得回退） =====
+  idle hide: P1=[2559 803] P2=[2559 803] d=0 hidden=0->1 corr=[pointer shown at last position (no correction move)|]
+  SELECT: shade=1 notif=[NOTIF swipe async n=16 pid=22141 prep=0us|NOTIF swipe rc=0 dur=428ms n=16|] png134041B->4236583B delta=4102542B
+
+===== J 横屏大屏（默认配置 / 旋转守护 ≤5s / 居中 / 分栏 / 竖屏回落负例） =====
+  default: user_rotation=1 accel=0 dumpsys_app=2560x1600 engine_geom=n/a rotlock=lock 1
+  guardian: 1500ms(6 polls) -> user_rotation=1 accel=0 dumpsys=2560x1600 engine=2560x1600 | landscape guardian: rotation 3 -> 1 (force_landscape=true)|
+  four edges (from E): [E1] PASS | 阈值: 左推 1400ms 真实光标到达边缘(x≈0/2559 y≈0/1599) 且 估算-真实 ≤8px | 实测: real=[0,803] est=[0 803] d=(0,0) click=[0 803]|[E2] PASS | 阈值: 右推 1400ms 真实光标到达边缘(x≈0/2559 y≈0/1599) 且 估算-真实 ≤8px | 实测: real=[2559,803] est=[2560 803] d=(1,0) click=[2559 803]|[E3] PASS | 阈值: 上推 1400ms 真实光标到达边缘(x≈0/2559 y≈0/1599) 且 估算-真实 ≤8px | 实测: real=[1285,0] est=[1285 0] d=(0,0) click=[]|[E4] PASS | 阈值: 下推 1400ms 真实光标到达边缘(x≈0/2559 y≈0/1599) 且 估算-真实 ≤8px | 实测: real=[1285,1599] est=[1285 1600] d=(0,1) click=[1284 1599]|
+  ConfigActivity: half_width_scrollviews=2 png=239153B
+  ButtonDetail: half_width_scrollviews=2 png=156243B
+  portrait fallback: dumpsys=2560x1600 engine=1600x2560 pid=17726 half_scrollviews=0
+
+===== R5 边界缓存投毒：2.0/2.3/2.5s 分段取样 =====
+  cache before: com.dennis.padtest 0 0 2560 1600 2560 1600
+  立即（应落毒区）: SWIPE 0 1280,480 -> 1280,1040 (task 0..2560 / 0..1600) axis=Z n=19 pid=23664 queued=0 async prep=446us
+  取样 2000ms: SWIPE 0 1280,480 -> 1280,1040 (task 0..2560 / 0..1600) axis=Z n=21 pid=23751 queued=0 async prep=175us
+  取样 2300ms: SWIPE 0 1280,480 -> 1280,1040 (task 0..2560 / 0..1600) axis=Z n=23 pid=23814 queued=0 async prep=303us
+  取样 2500ms: SWIPE 0 1280,480 -> 1280,1040 (task 0..2560 / 0..1600) axis=Z n=25 pid=23888 queued=0 async prep=377us
+  cache after: com.dennis.padtest 0 0 2560 1600 2560 1600
+
+===== K 助手新命令（u 正/负例 · g→O 增益 · c 与 P 真值 · P 落点 · 10 条命令耗时） =====
+  CHANNEL pid=24060 ready=1 err=
+  u positive: off=Dozing after=Awake [WAKE was=Toggling now=pending uinput=1 req=1 age=3073ms|WAKE was=Toggling now=Awake uinput=1 done=1 src=uinput probe=0 took=445ms|]
+  gain/center: GAIN center=0.000 ptr=3.250 effective=3.250|GAIN center=0.000 ptr=4.680 effective=4.680|CENTER(steps+gain 4.68) rot=1 -> 1280,800|GAIN center=3.250 ptr=3.250 effective=3.250|
+  P/target=1280,800 click=[1278 796] c=[CURSOR 1278 797 display=0 space=logical frame=435,1446 raw=453.8,1157.1 took=45us] c_err=3px click_err=4px
+  P/target=240,400 click=[237 396] c=[CURSOR 237 397 display=0 space=logical frame=435,1446 raw=679.8,569.1 took=89us] c_err=3px click_err=4px
+  P/target=2400,1400 click=[2400 1398] c=[CURSOR 2401 1398 display=0 space=logical frame=435,1446 raw=113.9,1791.0 took=54us] c_err=2px click_err=2px
+  10 cmds: 50ms (responses 3->13)
+  STARTED helper=24668 engine=24674 sock=1
+
+===== RESTORE 恢复正式安装状态 =====
+  restored: helper=24668 engine=24674 rot=1 accel=0 ps=-1 app=2560x1600 wf=Awake focus=Window{aac73af u0 com.dennis.padtest/com.dennis.padtest.ui.CursorTestActivity}
+  prefs=<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map> <int name="hswipe_speed" value="3" /> <int name="scroll_speed" value="4" /> <boolean name="force_landscape" value="true" /> <float name="move_gain" value="3.2377949" /> <boolean name="mode_on" value="true" /> <int name="idle_hide_sec" value="8" /> <int name="speed_phone" value="48" /> <boolean name="enabled" value="true" /></map>
+

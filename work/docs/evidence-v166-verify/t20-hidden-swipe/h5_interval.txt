@@ -1,0 +1,1 @@
+threshold->SWIPE interval=930ms (from vgpad process start; includes uinput device creation ~120ms; polled helper.log every ~10ms)

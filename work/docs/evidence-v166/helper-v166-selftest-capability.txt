@@ -1,0 +1,39 @@
+﻿== probe_v166_helper_cmds mode=selftest Tue Nov 24 02:04:01 CST 2026 ==
+CHANNEL pid=20669 ready=1 err=
+== SELFTEST capability semantics (t10) ==
+  CAP/INFO/SELFTEST lines:
+    SELFTEST begin
+    CAP mouse 1
+    CAP kbd 1
+    CAP wheel 1
+    CAP swipe 1
+    CAP notif 1
+    CAP power 1
+    CAP force 1
+    INFO apex 1
+    CAP screen 1
+    CAP wake 1
+    CAP cursor 1
+    CAP devices 1
+    CAP gesture 1
+    INFO gesture busy=0 queued=0
+    INFO devices_grabbed=1
+    SELFTEST end
+  CAP zero lines:
+  CAP zero count=0
+  selftest begin/end=1/1
+  ERR count=0
+  K group (P/c/g/u) logs:
+    POSPTR 1280,800
+    CURSORQ pid=20757
+    CURSOR 1278 797 display=0 space=logical frame=435,1446 raw=453.8,1157.1 took=50us
+    GAIN center=0.000 ptr=3.250 effective=3.250
+    GAIN center=0.000 ptr=4.680 effective=4.680
+    CURSORQ pid=20789
+    CURSOR 1278 797 display=0 space=logical frame=435,1446 raw=453.8,1157.1 took=58us
+    GAIN center=0.000 ptr=4.680 effective=4.680
+    WAKE was=Awake now=pending uinput=0 req=1 probe=1 age=382ms
+    WAKE was=Awake now=Awake uinput=0 skip=1 probe=1
+CHANNEL closed
+STARTED helper=20906 engine=20910 sock=srw-rw-rw- 1 root root 0 2026-11-24 02:04 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==

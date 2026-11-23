@@ -1,0 +1,56 @@
+﻿== probe_v166_helper_cmds mode=capidle Tue Nov 24 02:10:07 CST 2026 ==
+CHANNEL pid=26750 ready=1 err=
+== CAP semantics: pointer visible vs idle-hidden (t11) ==
+  [visible] CAP/INFO:
+    CAP mouse 1
+    CAP kbd 1
+    CAP wheel 1
+    CAP swipe 1
+    CAP notif 1
+    CAP power 1
+    CAP force 1
+    CAP screen 1
+    CAP wake 1
+    CAP cursor 1
+    CAP gamepad 1
+    CAP devices 1
+    CAP gesture 1
+    INFO pointer device=on
+  [visible] CAP zero count=0
+  [hidden] CAP/INFO:
+    CAP mouse 1
+    CAP kbd 1
+    CAP wheel 1
+    CAP swipe 1
+    CAP notif 1
+    CAP power 1
+    CAP force 1
+    CAP screen 1
+    CAP wake 1
+    CAP cursor 1
+    CAP gamepad 1
+    CAP devices 1
+    CAP gesture 1
+    INFO pointer device=off
+  [hidden] CAP zero count=0
+  [hidden] CAP zero lines: none
+  [visible-again] CAP/INFO:
+    CAP mouse 1
+    CAP kbd 1
+    CAP wheel 1
+    CAP swipe 1
+    CAP notif 1
+    CAP power 1
+    CAP force 1
+    CAP screen 1
+    CAP wake 1
+    CAP cursor 1
+    CAP gamepad 1
+    CAP devices 1
+    CAP gesture 1
+    INFO pointer device=on
+  [visible-again] CAP zero count=0
+  selftest begin/end=1/1  ERR=0
+CHANNEL closed
+STARTED helper=27062 engine=27066 sock=srw-rw-rw- 1 root root 0 2026-11-24 02:10 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==

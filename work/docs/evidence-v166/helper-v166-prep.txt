@@ -1,0 +1,9 @@
+﻿== probe_v166_helper_cmds mode=prep Mon Nov 23 22:54:04 CST 2026 ==
+CHANNEL pid=30858 ready=1 err=
+== PREP ==
+  preps=[157 186 193 159 161 242 219 245 347 391 ]
+  max_prep=391
+  starts=10 dones=10 overlaps=0 orphan_done=0 drops=0 queued=0 inflight_at_end=0
+CHANNEL closed
+STARTED helper=31234 engine=31237 sock=srw-rw-rw- 1 root root 0 2026-11-23 22:54 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==

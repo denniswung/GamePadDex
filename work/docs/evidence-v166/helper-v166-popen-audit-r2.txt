@@ -1,0 +1,114 @@
+# popen()/system() audit (regenerated from FINAL source, t13)
+# source: project/app/src/main/assets/gpminput.c  lines=3219  sha256=9994c286eba29b0b52fcbf3caad465ee5af1f6a821e5fc2896af45e0183c6f5a
+# 结论：所有 popen/system 都只在「子进程分支/子进程专用函数」执行；命令主循环只做内存计算 + write/fork。
+
+## 1) 全部 popen/system 调用点（L 行号 = 当前源码）
+203: * fork+system(), so an injected gesture starts sooner. */
+637:    FILE *p = popen("dumpsys SurfaceFlinger 2>/dev/null", "r");
+746:    FILE *p = popen("dumpsys SurfaceFlinger 2>/dev/null", "r");
+772:    FILE *p = popen("dumpsys input 2>/dev/null", "r");
+803:    FILE *p = popen("dumpsys activity activities 2>/dev/null | grep -m1 -oE 'Task\\{[^}]*#[0-9]+ type=standard A=[0-9]+:com\\.example\\.' 2>/dev/null", "r");
+804:    if (!p) p = popen("dumpsys activity activities 2>/dev/null | grep -m1 -oE 'Task\\{[^}]*#[0-9]+' ", "r");
+821:        int rc = system(cmd);
+836:        system(tap);
+997:    FILE *p = popen("/system/bin/dumpsys power 2>/dev/null | /system/bin/grep -m1 mWakefulness=", "r");
+1090:        system("/system/bin/input keyevent 224 >/dev/null 2>&1 </dev/null");
+1097:            system("/system/bin/su -M -c 'cmd power wakeup' >/dev/null 2>&1 </dev/null");
+1158:        system("/system/bin/input keyevent 224 >/dev/null 2>&1 </dev/null");
+1162:            system("/system/bin/su -M -c 'cmd power wakeup' >/dev/null 2>&1 </dev/null");
+1229:    FILE *p = popen("/system/bin/dumpsys input 2>/dev/null", "r");
+1625:    FILE *p = popen("/system/bin/dumpsys power 2>/dev/null | /system/bin/grep -c mWakefulness=", "r");
+1701:    FILE *p = popen("/system/bin/dumpsys activity activities 2>/dev/null | "
+1735:        FILE *p = popen("/system/bin/dumpsys activity activities 2>/dev/null | "
+1846:    FILE *t = popen("dumpsys activity activities 2>/dev/null", "r");
+2118:    FILE *p = popen("am stack list 2>/dev/null", "r");
+2150:    FILE *p = popen("dumpsys activity recents 2>/dev/null", "r");
+2200:        system("settings put system accelerometer_rotation 1");
+2201:        system("wm set-ignore-orientation-request false");
+2206:        system(cmd);
+2208:        system("wm set-ignore-orientation-request true");
+2218:    FILE *p = popen("dumpsys activity activities 2>/dev/null", "r");
+2253:        int rc = system(cmd);
+2263:    FILE *p = popen("dumpsys activity activities 2>/dev/null", "r");
+2306:    int rc = system(cmd);
+2481:        FILE *pr = popen(rcmd, "r");
+2595:                FILE *fp = popen(pipes[i], "r");
+2614:                int rc = system(cmd);
+2645:                    system("/system/bin/input keyevent 26");
+2694:                        int rc = system(cmd);
+2788:                system(c2);
+2841:                int rc = system(cmd);
+2865:                int rc = system(cmd);
+2893:                        rc = system(cmd4);
+2907:                        rc = system(cmd5);
+2915:                        int rc2 = system(cmd6);
+
+## 2) 关键函数/变量的行号
+182:static void reap_children(void) {
+204:static pid_t spawn_exec(const char *path, char *const argv[]) {
+308:static void key_release_later(int fd, int code, int delay_ms) {
+327:static long long key_release_due(void) {
+1063:static void wake_slow_path(const char *was, int emitted) {
+1110:static void cmd_wake_screen(void) {
+1318:static void cmd_cursor_query(void) {
+1549:static double effective_gain(void) {
+1657:static void cmd_selftest(void) {
+1822:static void bounds_refresh_request(int display, int maxX, int maxY, int force) {
+1831:static void bounds_refresh_poll(void) {
+1959:static void swipe_submit(swipe_req_t r, long long prep_us) {
+2003:static void gesture_poll(void) {
+2017:static int gesture_poll_timeout(void) {
+2025:static void cmd_swipe(int display, int delta, int ms, int maxX, int maxY, int vertical, int startPct,
+2472:static int resolve_component(const char *pkg, char *out, size_t n) {
+1779:static int g_bounds_force_refresh = 0;   /* 鍛ㄦ湡鍒锋柊锛氱粫杩?mtime 鑺傛祦锛堝懆鏈熸湰韬嵆鑺傛祦锛?*/
+1827:    if (force) g_bounds_force_refresh = 1;
+1834:    int force = g_bounds_force_refresh;
+1836:    g_bounds_force_refresh = 0;
+1921:static pid_t g_swipe_pid = 0;
+1922:static int g_swipe_axis = -1;
+1944:    g_swipe_pid = pid;
+1945:    g_swipe_axis = r->vertical;
+
+## 3) cmd_swipe 函数体（几何+队列：不应出现 popen/system/exec/fork 调用）
+(none)
+
+## 4) handle_line 里的 fork/异步覆盖（命令主循环不阻塞）
+2544:                if (fork() == 0) {
+2553:            if (fork() == 0) {
+2564:                if (fork() == 0) {
+2587:            if (fork() != 0) break;
+2623:            if (fork() == 0) {
+2635:                key_release_later(g_kbd, 116, 40);
+2643:                if (fork() == 0) {
+2654:            if (sscanf(line, "%d", &rot) == 1 && fork() == 0) {
+2670:            if (fork() == 0) {
+2684:                    key_release_later(g_kbd, lc, 8);   /* 涓嶉樆濉炲懡浠ゅ惊鐜?*/
+2690:                    if (fork() == 0) {
+2739:            if (fork() == 0) {
+2776:                key_release_later(g_kbd, key, 45);
+2784:            if (fork() == 0) {
+2811:            swipe_submit(r, 0);
+2816:            if (fork() == 0) {
+2825:            if (n >= 1 && jd > 0 && fork() == 0) {
+2835:            if (sscanf(line, "%d %191s", &fd, fcomp) == 2 && fd > 0 && fork() == 0) {
+2850:            if (sscanf(line, "%d %95s", &xd, xc) == 2 && fork() == 0) {
+2859:            if (sscanf(line, "%d", &hd) == 1 && hd > 0 && fork() == 0) {
+2974:            cmd_cursor_query();
+2981:            if (pn >= 2 && fork() == 0) {
+
+## 5) case 'C'（组合键）：按键时序在子进程（R2 修复）
+2702:         case 'C': {
+2724:                 pid_t kc = fork();
+2727:                     int n = cmd_key_combo(codes, count);
+2728:                     out("KCOMBO %d %d emitted=%d", cd, count, n);
+2731:                 if (kc < 0) out("ERR C fork: %s", strerror(errno));
+2737:         case 't': {
+
+## 6) 周期刷新 force 参数（R5 修复：周期绕过 mtime 节流，滑动路径保留）
+1779:static int g_bounds_force_refresh = 0;   /* 鍛ㄦ湡鍒锋柊锛氱粫杩?mtime 鑺傛祦锛堝懆鏈熸湰韬嵆鑺傛祦锛?*/
+1822:static void bounds_refresh_request(int display, int maxX, int maxY, int force) {
+1827:    if (force) g_bounds_force_refresh = 1;
+1834:    int force = g_bounds_force_refresh;
+1836:    g_bounds_force_refresh = 0;
+2045:        bounds_refresh_request(display, maxX, maxY, 0);   /* 滑动路径：保留 2s 节流 */
+3094:                bounds_refresh_request(g_bounds_last_display, g_bounds_last_w, g_bounds_last_h, 1);  /* 周期刷新：force */

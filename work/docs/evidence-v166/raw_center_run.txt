@@ -1,0 +1,35 @@
+--------- beginning of main
+11-23 22:19:14.461 15540 15585 I DexPad  : hb ready=true silent=244ms
+11-23 22:19:14.770 15540 15583 I DexPad  : button l3 down mapped=center_cursor mode=true ready=true
+11-23 22:19:14.776 15540 15583 I DexPad  : pointer shown at last position (no correction move)
+11-23 22:19:14.778 15540 15583 I DexPad  : cursor centered on 2560x1600 (display 0, rot 1, gain 2.16)
+11-23 22:19:14.928 12327 12327 I PadProbe: MOUSE/hover x=0 y=695
+11-23 22:19:14.938 12327 12327 I PadProbe: MOUSE/hover x=0 y=476
+11-23 22:19:14.942 12327 12327 I PadProbe: MOUSE/hover x=0 y=249
+11-23 22:19:15.198 15540 15583 I DexPad  : clear pressed state (device gone): l3
+11-23 22:19:17.168 15540 15583 I DexPad  : button a down mapped=left_click mode=true ready=true
+11-23 22:19:17.170 15540 15583 I DexPad  : A pressed: nativeNav=false navActive=false leftTouch=false
+11-23 22:19:17.172 15540 15583 I DexPad  : left button down
+11-23 22:19:17.176 12327 12327 I PadProbe: MOUSE/click-down x=1925 y=1200 btn=1
+11-23 22:19:17.248 15540 15583 I DexPad  : A release: nativeNav=false navActive=false leftIsTouch=false
+11-23 22:19:17.253 12327 12327 I PadProbe: MOUSE/click-up x=1925 y=1200 dx=0 dy=0 dist=0
+GRABBED 1 Virtual Test Gamepad
+WAKE skip awake Virtual Test Gamepad
+TOP com.dennis.padtest
+TOP com.dennis.padtest
+KEY 1 317 1 797657261
+MOUSE_REOPEN (auto)
+POINTER on
+CENTER(steps+gain 2.16) rot=1 -> 1280,800
+GONE_READ /dev/input/event19 errno=19 (No such device)
+GONE 1 Virtual Test Gamepad
+TOP com.dennis.padtest
+DEV 1 Virtual Test Gamepad
+GRABBED 1 Virtual Test Gamepad
+WAKE skip awake Virtual Test Gamepad
+TOP com.dennis.padtest
+KEY 1 304 1 797659660
+KEY 1 304 0 797659740
+GONE_EVT /dev/input/event19 revents=24
+GONE 1 Virtual Test Gamepad
+TOP com.dennis.padtest

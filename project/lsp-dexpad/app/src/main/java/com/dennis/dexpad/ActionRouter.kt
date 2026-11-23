@@ -34,11 +34,8 @@ class ActionRouter(private val host: ActionHost) {
 
         fun lockArrowsFor(ms: Long)
 
-        /** ignore stick input while the pointer is being centred */
+        /** 忽略摇杆输入，直到回中或超时（L3 后的防抖） */
         fun lockCenterFor(ms: Long)
-
-        /** 光标已经被居中：引擎要把自己的位置估计重置到屏幕中心 */
-        fun onCentered()
 
         /** 启动"目标应用"动作里配置的包 */
         fun launchApp(pkg: String)
@@ -46,8 +43,11 @@ class ActionRouter(private val host: ActionHost) {
         /** the pointer must be visible again (e.g. it was hidden while idle) */
         fun onPointerNeeded()
 
-        /** move the pointer to the middle of the display in ONE relative move */
-        fun centerPointer()
+        /**
+         * v1.66 闭环居中：助手有界推到左上角 + 一步到中心后，App 用真实光标位置
+         * 标定 REL→px 增益并做误差修正（不靠加长等待）。同时退出 d-pad 粘性导航。
+         */
+        fun centerCursorClosedLoop()
     }
 
     fun fire(action: String, comboValue: String) {
@@ -141,13 +141,12 @@ class ActionRouter(private val host: ActionHost) {
                 // 指针可能被「空闲隐藏」销毁了：先恢复，否则居中看不到结果
                 host.onPointerNeeded()
                 val (w, h) = host.displayState().size(display)
-                val rot = host.displayState().rotation(display)
-                val gain = host.prefs().centerGain
-                host.lockCenterFor(700)
-                // 助手侧：有界小步夹角 + 按增益一步到中心（见 gpminput.c cmd_center）
-                root.centerCursor(w, h, host.isPhone(), rot, gain)
-                host.onCentered()
-                log("cursor centered on ${w}x$h (display $display, rot $rot, gain $gain)")
+                // 真机根因（DIAG-v166 §3/§4）：固定 center_gain=2.16 vs 实际 G=3.24~3.25
+                // 导致落点=中心×1.503；且 L3 不清 nativeNav，后续 A 变成 DPAD_CENTER。
+                // 修复：L3 主动退出导航 + 用真实光标位置闭环标定增益并修正误差。
+                host.lockCenterFor(1200)
+                host.centerCursorClosedLoop()
+                log("cursor center requested on ${w}x$h (display $display)")
             }
             Action.POWER -> {
                 root.powerKey()

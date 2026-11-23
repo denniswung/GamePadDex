@@ -1,0 +1,17 @@
+--------- beginning of main
+11-24 04:31:02.069 26379 26476 I DexPad  : helper WAKE skip awake Virtual Test Gamepad
+11-24 04:31:02.916 26379 26477 I DexPad  : pointer shown at last position (no correction move)
+11-24 04:31:02.916 26379 26477 I DexPad  : vswipe -480 on display 0 cycle=400ms
+11-24 04:31:03.317 26379 26477 I DexPad  : vswipe -480 on display 0 cycle=400ms
+11-24 04:31:03.723 26379 26477 I DexPad  : vswipe -480 on display 0 cycle=400ms
+11-24 04:31:04.125 26379 26477 I DexPad  : vswipe -480 on display 0 cycle=400ms
+11-24 04:31:04.593 26379 26477 I DexPad  : hb ready=true silent=34ms
+11-24 04:31:04.593 26379 26477 I DexPad  : perf tick n=625 avg=191us max=7616us prefs_per_tick=0 gain=3.2377949
+11-24 04:31:08.507 26379 26476 I DexPad  : helper WAKE skip awake Virtual Test Gamepad
+11-24 04:31:09.364 26379 26477 I DexPad  : swipe vertical=false dir=-1 slow=false ms=200 dist=0 display=0
+11-24 04:31:09.872 26379 26477 I DexPad  : swipe vertical=false dir=-1 slow=false ms=200 dist=0 display=0
+11-24 04:31:10.378 26379 26477 I DexPad  : swipe vertical=false dir=-1 slow=false ms=200 dist=0 display=0
+11-24 04:31:10.883 26379 26477 I DexPad  : swipe vertical=false dir=-1 slow=false ms=200 dist=0 display=0
+11-24 04:31:11.391 26379 26477 I DexPad  : swipe vertical=false dir=-1 slow=false ms=200 dist=0 display=0
+11-24 04:31:11.831 26379 26477 I DexPad  : hb ready=true silent=0ms
+11-24 04:31:11.832 26379 26477 I DexPad  : perf tick n=625 avg=165us max=2541us prefs_per_tick=0 gain=3.2377949

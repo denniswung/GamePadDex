@@ -1,0 +1,18 @@
+﻿== probe_v166_helper_cmds mode=smoke Tue Nov 24 02:04:48 CST 2026 ==
+CHANNEL pid=21508 ready=1 err=
+== SMOKE ==
+  screen after p: mWakefulness=Dozing
+  screen after u: mWakefulness=Awake
+  OUT lines=93
+  ERR lines in OUT:
+  ERR count=0
+  helper.log tail:
+    CLOSE_APP com.dennis.padtest async
+    CLOSE_APP com.dennis.padtest rc=0
+    FORCE_STOP me.efesser.flauncher rc=0 killed=0
+    POWER uinput=1
+    WAKE was=Toggling now=pending uinput=1 req=1 age=2888ms
+    WAKE was=Toggling now=Awake uinput=1 done=1 src=uinput probe=0 took=432ms
+CHANNEL closed
+STARTED helper=22674 engine=22678 sock=srw-rw-rw- 1 root root 0 2026-11-24 02:05 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==

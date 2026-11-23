@@ -69,6 +69,17 @@ class Prefs(context: Context) {
         const val KEY_SENS_Y = "sens_y"
         const val KEY_EDGE_SLOW = "edge_slow"
 
+        /** 运行时标定出来的 REL 单位 → 屏幕像素 的增益（v1.66，实机 G≈3.25 且随 pointer_speed 变） */
+        const val KEY_MOVE_GAIN = "move_gain"
+
+        // ---- 摇杆唤醒（大幅快速推左摇杆点亮屏幕）----
+        /** 触发唤醒的幅度阈值（千分比，默认 800 = 80% 杆量） */
+        const val KEY_WAKE_STICK = "wake_stick"
+        /** 幅度必须维持多久才唤醒（ms） */
+        const val KEY_WAKE_HOLD_MS = "wake_hold_ms"
+        /** 从 30% 杆量冲到阈值允许的最大上升时间（ms）——慢推不算"快速大幅" */
+        const val KEY_WAKE_RISE_MS = "wake_rise_ms"
+
         const val DEFAULT_COMBO = "alt+tab"
 
         /**
@@ -127,6 +138,9 @@ class Prefs(context: Context) {
             5 -> "x+rb"
             // Y + L3 = 开/关屏幕（模拟电源键）
             9 -> "y+l3"
+            // v1.66：Y+上 = 打开 PiliPlus，Y+下 = 打开抖音（走 open_app 动作）
+            10 -> "y+up"
+            11 -> "y+down"
             else -> ""
         }
 
@@ -138,10 +152,21 @@ class Prefs(context: Context) {
             4 -> Action.WHEEL_RIGHT   // X + LB = 内容向右（上一页）
             5 -> Action.WHEEL_LEFT    // X + RB = 内容向左（下一页）
             9 -> Action.POWER         // Y + L3 = 开/关屏幕
+            10, 11 -> Action.OPEN_APP // Y+上 / Y+下 = 打开指定应用
             else -> Action.NONE
         }
 
-        fun defaultMixValue(i: Int): String = DEFAULT_COMBO
+        /** 打开 PiliPlus（B 站第三方客户端） */
+        const val PKG_PILIPLUS = "com.example.piliplus"
+
+        /** 抖音 */
+        const val PKG_DOUYIN = "com.ss.android.ugc.aweme"
+
+        fun defaultMixValue(i: Int): String = when (i) {
+            10 -> PKG_PILIPLUS
+            11 -> PKG_DOUYIN
+            else -> DEFAULT_COMBO
+        }
 
         fun buttonLabel(button: String): String = when (button) {
             "a" -> "A"
@@ -172,9 +197,15 @@ class Prefs(context: Context) {
         get() = shared.getBoolean(KEY_ENABLED, true)
         set(v) = shared.edit().putBoolean(KEY_ENABLED, v).apply()
 
-    /** pixels per 16 ms frame on the phone screen */
+    /**
+     * pixels per 16 ms frame on the phone screen.
+     *
+     * v1.66: 30 → 48。真机实测（v1.65，G=3.25）：满推 300 ms 只走 1559 px
+     * （≈62% 屏宽）；48 的换算目标是 0.9~1.2 屏宽/300 ms（见 docs/DIAG-v166 §5.2）。
+     * 曲线同时从 γ=2.5 改到 γ=1.6，消除 0–30% 杆位完全不动的问题。
+     */
     var speedPhone: Int
-        get() = shared.getInt(KEY_SPEED_PHONE, 30)
+        get() = shared.getInt(KEY_SPEED_PHONE, 48)
         set(v) = shared.edit().putInt(KEY_SPEED_PHONE, v).apply()
 
     /**
@@ -249,11 +280,8 @@ class Prefs(context: Context) {
         get() = shared.getBoolean(KEY_MODE_ON, true)
         set(v) = shared.edit().putBoolean(KEY_MODE_ON, v).apply()
 
-    fun action(button: String): String {
-        val v = shared.getString(btnKey(button), defaultAction(button)) ?: defaultAction(button)
-        if (button == "guide") android.util.Log.i("DexPad", "prefs guide key=${btnKey(button)} raw=$v default=${defaultAction(button)}")
-        return v
-    }
+    fun action(button: String): String =
+        shared.getString(btnKey(button), defaultAction(button)) ?: defaultAction(button)
 
     fun param(button: String): String = shared.getString(paramKey(button), "") ?: ""
 
@@ -299,11 +327,34 @@ class Prefs(context: Context) {
         get() = shared.getString(KEY_TARGET_PACKAGE, "") ?: ""
         set(v) = shared.edit().putString(KEY_TARGET_PACKAGE, v).apply()
 
-    /** 居中时 raw 单位 → 屏幕像素 的增益（实测约 2.16；指针加速不同会变） */
+    /** 居中时 raw 单位 → 屏幕像素 的增益（v1.65 实测约 2.16；指针加速不同会变） */
     val centerGain: Float
         get() = shared.getInt(KEY_CENTER_GAIN, 216).coerceIn(100, 400) / 100f
 
     fun setCenterGain(v: Int) = shared.edit().putInt(KEY_CENTER_GAIN, v.coerceIn(100, 400)).apply()
+
+    /**
+     * 运行时标定的 REL→px 增益（v1.66）。0 = 还没标定（用 [centerGain] 作为初始猜测）。
+     * 真机实测：pointer_speed=-1 → 3.25，0 → 3.60，3 → 4.68，7 → 7.21，所以不能写死。
+     */
+    var moveGainCal: Float
+        get() = shared.getFloat(KEY_MOVE_GAIN, 0f)
+        set(v) = shared.edit().putFloat(KEY_MOVE_GAIN, v).apply()
+
+    /** 摇杆唤醒：触发幅度（千分比，0..1000） */
+    var wakeStick: Int
+        get() = shared.getInt(KEY_WAKE_STICK, 800).coerceIn(300, 990)
+        set(v) = shared.edit().putInt(KEY_WAKE_STICK, v.coerceIn(300, 990)).apply()
+
+    /** 摇杆唤醒：幅度维持时间（ms） */
+    var wakeHoldMs: Int
+        get() = shared.getInt(KEY_WAKE_HOLD_MS, 200).coerceIn(60, 1200)
+        set(v) = shared.edit().putInt(KEY_WAKE_HOLD_MS, v.coerceIn(60, 1200)).apply()
+
+    /** 摇杆唤醒：从 30% 冲到阈值的最大上升时间（ms），慢推不算 */
+    var wakeRiseMs: Int
+        get() = shared.getInt(KEY_WAKE_RISE_MS, 120).coerceIn(40, 600)
+        set(v) = shared.edit().putInt(KEY_WAKE_RISE_MS, v.coerceIn(40, 600)).apply()
 
     /** 空闲多少秒后隐藏系统指针（0 = 不隐藏） */
     val idleHideSec: Int
@@ -372,6 +423,10 @@ class Prefs(context: Context) {
         o.put(KEY_SENS_X, (sensX() * 100).toInt())
         o.put(KEY_SENS_Y, (sensY() * 100).toInt())
         o.put(KEY_EDGE_SLOW, edgeSlow())
+        o.put(KEY_MOVE_GAIN, moveGainCal)
+        o.put(KEY_WAKE_STICK, wakeStick)
+        o.put(KEY_WAKE_HOLD_MS, wakeHoldMs)
+        o.put(KEY_WAKE_RISE_MS, wakeRiseMs)
         o.put("role_swap", roleSwap)
         // per-button: single / keyboard combo / double / long
         for (b in BUTTONS) {

@@ -1,0 +1,22 @@
+﻿== probe_v166_helper_cmds mode=cursor Mon Nov 23 23:34:51 CST 2026 ==
+CHANNEL pid=24439 ready=1 err=
+== CURSOR logical (multi-display) ==
+  target=1280,800 click='MOUSE/click-down x=1278 y=796 btn=1'
+    c: CURSOR 1278 797 display=0 space=logical frame=435,1446 raw=453.8,1157.1 took=24us
+  target=40,800 click='MOUSE/click-down x=39 y=796 btn=1'
+    c: CURSOR 39 797 display=0 space=logical frame=435,1446 raw=453.8,457.0 took=38us
+  target=2540,10 click=''
+    c: CURSOR 2541 7 display=0 space=logical frame=435,1446 raw=900.3,1870.0 took=44us
+  target=20,1590 click=''
+    c: CURSOR 16 1587 display=0 space=logical frame=435,1446 raw=7.3,444.2 took=53us
+  target=1280,1590 click='MOUSE/click-down x=1278 y=1587 btn=1'
+    c: CURSOR 1278 1587 display=0 space=logical frame=435,1446 raw=7.3,1157.1 took=42us
+  all CURSOR lines:
+    CURSOR 1278 797 display=0 space=logical frame=435,1446 raw=453.8,1157.1 took=24us
+    CURSOR 39 797 display=0 space=logical frame=435,1446 raw=453.8,457.0 took=38us
+    CURSOR 2541 7 display=0 space=logical frame=435,1446 raw=900.3,1870.0 took=44us
+    CURSOR 16 1587 display=0 space=logical frame=435,1446 raw=7.3,444.2 took=53us
+    CURSOR 1278 1587 display=0 space=logical frame=435,1446 raw=7.3,1157.1 took=42us
+CHANNEL closed
+STARTED helper=24957 engine=24960 sock=srw-rw-rw- 1 root root 0 2026-11-23 23:35 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==

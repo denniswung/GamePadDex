@@ -1,0 +1,113 @@
+﻿adb : /system/bin/sh: syntax error: unexpected 'do'
+所在位置 行:1 字符: 158
++ ... ePadDex复刻'; adb -s 192.168.10.36:6666 shell 'su -c "for m in crosstal ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (/system/bin/sh:...unexpected 'do':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+== probe_v166_helper_cmds mode=crosstalk Mon Nov 23 22:58:17 CST 2026 ==
+CHANNEL pid=6139 ready=1 err=
+== CROSSTALK (serialized gesture) ==
+-- case1 same-tick Z+V (expect 1 injection + 1 SWIPE_DROP) --
+  SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=1 pid=6173 queued=0 async prep=235us
+  SWIPE_DROP axis=V busy=Z n=1 x=20,y=800 reason=crosstalk
+  SWIPE_DONE 0 axis=Z n=1 rc=0 dur=242ms
+  starts=1 dones=1 overlaps=0 orphan_done=0 drops=1 queued=0 inflight_at_end=0
+-- case2 same-axis burst Z x2 (expect serial: 1 injection + QUEUED, then second) --
+  SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=2 pid=6215 queued=0 async prep=122us
+  SWIPE_QUEUED axis=Z depth=1 n=2 x=1280,y=480
+  SWIPE_DONE 0 axis=Z n=2 rc=0 dur=261ms
+  SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=3 pid=6229 queued=1 async prep=0us
+  SWIPE_DONE 0 axis=Z n=3 rc=0 dur=281ms
+  starts=2 dones=2 overlaps=0 orphan_done=0 drops=0 queued=1 inflight_at_end=0
+-- case3 alternating V/Z @100ms (expect never 2 in flight) --
+  SWIPE 0 20,800 -> 1044,800 (task 0..2560 / 0..1600) axis=V n=4 pid=6260 queued=0 async prep=137us
+  SWIPE_DROP axis=Z busy=V n=4 x=1280,y=480 reason=crosstalk
+  SWIPE_DONE 0 axis=V n=4 rc=0 dur=240ms
+  SWIPE 0 20,800 -> 1044,800 (task 0..2560 / 0..1600) axis=V n=5 pid=6271 queued=0 async prep=544us
+  SWIPE_DROP axis=Z busy=V n=5 x=1280,y=480 reason=crosstalk
+  SWIPE_DONE 0 axis=V n=5 rc=0 dur=234ms
+  starts=2 dones=2 overlaps=0 orphan_done=0 drops=2 queued=0 inflight_at_end=0
+-- case4 swipe + N in flight (expect serialized) --
+  SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=6 pid=6336 queued=0 async prep=250us
+  SWIPE_QUEUED axis=Z depth=1 n=6 x=1280,y=4
+  SWIPE_DONE 0 axis=Z n=6 rc=0 dur=247ms
+  NOTIF swipe async n=7 pid=6346 prep=0us
+  NOTIF swipe rc=0 dur=442ms n=7
+  starts=2 dones=2 overlaps=0 orphan_done=0 drops=0 queued=1 inflight_at_end=0
+-- case5 prep samples --
+  preps=[279 255 274 301 292 250 ]
+  max_prep=301
+CHANNEL closed
+STARTED helper=6619 engine=6624 sock=srw-rw-rw- 1 root root 0 2026-11-23 22:58 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==
+== probe_v166_helper_cmds mode=poison Mon Nov 23 22:58:42 CST 2026 ==
+CHANNEL pid=6812 ready=1 err=
+== BOUNDS CACHE POISON ==
+  cache before: me.efesser.flauncher 0 0 2560 1600 2560 1600
+  poisoned: - 600 240 1200 800 2560 1600
+  swipe right after poison (poisoned start expected):
+    SWIPE 0 900,408 -> 900,260 (task 600..1200 / 240..800) axis=Z n=2 pid=6869 queued=0 async prep=128us
+  swipe after 2.4s (expect start back inside task, y=480):
+    SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=3 pid=6918 queued=0 async prep=270us
+  cache corrected: me.efesser.flauncher 0 0 2560 1600 2560 1600
+  legacy mirror: 0 0 2560 1600
+CHANNEL closed
+STARTED helper=7006 engine=7010 sock=srw-rw-rw- 1 root root 0 2026-11-23 22:58 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==
+== probe_v166_helper_cmds mode=wake Mon Nov 23 22:58:55 CST 2026 ==
+CHANNEL pid=7197 ready=1 err=
+== WAKE ==
+  before: mWakefulness=Awake
+  negative case logs:
+    WAKE was=Awake now=pending uinput=0 req=1 probe=1 age=1031ms
+    WAKE was=Awake now=Awake uinput=0 skip=1 probe=1
+  negative uinput=1 count=0
+  after negative: mWakefulness=Awake
+  screen off via p: mWakefulness=Dozing
+  positive case logs:
+    WAKE was=Toggling now=pending uinput=1 req=1 age=3098ms
+    WAKE was=Toggling now=Awake uinput=1 done=1 src=uinput probe=0 took=444ms
+  after positive: mWakefulness=Awake
+  dedupe logs:
+    WAKE was=Awake now=pending uinput=0 req=1 probe=1 age=3625ms
+    WAKE was=Awake now=Awake uinput=0 skip=1 probe=1
+    WAKE was=Awake now=Awake uinput=0 dedup=1 req=1 age=289ms
+  after dedupe: mWakefulness=Awake
+CHANNEL closed
+STARTED helper=7659 engine=7663 sock=srw-rw-rw- 1 root root 0 2026-11-23 22:59 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==
+== probe_v166_helper_cmds mode=regress Mon Nov 23 22:59:18 CST 2026 ==
+CHANNEL pid=7822 ready=1 err=
+== REGRESSION: DPAD_CENTER / SELECT / WHEEL dir ==
+  evidence:
+    KEYUIN 0 23 lcode=28
+    ARROW 1
+    ARROW 2
+    NOTIF swipe async n=1 pid=7885 prep=0us
+    NOTIF swipe rc=0 dur=402ms n=1
+    KEYUIN 0 4 lcode=158
+    WHEEL 3 h=1
+    WHEEL -3 h=1
+    WHEEL 2 h=0
+    WHEEL -2 h=0
+CHANNEL closed
+STARTED helper=8032 engine=8035 sock=srw-rw-rw- 1 root root 0 2026-11-23 22:59 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==
+== probe_v166_helper_cmds mode=openapp Mon Nov 23 22:59:32 CST 2026 ==
+CHANNEL pid=8210 ready=1 err=
+== OPEN_APP ==
+-- com.example.piliplus --
+  OPEN_APP com.example.piliplus async
+  OPEN_APP com.example.piliplus via com.example.piliplus/.MainActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.example.piliplus/.MainActivity }
+  top:     topResumedActivity=ActivityRecord{246031985 u0 com.example.piliplus/.MainActivity t805}
+-- com.ss.android.ugc.aweme --
+  OPEN_APP com.ss.android.ugc.aweme async
+  OPEN_APP com.ss.android.ugc.aweme via com.ss.android.ugc.aweme/.splash.SplashActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.ss.android.ugc.aweme/.splash.SplashActivity }
+  top:     topResumedActivity=ActivityRecord{255764857 u0 com.ss.android.ugc.aweme/.splash.SplashActivity t806}
+  fallback_pkg_count=0
+  monkey_count=0
+  resolve_failed_count=0
+CHANNEL closed
+STARTED helper=9300 engine=9304 sock=srw-rw-rw- 1 root root 0 2026-11-23 22:59 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==

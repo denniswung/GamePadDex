@@ -1,0 +1,34 @@
+v166_auto_suite mode=B start=Tue Nov 24 05:15:35 CST 2026
+
+===== 0 基线校验（不一致立即 FAIL 并停止） =====
+  versionName=1.66 versionCode=68
+  app_apk=/data/app/~~Fty6_K8_5xPfkTOgJ3E4fQ==/com.dennis.dexpad-rYlG-mEXqr11bB_VYzxyeQ==/base.apk
+  apk_sha256=d2194406a3d45dd768b02137af2aa1cd47a6c6f6363948d4aefa13c7a50bb475
+  helper_sha256=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf module_sha256=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+  screen=2560x1600 rotlock=lock 1 user_rotation=1 accel=0 pointer_speed=-1
+  prefs=<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map> <int name="hswipe_speed" value="3" /> <int name="scroll_speed" value="4" /> <boolean name="force_landscape" value="true" /> <float name="move_gain" value="3.2377949" /> <boolean name="mode_on" value="true" /> <int name="idle_hide_sec" value="8" /> <int name="speed_phone" value="48" /> <boolean name="enabled" value="true" /></map>
+[BASE-APK] PASS | 阈值: 设备 base.apk sha256 == 本机 debug 产物 d2194406a3d45dd768b02137af2aa1cd47a6c6f6363948d4aefa13c7a50bb475 | 实测: d2194406a3d45dd768b02137af2aa1cd47a6c6f6363948d4aefa13c7a50bb475
+[BASE-VER] PASS | 阈值: versionName=1.66 versionCode=68 | 实测: versionName=1.66 versionCode=68
+[BASE-HELPER] PASS | 阈值: helper sha256 == 1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf 且 /data/adb/gpm 与模块目录一致 | 实测: 1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf / 1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+[BASE-FOCUS] PASS | 阈值: padtest 在前台并有焦点 | 实测: Window{37f8fbf u0 com.dennis.padtest/com.dennis.padtest.ui.CursorTestActivity}
+  geometry=2560x1600
+
+===== B 修复2 光标 dpi（左摇杆定长推 300ms） =====
+  full: n=32 from=81,800 to=2559,800 dt=291ms dx=2478 dy=0
+  对照: d150=1144px(折算2288px) d50=492 d80=845px
+[B1] PASS | 阈值: 满推 300ms 位移 ∈[0.9,1.2]×屏宽 = [2304,3072]px（贴边起手，撞边取下界） | 实测: 2478px（屏宽2560；对照 d150=1144/d50=492/d80=845）
+  half: n=33 from=19,800 to=530,800 dt=291ms dx=511 dy=0
+[B2] PASS | 阈值: 半推(0.49) 300ms 位移 ∈ [200, 屏宽]px（最小位移断言，0–30% 以上杆位线性可用） | 实测: 511px
+  low: n=13 from=3,800 to=42,800 dt=266ms dx=39 dy=0
+[B3] PASS | 阈值: 0.24 推 300ms 位移 ∈ [10, 200]px（最小位移断言；旧版为 0，亚像素丢弃已修） | 实测: 39px
+  center half: 625px edge slow: 
+[B4] PASS | 阈值: 边缘减速生效（屏幕中心同推 > 左边缘同推） | 实测: center=625px edge=511px
+  B5 inputs: prefs_speed_phone=[speed_phone" value="48"] edge_slow_log=[] mid=625 half=511 low=39
+[B5] PASS | 阈值: 参数口径（条件检查）：prefs speed_phone=48 或未覆盖 且 边缘减速成立 且 0.24 推 ≥10px（源码常量 speed_phone=48/γ=1.6/亚像素 0.2px/scale=0.6，见报告引用行号） | 实测: prefs[speed_phone" value="48"] mid=625>half=511 low=39 edge_log=[]
+
+===== RESTORE 恢复正式安装状态 =====
+  restored: helper=14179 engine=14180 rot=1 accel=0 ps=-1 app=2560x1600 wf=Awake focus=Window{94dc889 u0 com.dennis.padtest/com.dennis.padtest.ui.CursorTestActivity}
+  prefs=<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map> <int name="hswipe_speed" value="3" /> <int name="scroll_speed" value="4" /> <boolean name="force_landscape" value="true" /> <float name="move_gain" value="3.2377949" /> <boolean name="mode_on" value="true" /> <int name="idle_hide_sec" value="8" /> <int name="speed_phone" value="48" /> <boolean name="enabled" value="true" /></map>
+
+PASS=9 FAIL=0
+RESULT: /data/local/tmp/v166_auto_suite.result ; RAW: /data/local/tmp/v166_auto_suite.log ; SHOTS: /data/local/tmp/v166shots

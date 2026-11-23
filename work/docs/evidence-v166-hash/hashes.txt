@@ -1,0 +1,28 @@
+v1.66 助手哈希核对（t12）
+==========================
+
+最终助手（= v1.66 发布哈希）：
+6076b63b806eb26985d9f0d26d2aa4e546e2b68daf6de5c737c4f6fb815233b0  （851880 B）
+
+同哈希的四个副本：
+  6076b63b…  project/app/src/main/assets/gpminput                （本地编译产物）
+  6076b63b…  /data/adb/gpm/gpminput                             （设备运行副本，见 sha256_device.txt）
+  6076b63b…  /data/adb/modules/gpm_dex/gpminput                 （KSU 模块目录；service.sh:40 开机以它为源同步）
+  6076b63b…  /data/local/tmp/gpminput_v166                      （设备侧暂存）
+
+历史哈希链（来自 HELPER-v166.md 变更记录 + t4 报告）：
+  t2      dc41cb9b…
+  t2-r2   4f261754d80bea69dfc6d8af46608800195c05bc4bd68bca0e220e5d37d059a5  ← t4 全量验证所用
+  t10     139087e75c706eae8a29da13ac0ba3b8bb9d079787a35415b806fa3c05b09376  （CAP gesture 能力语义）
+  t11     6076b63b806eb26985d9f0d26d2aa4e546e2b68daf6de5c737c4f6fb815233b0  ← 最终 / 发布
+
+发布前打包注意事项（integrator）：
+1) 这两个本地副本仍是旧二进制，打 release 包/模块 zip 前必须替换为 6076b63b…：
+     project/ksu-module/gpminput                       = B8D125188408519E…（782920 B，旧）
+     project/lsp-dexpad/app/src/main/assets/gpminput   = 10CBDBA11BF7BA75…（782624 B，pre-t2）
+   证据：设备上安装的 APK（e8a91185…）内 assets/gpminput 解包后同样是 10CBDBA1…782624 B
+   （本目录曾暂存 gpminput_t4_from_apk，核对后已删除，哈希记于此）。
+   service.sh:40 是 `cp -f $MODDIR/gpminput /data/adb/gpm/gpminput` —— 模块目录是开机同步源；
+   app 侧 EngineService.ensureHelperBinary 在 /data/adb/gpm/gpminput 缺失时会从 APK assets 解包。
+2) 若 release 只发 APK + 模块 zip，务必确认 zip 内 gpminput == 6076b63b…；否则全新安装会退回旧助手
+   （缺 u/c/g 命令、串扰修复也不在）。

@@ -1,0 +1,12 @@
+﻿== helper 60s process CPU (t13/R1) Tue Nov 24 02:29:49 CST 2026 ==
+  A/new hash OK (1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf)
+  A/new pid=17759 engine=17763
+  [1] pid=17759 secs=60 clk_tck=100 utime+stime=23ticks cutime+cstime=81ticks
+       process_cpu=0.38%   children_cpu=1.35%
+  B/old hash OK (18268d3ba4dc9506944e8c1a0a6737688b4c354789697de7a19083193444b1dd)
+  B/old pid=19287 engine=17763
+  [1] pid=19287 secs=60 clk_tck=100 utime+stime=21ticks cutime+cstime=139ticks
+       process_cpu=0.35%   children_cpu=2.32%
+  C/restored hash OK (1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf)
+  C/restored pid=20183 engine=17763
+DONE

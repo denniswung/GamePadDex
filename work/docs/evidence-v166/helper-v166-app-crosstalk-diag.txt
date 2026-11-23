@@ -1,0 +1,60 @@
+﻿=== 0. 基线 ===
+  screen(app size from engine log): 
+  taskbounds.txt=0 0 2560 1600
+  prefs=<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map> <int name="hswipe_speed" value="3" /> <boolean name="mode_on" value="true" /> <boolean name="enabled" value="true" /></map>
+
+=== A. 右摇杆纯纵向 RY=-24000 (0.73) 1200ms（应只有 Z）===
+  -> Z=5 V=0 Zy=[ 480 480 480 480 480] Vy=[] prep=[243 0 214 0 0 ] dexpad:vswipe=5 hswipe=0 arrow=0
+     regions: Z@480 Z@480 Z@480 Z@480 Z@480 
+
+=== B. 右摇杆纯横向 RX=+24000 (0.73) 1200ms（应只有 V）===
+  -> Z=0 V=3 Zy=[] Vy=[ 800 800 800] prep=[230 261 170 ] dexpad:vswipe=0 hswipe=3 arrow=0
+     regions: V@800 V@800 V@800 
+
+=== C. 斜推 RX=+13000 (0.40) 与 RY=-24000 (0.73) 同一时刻（一次物理推杆的泄漏模型）===
+  -> Z=5 V=0 Zy=[ 480 480 480 480 480] Vy=[] prep=[212 0 0 226 0 ] dexpad:vswipe=5 hswipe=3 arrow=0
+     regions: Z@480 Z@480 Z@480 Z@480 Z@480 
+
+=== D. 斜推 RX=+10000 (0.31) 与 RY=-24000 (0.73)：低于 scroll_deadzone=0.35 ===
+  -> Z=5 V=0 Zy=[ 480 480 480 480 480] Vy=[] prep=[372 0 0 345 0 ] dexpad:vswipe=5 hswipe=0 arrow=0
+     regions: Z@480 Z@480 Z@480 Z@480 Z@480 
+
+=== E. 斜推 RX=+11796 (0.36) 与 RY=-24000 (0.73)：略高于 scroll_deadzone ===
+  -> Z=5 V=0 Zy=[ 480 480 480 480 480] Vy=[] prep=[340 0 0 0 0 ] dexpad:vswipe=5 hswipe=3 arrow=0
+     regions: Z@480 Z@480 Z@480 Z@480 Z@480 
+
+=== F. RB 按住 1500ms（按钮=SCROLL_SWIPE_UP，滑动+滚轮双通道）===
+  -> Z=1 V=0 Zy=[ 800] Vy=[] prep=[479 ] dexpad:vswipe=0 hswipe=0 arrow=0
+     regions: Z@800 
+     WHEEL=8 wheel_log=2
+
+=== G. RB 按住 + 右摇杆纵向同时（按钮 Z + 摇杆 Z，两个起手区域）===
+  -> Z=6 V=0 Zy=[ 800 480 480 480 480 480] Vy=[] prep=[222 0 0 349 0 0 ] dexpad:vswipe=5 hswipe=0 arrow=0
+     regions: Z@800 Z@480 Z@480 Z@480 Z@480 Z@480 
+
+=== H. X+RB（混搭=WHEEL_LEFT 横滑）与右摇杆纵向同时 ===
+  -> Z=5 V=0 Zy=[ 480 480 480 480 480] Vy=[] prep=[437 0 0 156 0 ] dexpad:vswipe=5 hswipe=3 arrow=0
+     regions: Z@480 Z@480 Z@480 Z@480 Z@480 
+
+=== I. 两个并发 input swipe 本身是否互相干扰（不经过 App）===
+  PadProbe TOUCH/swipe: 0  MOUSE/drag: 0  click=1
+     --------- beginning of main
+     11-23 22:55:22.634  1500  1500 I PadProbe: SYSTEM/page resume 光标测试
+     11-23 22:55:24.980  1500  1500 I PadProbe: MOUSE/click-down x=300 y=800 btn=0
+  single swipe rc=0
+
+=== J. task 边界缓存污染：把 /data/adb/gpm/taskbounds.txt 写成 0 0 1200 800 后立刻纵向滑动 ===
+  污染后立刻: 0 1280 480 1280 1040 0 2560 0 1600|0 1280 480 1280 1040 0 2560 0 1600|  cache=0 0 2560 1600
+  3s 后缓存自动刷新: cache=0 0 2560 1600
+  刷新后: 0 1280 480 1280 1040 0 2560 0 1600|0 1280 480 1280 1040 0 2560 0 1600|
+
+=== K. MT slot 残留假设验证：滚动在飞行中点击（uinput 触摸 vs injected swipe）===
+  click-down=5 TOUCH/swipe=5 helper:TOUCH=0
+  PadProbe tail: 11-23 22:55:41.396  1871  1871 I PadProbe: TOUCH/swipe dx=0 dy=559 dist=559|11-23 22:55:41.505  1871  1871 I PadProbe: MOUSE/click-down x=1280 y=480 btn=0|11-23 22:55:41.729  1871  1871 I PadProbe: MOUSE/drag x=1280 y=1039 dx=0 dy=559 dist=559|11-23 22:55:41.729  1871  1871 I PadProbe: TOUCH/swipe dx=0 dy=559 dist=559|
+
+=== L. 双指缩放在飞行中单指点击：MT slot 0 是否被 pinch 的 slot 复用（残留假设）===
+  helper PINCH=2 TOUCH=0
+  helper lines: PINCH start dir=-1 at 1280,800|PINCH stop|
+  PadProbe: click-down=1 TOUCH/swipe=0
+
+DONE RFCT817KWEH

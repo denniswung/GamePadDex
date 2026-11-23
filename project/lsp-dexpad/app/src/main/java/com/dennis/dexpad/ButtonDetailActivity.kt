@@ -38,6 +38,8 @@ class ButtonDetailActivity : Activity() {
     private val prefs by lazy { Prefs(this) }
     private lateinit var button: String
     private lateinit var content: LinearLayout
+    private lateinit var contentRight: LinearLayout
+    private var wide = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,15 +70,39 @@ class ButtonDetailActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
 
-        val scroll = ScrollView(this).apply { isFillViewport = true }
-        content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(6), dp(20), dp(30))
+        val cfg = resources.configuration
+        wide = cfg.screenWidthDp > (cfg.screenHeightDp * 1.2f).toInt()
+        val body: View
+        if (wide) {
+            // 横屏大屏：左栏=单击/双击/长按动作，右栏=组合键，避免单列竖排铺满
+            val columns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            val svL = ScrollView(this).apply { isFillViewport = true }
+            content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(6), dp(12), dp(30))
+            }
+            svL.addView(content, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            val svR = ScrollView(this).apply { isFillViewport = true }
+            contentRight = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), dp(6), dp(20), dp(30))
+            }
+            svR.addView(contentRight, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            columns.addView(svL, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+            columns.addView(svR, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+            body = columns
+        } else {
+            val scroll = ScrollView(this).apply { isFillViewport = true }
+            content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(6), dp(20), dp(30))
+            }
+            scroll.addView(content, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            body = scroll
         }
-        scroll.addView(content, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         root.addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        root.addView(body, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         root.setOnApplyWindowInsetsListener { v, insets ->
             val bars = insets.getInsets(WindowInsets.Type.systemBars())
             v.setPadding(0, bars.top, 0, bars.bottom)
@@ -88,6 +114,7 @@ class ButtonDetailActivity : Activity() {
 
     private fun rebuild() {
         content.removeAllViews()
+        if (wide) contentRight.removeAllViews()
         content.addView(card(
             header("单击动作", "单独按 ${Prefs.buttonLabel(button)} 时触发"),
             actionRow,
@@ -113,8 +140,11 @@ class ButtonDetailActivity : Activity() {
         rows.add(actionRow("添加组合…", "") {
             addCombo()
         })
-        content.addView(card(*rows.toTypedArray()))
+        right().addView(card(*rows.toTypedArray()))
     }
+
+    /** 横屏分栏时右栏，否则沿用单列 */
+    private fun right(): LinearLayout = if (wide) contentRight else content
 
     /** the single action of this button */
     private val actionRow: View

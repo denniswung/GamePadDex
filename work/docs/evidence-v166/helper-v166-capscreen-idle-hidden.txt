@@ -1,0 +1,26 @@
+== capscreen Tue Nov 24 02:12:52 CST 2026 ==
+  engine=28639 helper=28631
+  app caps (logcat): cursor=1 devices=1 wheel=1 screen=1 kbd=1 gesture=1 mouse=1 notif=1 wake=1 swipe=1 gamepad=1 force=1 power=1
+  helper.log CAP/INFO while pointer hidden:
+    SELFTEST begin
+    CAP mouse 1
+    CAP kbd 1
+    CAP wheel 1
+    CAP swipe 1
+    CAP notif 1
+    CAP power 1
+    CAP force 1
+    CAP screen 1
+    CAP wake 1
+    CAP cursor 1
+    CAP gamepad 1
+    CAP devices 1
+    CAP gesture 1
+    INFO pointer device=off
+    SELFTEST end
+  hidden CAP zero count=0
+  hidden INFO pointer: INFO pointer device=off
+  app caps after refresh (logcat): cursor=1 devices=1 wheel=1 screen=1 kbd=1 gesture=1 mouse=1 notif=1 wake=1 swipe=1 gamepad=1 force=1 power=1
+  screenshot=238311 bytes
+  pointer restored: MOUSE_REOPEN (auto) POINTER on TOP com.dennis.dexpad 
+DONE

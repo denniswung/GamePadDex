@@ -1,0 +1,14 @@
+===== 0 基线校验（不一致立即 FAIL 并停止） =====
+[BASE-APK] PASS | 阈值: 设备 base.apk sha256 == 本机 debug 产物 e8a9118592d07b4be10116f12ae93cccb864799da116425e1948ebd9fcf7b031 | 实测: e8a9118592d07b4be10116f12ae93cccb864799da116425e1948ebd9fcf7b031
+[BASE-VER] PASS | 阈值: versionName=1.66 versionCode=68 | 实测: versionName=1.66 versionCode=68
+[BASE-HELPER] PASS | 阈值: helper sha256 == 6076b63b806eb26985d9f0d26d2aa4e546e2b68daf6de5c737c4f6fb815233b0 且 /data/adb/gpm 与模块目录一致 | 实测: 6076b63b806eb26985d9f0d26d2aa4e546e2b68daf6de5c737c4f6fb815233b0 / 6076b63b806eb26985d9f0d26d2aa4e546e2b68daf6de5c737c4f6fb815233b0
+[BASE-FOCUS] PASS | 阈值: padtest 在前台并有焦点 | 实测: Window{41458e0 u0 com.dennis.padtest/com.dennis.padtest.ui.CursorTestActivity}
+===== K 助手新命令（u 正/负例 · g→O 增益 · c 与 P 真值 · P 落点 · 10 条命令耗时） =====
+[K1] PASS | 阈值: u 负例（屏幕已亮）：空操作 skip=1 且无 uinput 注入 | 实测: before=Awake after=Awake [WAKE was=Awake now=pending uinput=0 req=1 probe=1 age=901ms|WAKE was=Awake now=Awake uinput=0 skip=1 probe=1|]
+[K2] PASS | 阈值: u 正例（Dozing）：→ Awake 且 helper WAKE done=1 src=uinput|input224|power | 实测: off=Dozing after=Awake [WAKE was=Toggling now=pending uinput=1 req=1 age=3060ms|WAKE was=Toggling now=Awake uinput=1 done=1 src=uinput probe=0 took=444ms|]
+[K3] PASS | 阈值: g 0 4.68 后 O 居中日志使用新增益 4.68（g_pointer_gain 真正参与） | 实测: GAIN center=0.000 ptr=3.250 effective=3.250|GAIN center=0.000 ptr=4.680 effective=4.680|CENTER(steps+gain 4.68) rot=1 -> 1280,800|GAIN center=3.250 ptr=3.250 effective=3.250|
+[K4] PASS | 阈值: c 回包 display=0 space=logical 且与 P 放置真值误差 ≤5px（3/3） | 实测: 3/3 max=3px 1280,800:c=3px/p=4px 240,400:c=3px/p=4px 2400,1400:c=2px/p=2px
+[K5] PASS | 阈值: P 绝对定位后点击落点误差 ≤40px（3/3） | 实测: 3/3 max=4px 1280,800:c=3px/p=4px 240,400:c=3px/p=4px 2400,1400:c=2px/p=2px
+[K6] PASS | 阈值: 连续 10 条命令总耗时 <100ms | 实测: 48ms
+===== R 恢复正式安装状态 =====
+PASS=10 FAIL=0

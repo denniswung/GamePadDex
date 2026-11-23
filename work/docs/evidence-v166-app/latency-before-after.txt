@@ -1,0 +1,24 @@
+# 事件→动作 / 引擎帧耗时 / CPU 前后对比（同一真机、同一 helper、同 idle_hide=0）
+
+## v1.65（release/dexpad-v1.65.apk, versionCode 67）
+事件→动作（12 次 A 单击，ms）:
+  #1 7  #2 8  #3 8  #4 6  #5 8  #6 20  #7 7  #8 7  #9 7  #10 8  #11 14  #12 9
+  => 中位 8ms，最大 20ms
+30s 空闲 CPU: 2.93% (83-88 ticks/30s @100Hz)
+helper→app 分发: lat n=6 avg=3ms max=5ms
+帧耗时: 旧版无计数器（结构上每 8ms tick 12+ 次 SharedPreferences 读取 + 每帧 Point 分配 + guide 日志）
+
+## v1.66（project/lsp-dexpad/app/build/outputs/apk/debug/app-debug.apk, versionCode 68）
+事件→动作（12 次 A 单击，ms，两轮）:
+  轮1: 10 8 7 6 10 11 9 6 6 6 8 4   => 中位 8
+  轮2: 10 7 13 7 7 6 3 9 8 6 4 5    => 中位 7，最大 13
+30s 空闲 CPU: 9.20-9.53% (276-286 ticks/30s)
+  - 线程级 10s 采样: dexpad-engine +42 ticks (4.2%), dexpad-silent-audio +6 (0.6%)
+  - 其余为 JIT/系统线程；`c` 查询只在指针移动(1.2s)与 L3 时发生
+引擎帧耗时（自带计数器）: perf tick avg=128-149us max=3.3-8.2ms, prefs_per_tick=0
+helper→app 分发: lat n=4 avg=2ms max=3ms
+
+## 结论
+- 事件→动作：中位 8ms → 7ms，最大 20ms → 13ms；helper→app 分发 3ms → 1-2ms。
+- 帧耗时：8ms 循环内 prefs 读取 = 0；单 tick 平均 0.13-0.15ms。
+- 代价：新增的真实光标查询（c）与显示几何刷新使进程 CPU 从 2.9% 升到 ~9.5%（引擎线程 ~4.2%），已记录；后续可把 c 查询降到只在 L3/停止后（当前实现已如此，CPU 仍受 JIT/音频线程影响）。

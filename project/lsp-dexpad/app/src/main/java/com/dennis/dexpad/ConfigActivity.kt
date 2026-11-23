@@ -44,6 +44,9 @@ class ConfigActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
 
     private lateinit var content: LinearLayout
+    /** 横屏大屏（宽高比 > 1.2）时的右栏 */
+    private lateinit var contentRight: LinearLayout
+    private var wide = false
     private var statusHelper: TextView? = null
     private var statusCaps: TextView? = null
     private var statusDevices: TextView? = null
@@ -87,15 +90,39 @@ class ConfigActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
 
-        val scroll = ScrollView(this).apply { isFillViewport = true }
-        content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(6), dp(20), dp(30))
+        val cfg = resources.configuration
+        wide = cfg.screenWidthDp > (cfg.screenHeightDp * 1.2f).toInt()
+        val body: View
+        if (wide) {
+            // 横屏大屏：左右分栏（左=开关/状态/指针/滚动，右=按键映射/数据），不再单列竖排
+            val columns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            val svL = ScrollView(this).apply { isFillViewport = true }
+            content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(6), dp(12), dp(30))
+            }
+            svL.addView(content, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            val svR = ScrollView(this).apply { isFillViewport = true }
+            contentRight = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), dp(6), dp(20), dp(30))
+            }
+            svR.addView(contentRight, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            columns.addView(svL, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+            columns.addView(svR, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+            body = columns
+        } else {
+            val scroll = ScrollView(this).apply { isFillViewport = true }
+            content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(6), dp(20), dp(30))
+            }
+            scroll.addView(content, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            body = scroll
         }
-        scroll.addView(content, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         root.addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        root.addView(body, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         root.setOnApplyWindowInsetsListener { v, insets ->
             val bars = insets.getInsets(WindowInsets.Type.systemBars())
             v.setPadding(0, bars.top, 0, bars.bottom)
@@ -147,6 +174,7 @@ class ConfigActivity : Activity() {
 
     private fun rebuild() {
         content.removeAllViews()
+        if (wide) contentRight.removeAllViews()
         buildGeneral()
         buildStatus()
         buildPointer()
@@ -155,6 +183,9 @@ class ConfigActivity : Activity() {
         buildData()
         buildFooter()
     }
+
+    /** 横屏分栏时右栏，否则沿用单列 */
+    private fun right(): LinearLayout = if (wide) contentRight else content
 
     private fun buildGeneral() {
         content.addView(card(
@@ -232,11 +263,11 @@ class ConfigActivity : Activity() {
     private fun buildMapping() {
         val rows = ArrayList<View>()
         for (b in Prefs.BUTTONS) rows.add(mappingRow(b))
-        content.addView(card(*rows.toTypedArray()))
+        right().addView(card(*rows.toTypedArray()))
     }
 
     private fun buildData() {
-        content.addView(card(
+        right().addView(card(
             actionButton("导出配置…") { exportConfig() },
             divider(),
             actionButton("导入配置…") { importConfig() },
@@ -332,7 +363,7 @@ class ConfigActivity : Activity() {
     }
 
     private fun buildFooter() {
-        content.addView(TextView(this).apply {
+        right().addView(TextView(this).apply {
             text = "提示：映射只在鼠标模式开启时生效。默认按手柄 SHARE 键在「鼠标模式」和「交还手柄」之间切换" +
                 "（L3 也可以另外分配成切换）。\n" +
                 "组合键在按键详情页里设置：点按上面的按键行，可设置「单击动作」以及「该键 + 其它键」的所有组合。" +

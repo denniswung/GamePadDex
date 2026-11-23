@@ -1,0 +1,4 @@
+P1=[2559 803] P2=[2559 803] d=0px hidden=0->1
+corr=[pointer shown at last position (no correction move)|]
+11-24 04:39:00.990 12193 12193 I PadProbe: MOUSE/click-down x=2559 y=803 btn=1
+11-24 04:39:00.859  8114  8140 I DexPad  : pointer shown at last position (no correction move)

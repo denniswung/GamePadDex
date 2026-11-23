@@ -1,0 +1,78 @@
+===== 0 基线校验（不一致立即 FAIL 并停止） =====
+[BASE-APK] PASS | 阈值: 设备 base.apk sha256 == 本机 debug 产物 e8a9118592d07b4be10116f12ae93cccb864799da116425e1948ebd9fcf7b031 | 实测: e8a9118592d07b4be10116f12ae93cccb864799da116425e1948ebd9fcf7b031
+[BASE-VER] PASS | 阈值: versionName=1.66 versionCode=68 | 实测: versionName=1.66 versionCode=68
+[BASE-HELPER] PASS | 阈值: helper sha256 == 4f261754d80bea69dfc6d8af46608800195c05bc4bd68bca0e220e5d37d059a5 且 /data/adb/gpm 与模块目录一致 | 实测: 4f261754d80bea69dfc6d8af46608800195c05bc4bd68bca0e220e5d37d059a5 / 4f261754d80bea69dfc6d8af46608800195c05bc4bd68bca0e220e5d37d059a5
+[BASE-FOCUS] PASS | 阈值: padtest 在前台并有焦点 | 实测: Window{5c7967a u0 com.dennis.padtest/com.dennis.padtest.ui.CursorTestActivity}
+===== A 修复1 滑动串扰：单次推杆只作用一个区域 =====
+[A0] PASS | 阈值: 判别力自检：顺序注入竖+横 → 两区都动（PY 变化>20 且 HS 变化>20） | 实测: PY 1415->366 (d=1049) HS 0->512 (d=512)
+[A1] PASS | 阈值: 只动纵向区(PY 变化>20 且 HS 变化≤20) 且 helper 仅 Z(Zn≥1 Vn=0) | 实测: PY d=1337 HS d=0 Zn=2 Vn=0
+[A2] PASS | 阈值: 只动横向区(HS 变化>20 且 PY 变化≤20) 且 helper 仅 V(Vn≥1 Zn=0) | 实测: PY d=0 HS d=512 Zn=0 Vn=1
+[A3] PASS | 阈值: 双轴同时超阈(RX=0.36+RY=0.73)：只一区动(PY d>20 HS d≤20) 且 helper 仅 Z | 实测: PY d=1415 HS d=0 Zn=5 Vn=0
+[A4] PASS | 阈值: 双向连续 3 次（共 6 次推杆）：overlaps=0 且 starts==dones≥6 | 实测: starts=18 dones=18 overlaps=0 orphan=0 drops=0 queued=6 inflight=0
+[A5] PASS | 阈值: helper 无跨轴丢弃（drops=0，说明 App 已先仲裁，不是靠丢弃掩盖） | 实测: drops=0
+===== B 修复2 光标 dpi（左摇杆定长推 300ms） =====
+[B1] PASS | 阈值: 满推 300ms 位移 ∈ [0.9,1.2]×屏宽 = [2304,3072]px | 实测: 2485px (屏宽2560)
+[B2] PASS | 阈值: 半推(0.49) 300ms 位移 > 0（0–30% 以上杆位线性可用） | 实测: 498px
+[B3] PASS | 阈值: 0.24 推 300ms 位移 > 0（旧版为 0，亚像素丢弃已修） | 实测: 39px
+[B4] PASS | 阈值: 边缘减速生效（屏幕中心同推 > 左边缘同推） | 实测: center=612px edge=498px
+[B5] PASS | 阈值: 调整后参数（源码默认）：speed_phone=48 · γ=1.6 · 亚像素阈值 0.2px · 边缘 scale=0.6 | 实测: prefs speed_phone 未覆盖(默认48) 
+===== C 修复3 滑动速度（按住右摇杆 1.5s） =====
+[C1] PASS | 阈值: 竖向 1.5s 注入手势数 ≥5（scroll_speed=4 → 250ms/次） | 实测: n=6 total=3360px
+[C2] PASS | 阈值: 横向 1.5s 注入手势数 ≥2（hswipe_speed=3 → 500ms/次） | 实测: n=3 total=3456px
+[C3] PASS | 阈值: 横/竖 1.5s 总位移比 ∈ [0.8,1.25] | 实测: ratio=1.029 (3456px / 3360px)
+[C4] PASS | 阈值: 调整后数值：竖 560px/250ms、横 1152px/500ms（w×0.45，560-20×hswipe_speed） | 实测: 竖=3360px/1.5s 横=3456px/1.5s prefs=hswipe_speed" value="3" scroll_speed" value="4" 
+===== D 修复4 L3 居中（pointer_speed 0/3/7 × 3 次 + 新装机自标定 + A 恢复鼠标点击） =====
+[D0] PASS | 阈值: 新装机（无 move_gain）自行标定后居中误差 ≤80px | 实测: click=[1278 800] err=-2,0
+[D0B] PASS | 阈值: 自标定日志出现且 prefs 重新写入 move_gain | 实测: [moveGain calibrated 0.0 -> 3.2465813 (src=l3-initial center_gain=2.16)] pref=move_gain" value="3.2465813" 
+[D-PS0] PASS | 阈值: pointer_speed=0 连续 3 次落点误差 ≤80px | 实测: 3/3 通过 err: [1283 802|3] [1279 798|1] [1283 798|3] gain=button l3 down mapped=center_cursor mode=true ready=true|
+[D-PS3] PASS | 阈值: pointer_speed=3 连续 3 次落点误差 ≤80px | 实测: 3/3 通过 err: [1278 798|2] [1278 798|2] [1278 798|2] gain=button l3 down mapped=center_cursor mode=true ready=true|
+[D-PS7] PASS | 阈值: pointer_speed=7 连续 3 次落点误差 ≤80px | 实测: 3/3 通过 err: [1279 802|2] [1279 794|5] [1279 794|5] gain=button l3 down mapped=center_cursor mode=true ready=true|
+[D4] PASS | 阈值: L3 居中总体 9/9 成功（阈值 ≤80px） | 实测: 9/9
+[D5] PASS | 阈值: L3 后按 A = 鼠标点击（mouse_click≥1 且 key_enter=0） | 实测: mouse_click=1 key_enter=0
+===== E 修复5 边界卡死（四方向 + d-pad 后 + 空闲隐藏后） =====
+[E1] PASS | 阈值: 左推 1400ms 真实光标到达边缘(x≈0/2559 y≈0/1599) 且 估算-真实 ≤40px | 实测: real=[0,803] est=[0 803] d=(0,0) click=[0 803]
+[E2] PASS | 阈值: 右推 1400ms 真实光标到达边缘(x≈0/2559 y≈0/1599) 且 估算-真实 ≤40px | 实测: real=[2559,803] est=[2560 803] d=(1,0) click=[2559 803]
+[E3] PASS | 阈值: 上推 1400ms 真实光标到达边缘(x≈0/2559 y≈0/1599) 且 估算-真实 ≤40px | 实测: real=[1285,0] est=[1285 0] d=(0,0) click=[]
+[E4] PASS | 阈值: 下推 1400ms 真实光标到达边缘(x≈0/2559 y≈0/1599) 且 估算-真实 ≤40px | 实测: real=[1285,1599] est=[1285 1600] d=(0,1) click=[1284 1599]
+[E5] PASS | 阈值: 贴左边缘 5×200ms 零位移 且 反向 250ms 到对边 | 实测: P1=[0 800] P2=[0 800] P3=[2559 800]
+[E6] PASS | 阈值: d-pad 导航后再摇杆：仍可达左边缘 x=0 | 实测: real_x=0 click=[0 800] | native navigation OFF (stick moved)|
+[E7] PASS | 阈值: 空闲隐藏后再摇杆：仍可达右边缘 x=2559 | 实测: real_x=2559 click=[2559 800] | ptr synced to real 2559,800 (est was 2560,800) gain=3.2377949|
+===== F 功能6 摇杆唤醒（正例 0.92 / 负例 0.37·0.73·慢爬 2.1s） =====
+[F1] PASS | 阈值: 负例 0.37 持续 1.4s：保持 Dozing 且无唤醒注入(done=0) | 实测: wf=Dozing wa=none
+[F2] PASS | 阈值: 负例 0.73 持续 1.4s：保持 Dozing 且无唤醒注入 | 实测: wf=Dozing wa=none
+[F3] PASS | 阈值: 正例 0.92 快速推（≥0.80 且保持≥200ms）→ Awake 且 helper WAKE done=1 | 实测: before=Dozing +250ms=Awake after=Awake app=[wake sent: helper u (m=0.9156 rise=206ms hold=206ms thr=0.8)|] helper=[WAKE was=Dozing now=pending uinput=1 req=1 age=671ms|WAKE was=Dozing now=Awake uinput=1 done=1 src=uinput probe=0 took=456ms|]
+[F4] PASS | 阈值: 负例 慢爬 2.1s（rise>120ms）：保持 Dozing 且无唤醒注入 | 实测: before=Dozing after=Dozing app=[]
+===== G 功能7/8 Y+上→PiliPlus、Y+下→抖音（组件解析启动，非 am start -p） =====
+[G1] PASS | 阈值: Y+上 → 前台 com.example.piliplus 且 helper 组件解析启动(fallback=0 monkey=0) | 实测: top=com.example.piliplus/.MainActivity | OPEN_APP com.example.piliplus via com.example.piliplus/.MainActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.example.piliplus/.MainActivity }
+[G2] PASS | 阈值: Y+下 → 前台 抖音 且 helper 组件解析启动(fallback=0 monkey=0) | 实测: top=com.ss.android.ugc.aweme/.account.business.login.DYLoginActivity | OPEN_APP com.ss.android.ugc.aweme via com.ss.android.ugc.aweme/.splash.SplashActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.ss.android.ugc.aweme/.splash.SplashActivity }
+[G3] PASS | 阈值: 预置 mix_10 自定义后 Y+上 不覆盖（OPEN_APP=0，前台非 piliplus） | 实测: top=me.efesser.flauncher/.MainActivity OPEN_APP=0
+===== H 提速与资源（事件→动作 / cmd_swipe prep / 60s 空闲 CPU / c 查询频度） =====
+[H1] PASS | 阈值: 事件→动作中位 ≤7ms 且最大 ≤15ms（12 次） | 实测: median=7 max=13 samples= 10 10 7 6 7 11 7 6 5 8 13 12
+[H2] PASS | 阈值: cmd_swipe prep 中位 <1500us | 实测: median=108us max=661us n=12
+[H3] PASS | 阈值: engine 静置 60s CPU ≤4%（线程级求和；v1.65 基线 2.93%、t8 同法 3.70–3.80%） | 实测: cpu=3.53% [Profile Saver=0.08% dexpad-silent-a=0.82% dexpad-link=0.05% dexpad-engine=2.57% ] 参考proc_stat=6.03%
+[H4] PASS | 阈值: 60s 空闲内真实光标查询 ≤15 次（按需/限频） | 实测: CURSORQ=0 CURSOR=0
+===== I 回归 6 项（不得回退） =====
+[I1] PASS | 阈值: d-pad 粘性导航 + A 注入 DPAD_CENTER（mouse_click=0 key_enter≥1） | 实测: mouse_click=0 key_enter=1 | 
+[I1B] PASS | 阈值: 摇杆移动后退回鼠标模式（A=鼠标点击） | 实测: mouse_click=1 key_enter=0
+[I2] PASS | 阈值: X 双击（400ms 窗口）→ 多任务（前台 RecentsActivity） | 实测: top=com.sec.android.app.launcher/com.android.quickstep.RecentsActivity | double x -> recents|
+[I3] PASS | 阈值: X+LB → 横向手势（向右 wheel_right，上一页方向不回退） | 实测: SWIPE=[SWIPE 0 2181,803 -> 2540,803 (task 0..2560 / 0..1600) axis=V n=13 pid=20437 queued=0 async prep=264us] dx=+359 | mix 4 x+lb -> wheel_right (direct)|
+[I4] PASS | 阈值: X+RB → 横向手势（向左 wheel_left，下一页方向不回退） | 实测: SWIPE=[SWIPE 0 2181,803 -> 645,803 (task 0..2560 / 0..1600) axis=V n=14 pid=20569 queued=0 async prep=355us] dx=-1536 | mix 5 x+rb -> wheel_left (direct)|
+[I5] PASS | 阈值: 空闲隐藏后原地恢复（同点误差 ≤60px，无修正移动日志） | 实测: P1=[2559 803] P2=[2559 803] d=0px corr=[pointer shown at last position (no correction move)|]
+[I6] PASS | 阈值: SELECT → 通知栏展开（NotificationShade）+ helper 真实下滑 rc=0；截图变化 4124291B（PC 侧像素差异面积另附） | 实测: shade=1 notif=NOTIF swipe async n=15 pid=21173 prep=0us|NOTIF swipe rc=0 dur=415ms n=15| png_delta=4124291B
+===== J 横屏大屏（默认配置 / 旋转守护 ≤5s / 居中 / 分栏 / 竖屏回落负例） =====
+[J1] PASS | 阈值: 默认配置即横屏：user_rotation=1、accel=0、app 宽>高（引擎 geometry 亦宽>高；本机窗管横屏常量=ROTATION_0，见 t8） | 实测: user_rotation=1 accel=0 dumpsys=2560x1600 engine=n/a rotlock=lock 1
+[J2] PASS | 阈值: 外部改竖屏后 ≤5s 自动回横屏（settings 回 1/0 且 app 宽>高） | 实测: recovered≈3250ms(13×250ms) dumpsys=2560x1600 engine=2560x1600
+[J3] PASS | 阈值: 横屏居中目标=(1280,800)，落点误差 ≤80px | 实测: click=[1281 803] err=2,3
+[J4] PASS | 阈值: ConfigActivity 横屏分栏（≥2 个半屏宽 ScrollView 并排） | 实测: count=2 shot=235324B
+[J5] PASS | 阈值: ButtonDetailActivity 横屏分栏（≥2 个半屏宽 ScrollView 并排） | 实测: count=2 shot=155259B
+[J6] PASS | 阈值: 竖屏回落可用（force_landscape=false + rotation 0 → 引擎 geometry 高>宽、单列、无崩溃） | 实测: engine=1600x2560 dumpsys=2560x1600 pid=16314 half_scrollviews=0 shot=159952B
+[J7] PASS | 阈值: 恢复默认横屏（force_landscape=true + rotation 1 → dumpsys/引擎 geometry 宽>高） | 实测: dumpsys=2560x1600 engine=2560x1600 prefs=force_landscape" value="true" 
+===== K 助手新命令（u 正/负例 · g→O 增益 · c 与 P 真值 · P 落点 · 10 条命令耗时） =====
+[K1] PASS | 阈值: u 负例（屏幕已亮）：空操作 skip=1 且无 uinput 注入 | 实测: before=Awake after=Awake [WAKE was=Awake now=pending uinput=0 req=1 probe=1 age=962ms|WAKE was=Awake now=Awake uinput=0 skip=1 probe=1|]
+[K2] PASS | 阈值: u 正例（Dozing）：→ Awake 且 helper WAKE done=1 src=uinput|input224|power | 实测: off=Dozing after=Awake [WAKE was=Toggling now=pending uinput=1 req=1 age=3056ms|WAKE was=Toggling now=Awake uinput=1 done=1 src=uinput probe=0 took=414ms|]
+[K3] PASS | 阈值: g 0 4.68 后 O 居中日志使用新增益 4.68（g_pointer_gain 真正参与） | 实测: GAIN center=0.000 ptr=3.250 effective=3.250|GAIN center=0.000 ptr=4.680 effective=4.680|CENTER(steps+gain 4.68) rot=1 -> 1280,800|GAIN center=3.250 ptr=3.250 effective=3.250|
+[K4] PASS | 阈值: c 回包 display=0 space=logical 且与 P 放置真值误差 ≤5px（3/3） | 实测: 3/3 max=3px 1280,800:c=3px/p=4px 240,400:c=3px/p=4px 2400,1400:c=2px/p=2px
+[K5] PASS | 阈值: P 绝对定位后点击落点误差 ≤40px（3/3） | 实测: 3/3 max=4px 1280,800:c=3px/p=4px 240,400:c=3px/p=4px 2400,1400:c=2px/p=2px
+[K6] PASS | 阈值: 连续 10 条命令总耗时 <100ms | 实测: 61ms
+===== R 恢复正式安装状态 =====
+PASS=64 FAIL=0

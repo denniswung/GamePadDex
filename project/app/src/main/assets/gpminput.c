@@ -27,8 +27,21 @@
 //   S <count>              vertical wheel steps (positive = up)
 //   H <count>              horizontal wheel steps
 //   K <linuxKeyCode> <0|1> virtual keyboard key
+//   V/Z <disp> <d> <ms> <maxX> <maxY> <pct> <cx> <cy>   serialized touch swipe
+//   N                      notification shade (real pull-down gesture, queued)
+//   O <w> <h> [park] [rot] [gain]     centre the pointer (async)
+//   P <x> <y> <maxX> <maxY>           put the pointer at absolute coords (async)
+//   g [center] [ptr]       query/set raw->px gain (`g` alone prints GAIN ...)
+//   u                      wake the screen (no-op when already awake)
+//   c                      query the real pointer position (async, CURSOR x y)
+//   w <pkg>                launch an app (resolve-activity + am start -n)
 //   R                      release all grabbed devices and grab again
 //   Q                      quit
+//
+// Swipe serialization (v1.66): at most one `input swipe` is in flight.
+// A swipe of another axis while one is in flight (or within 90ms after it) is
+// dropped with `SWIPE_DROP`; same-axis requests queue (depth 2) and run in
+// order. Every injection logs `SWIPE ... async prep=<us>` and `SWIPE_DONE`.
 //
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -75,27 +88,60 @@ static int g_ndev = 0;
 static int g_mouse = -1;
 static int g_kbd = -1;
 static int g_pad = -1;
-/* 绝对指针设备：只用来「一次性把指针放到指定坐标」（相对鼠标有加速度，算不准） */
+/* 缁濆鎸囬拡璁惧锛氬彧鐢ㄦ潵銆屼竴娆℃€ф妸鎸囬拡鏀惧埌鎸囧畾鍧愭爣銆嶏紙鐩稿榧犳爣鏈夊姞閫熷害锛岀畻涓嶅噯锛?*/
 static int g_abs_ptr = -1;
-/* 居中用的 raw->px 增益（可被命令 G 修改，用于标定） */
-static double g_center_gain = 2.16;
-/* 最近一次已知的屏幕尺寸（通知栏下滑手势要用） */
+/* 灞呬腑/缁濆瀹氫綅鐢ㄧ殑 raw->px 澧炵泭锛堝彲琚懡浠?g / O 淇敼锛岀敤浜庢爣瀹氾級銆? * 0 = 鏈爣瀹氾紝鍥炶惤鍒颁笅闈㈠疄娴嬪嚭鏉ョ殑 g_pointer_gain銆?*/
+static double g_center_gain = 0.0;
+/* 鏈€杩戜竴娆″凡鐭ョ殑灞忓箷灏哄锛堥€氱煡鏍忎笅婊戞墜鍔胯鐢級 */
 static int g_disp_w = 0, g_disp_h = 0;
-/* 最近一次解析到的前台包名（杀应用用） */
+/* 鏈€杩戜竴娆¤В鏋愬埌鐨勫墠鍙板寘鍚嶏紙鏉€搴旂敤鐢級 */
 static char g_top_pkg[192];
-/* 虚拟触摸屏：给"点击=触摸"和"双指缩放"用（真实触摸事件，带多点协议 B） */
+/* 铏氭嫙瑙︽懜灞忥細缁?鐐瑰嚮=瑙︽懜"鍜?鍙屾寚缂╂斁"鐢紙鐪熷疄瑙︽懜浜嬩欢锛屽甫澶氱偣鍗忚 B锛?*/
 static int g_touch_panel = -1;
 static int g_touch_w = 1600, g_touch_h = 2560;
 static int g_touch_slot0 = -1, g_touch_slot1 = -1;
-static int g_pinch_dir = 0;          /* +1 放大 / -1 缩小 / 0 停止 */
-static int g_pinch_d = 60;           /* 两指参考距离 */
-static int g_pinch_x = 0, g_pinch_y = 0;   /* 缩放基准点（光标位置） */
+static int g_pinch_dir = 0;          /* +1 鏀惧ぇ / -1 缂╁皬 / 0 鍋滄 */
+static int g_pinch_d = 60;           /* 涓ゆ寚鍙傝€冭窛绂?*/
+static int g_pinch_x = 0, g_pinch_y = 0;   /* 缂╂斁鍩哄噯鐐癸紙鍏夋爣浣嶇疆锛?*/
 static long long g_pinch_last_us = 0;
 /* forward the physical d-pad to the virtual gamepad (native d-pad for the OS) */
 static int g_dpad_native = 0;
 static volatile sig_atomic_t g_quit = 0;
 static int g_grab_mode = 0;
 static int g_listen = -1;
+
+/* helper.log fd: shared by the daemon and its short-lived children (background
+ * refreshers log there too, never on the client socket). O_CLOEXEC so spawned
+ * `input`/`am`/`monkey` processes do not inherit it. */
+static int g_logfd = -2;
+
+static int log_fd(void) {
+    if (g_logfd == -2) {
+        mkdir("/data/adb", 0755);
+        mkdir("/data/adb/gpm", 0755);
+        g_logfd = open("/data/adb/gpm/helper.log",
+                       O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+    }
+    return g_logfd;
+}
+
+/* append one line to helper.log only (no socket write): used by background
+ * refresher children that must not inject lines into the client protocol */
+static void logonly(const char *fmt, ...) {
+    char buf[512];
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(buf, sizeof(buf) - 1, fmt, ap);
+    va_end(ap);
+    if (n < 0) return;
+    if (n > (int)sizeof(buf) - 2) n = sizeof(buf) - 2;
+    buf[n++] = '\n';
+    int fd = log_fd();
+    if (fd >= 0) {
+        ssize_t w = write(fd, buf, n);
+        (void)w;
+    }
+}
 
 void out(const char *fmt, ...) {
     char buf[512];
@@ -111,14 +157,9 @@ void out(const char *fmt, ...) {
     /* the client is gone: leave instead of writing into a dead socket,
      * otherwise the session can never hand over to a new connection */
     if (r < 0 && (errno == EPIPE || errno == ECONNRESET)) g_quit = 1;
-    static int logfd = -2;
-    if (logfd == -2) {
-        mkdir("/data/adb", 0755);
-        mkdir("/data/adb/gpm", 0755);
-        logfd = open("/data/adb/gpm/helper.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
-    }
-    if (logfd >= 0) {
-        ssize_t w = write(logfd, buf, n);
+    int fd = log_fd();
+    if (fd >= 0) {
+        ssize_t w = write(fd, buf, n);
         (void)w;
     }
 }
@@ -133,10 +174,39 @@ static void ping_client(void) {
 static void on_signal(int sig) { (void)sig; g_quit = 1; }
 
 /* reap fire-and-forget children (async `input swipe`, `am start`, ...) */
+static void gesture_reap(pid_t pid, int st);
+static int gesture_busy(void);
+static int gesture_queued(void);
+static long long now_ms(void);
+
 static void reap_children(void) {
     int st;
-    while (waitpid(-1, &st, WNOHANG) > 0) {
+    pid_t p;
+    while ((p = waitpid(-1, &st, WNOHANG)) > 0) {
+        gesture_reap(p, st);      /* may be our serialized swipe injection */
     }
+}
+
+/* child stdio -> /dev/null: background work must never write on the client
+ * socket (it would corrupt the line protocol) nor read the command stream */
+static int devnull_redirect(void) {
+    int fd = open("/dev/null", O_RDWR);
+    if (fd < 0) return -1;
+    dup2(fd, STDIN_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    if (fd > 2) close(fd);
+    return 0;
+}
+
+/* fork + exec an absolute binary without a shell: one process less than
+ * fork+system(), so an injected gesture starts sooner. */
+static pid_t spawn_exec(const char *path, char *const argv[]) {
+    pid_t pid = fork();
+    if (pid != 0) return pid;
+    devnull_redirect();
+    execv(path, argv);
+    _exit(127);
 }
 
 // ---------------------------------------------------------------- uinput ----
@@ -172,8 +242,8 @@ static int make_mouse(void) {
     return fd;
 }
 
-/* 绝对指针（cursor input）：系统把它当鼠标，但坐标是绝对的，
- * 因此「居中」只需一条 EV_ABS，不需要猜像素增益。 */
+/* 缁濆鎸囬拡锛坈ursor input锛夛細绯荤粺鎶婂畠褰撻紶鏍囷紝浣嗗潗鏍囨槸缁濆鐨勶紝
+ * 鍥犳銆屽眳涓€嶅彧闇€涓€鏉?EV_ABS锛屼笉闇€瑕佺寽鍍忕礌澧炵泭銆?*/
 static int make_abs_pointer(void) {
     int fd = uinput_open();
     if (fd < 0) return -1;
@@ -215,8 +285,70 @@ static int make_abs_pointer(void) {
 static void ev_emit(int fd, int type, int code, int val);
 static void ev_syn(int fd);
 
-/* 虚拟触摸屏：Android 用多点协议 B（SLOT + TRACKING_ID + POSITION）。
- * INPUT_PROP_DIRECT 让系统把它当真正的触摸板而不是鼠标。 */
+/* ------------------------------------------------ 闈為樆濉炴寜閿噴鏀捐皟搴? * 鏃т唬鐮佸湪鍛戒护寰幆閲?usleep(8~45ms) 鎵嶅彂閲婃斁浜嬩欢锛歞-pad 姣忔鐐规寜閮戒細鎶婃暣涓? * 鍛戒护寰幆锛堟寚閽堢Щ鍔ㄣ€佹父鎴忔墜鏌勮鍙栵級鍗′綇 45ms銆傜幇鍦ㄦ寜涓嬬珛鍗冲啓 uinput锛? * 閲婃斁鏃堕棿鐧昏鍒拌繖閲岋紝鐢变富寰幆鍦ㄥ埌鏈熸椂琛ュ彂鈥斺€斿惊鐜湰浣撲笉鍐?sleep銆?*/
+#define MAX_PEND_KEYS 8
+typedef struct {
+    int fd;
+    int code;
+    long long due_ms;
+} pend_key_t;
+static pend_key_t g_pend[MAX_PEND_KEYS];
+static int g_npend = 0;
+
+static void key_down(int fd, int code) {
+    ev_emit(fd, EV_KEY, code, 1);
+    ev_syn(fd);
+}
+static void key_up(int fd, int code) {
+    ev_emit(fd, EV_KEY, code, 0);
+    ev_syn(fd);
+}
+/* schedule a release; if the same fd+code is already pending, keep the earlier
+ * deadline (never extend a press by accident) */
+static void key_release_later(int fd, int code, int delay_ms) {
+    long long due = now_ms() + (delay_ms > 0 ? delay_ms : 1);
+    for (int i = 0; i < g_npend; i++) {
+        if (g_pend[i].fd == fd && g_pend[i].code == code) {
+            if (due < g_pend[i].due_ms) g_pend[i].due_ms = due;
+            return;
+        }
+    }
+    if (g_npend < MAX_PEND_KEYS) {
+        g_pend[g_npend].fd = fd;
+        g_pend[g_npend].code = code;
+        g_pend[g_npend].due_ms = due;
+        g_npend++;
+        return;
+    }
+    key_up(fd, code);           /* table full: never leave a key stuck down */
+}
+/* release everything that is due; returns ms until the next pending release
+ * (-1 when nothing is pending) so poll() can wake up in time */
+static long long key_release_due(void) {
+    long long now = now_ms();
+    for (int i = 0; i < g_npend; i++) {
+        if (now >= g_pend[i].due_ms) {
+            key_up(g_pend[i].fd, g_pend[i].code);
+            g_pend[i] = g_pend[--g_npend];
+            i--;
+        }
+    }
+    long long next = -1;
+    for (int i = 0; i < g_npend; i++) {
+        long long d = g_pend[i].due_ms - now;
+        if (d < 0) d = 0;
+        if (next < 0 || d < next) next = d;
+    }
+    return next;
+}
+static void key_release_all(void) {
+    while (g_npend > 0) {
+        g_pend[g_npend - 1].due_ms = 0;
+        key_release_due();
+    }
+}
+
+/* 铏氭嫙瑙︽懜灞忥細Android 鐢ㄥ鐐瑰崗璁?B锛圫LOT + TRACKING_ID + POSITION锛夈€? * INPUT_PROP_DIRECT 璁╃郴缁熸妸瀹冨綋鐪熸鐨勮Е鎽告澘鑰屼笉鏄紶鏍囥€?*/
 static int make_touchscreen(void) {
     int fd = uinput_open();
     if (fd < 0) return -1;
@@ -253,7 +385,7 @@ static int make_touchscreen(void) {
     return fd;
 }
 
-/* 把一个屏幕像素坐标换算成触摸设备的 0..32767 坐标 */
+/* 鎶婁竴涓睆骞曞儚绱犲潗鏍囨崲绠楁垚瑙︽懜璁惧鐨?0..32767 鍧愭爣 */
 static int touch_axis(int v, int max) {
     if (max <= 0) max = 1;
     if (v < 0) v = 0;
@@ -272,7 +404,7 @@ static void touch_frame(int slot, int tid, int x, int y) {
     ev_syn(g_touch_panel);
 }
 
-/* 单指按下 / 抬起（点击、长按） */
+/* 鍗曟寚鎸変笅 / 鎶捣锛堢偣鍑汇€侀暱鎸夛級 */
 static void touch_single(int x, int y, int down) {
     if (g_touch_panel < 0) { g_touch_panel = make_touchscreen(); usleep(120 * 1000); }
     if (g_touch_panel < 0) { out("ERR touch device"); return; }
@@ -291,7 +423,7 @@ static void touch_single(int x, int y, int down) {
     }
 }
 
-/* 双指缩放：由主循环按 8~16ms 节奏推动，按住期间连续生效 */
+/* 鍙屾寚缂╂斁锛氱敱涓诲惊鐜寜 8~16ms 鑺傚鎺ㄥ姩锛屾寜浣忔湡闂磋繛缁敓鏁?*/
 static void pinch_stop(void) {
     if (g_pinch_dir == 0) return;
     g_pinch_dir = 0;
@@ -498,9 +630,12 @@ static pid_t g_inject_pid = -1;
 
 // Reads the system pointer position from SurfaceFlinger's cursor sprite layer
 // (the only source for it on a non-system app) and prints "CURSOR <x> <y>".
+// Always executed from a child process: `dumpsys SurfaceFlinger` takes
+// 200~600ms and must never stall the command loop.
 static void query_cursor(void) {
+    long long t0 = now_ms();
     FILE *p = popen("dumpsys SurfaceFlinger 2>/dev/null", "r");
-    if (!p) { out("CURSOR -1 -1"); return; }
+    if (!p) { out("CURSOR -1 -1 took=%lldus src=sf", now_ms() - t0); return; }
     char line[512];
     int near_sprite = 0, rows = 0;
     double x = -1, y = -1;
@@ -516,7 +651,7 @@ static void query_cursor(void) {
         }
     }
     pclose(p);
-    out("CURSOR %.0f %.0f", x, y);
+    out("CURSOR %.0f %.0f took=%lldus src=sf", x, y, now_ms() - t0);
 }
 
 
@@ -810,40 +945,400 @@ static long long now_ms(void) {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (long long)ts.tv_sec * 1000LL + ts.tv_nsec / 1000000LL;
 }
-static int screen_awake(void) {
-    FILE *f = popen("/system/bin/dumpsys power 2>/dev/null | /system/bin/grep -m1 mWakefulness=", "r");
+/* ---------------------------------------------------------- 灞忓箷鐘舵€?/ 鍞ら啋
+ * `dumpsys power` 鍗曟 30~80ms锛岀粷涓嶈兘鍦ㄥ懡浠ゅ惊鐜噷鍚屾璺戙€傛墍浠ワ細
+ *   - 缂撳瓨鏂囦欢 /data/adb/gpm/wake.txt 鍐欏叆 "Awake <monotonic_ms>"
+ *   - 涓诲惊鐜瘡 ~5s 璁╁瓙杩涚▼鍒锋柊涓€娆★紱`u`锛堝強鏃х殑璁惧杩炴帴鍞ら啋锛夎缂撳瓨鍒ゅ畾
+ *   - 缂撳瓨杩囨湡(>8s)/缂哄け鏃舵寜鈥滀笉纭畾鈥濆鐞嗭細姝ゆ椂娉ㄥ叆 KEY_WAKEUP 鏄畨鍏ㄧ殑
+ *     锛堝睆骞曞凡浜椂 PowerManager.wakeUp() 鏄┖鎿嶄綔锛屼笉浼氭妸灞忓箷鐏帀锛? * 鍛戒护 `u` 璇箟锛氬彧鍦?mWakefulness != Awake 鏃舵敞鍏ワ紱宸蹭寒鏃?*闆舵敞鍏?*骞跺洖鏃ュ織銆? */
+#define WAKE_CACHE "/data/adb/gpm/wake.txt"
+static long long g_last_wake_req_ms = 0;
+static long long g_last_wake_refresh_ms = 0;
+
+/* child stdio: stdin/stderr -> /dev/null, stdout stays on the client socket so
+ * a slow-path child can still answer the protocol */
+static void child_quiet_stdio(void) {
+    int fd = open("/dev/null", O_RDWR);
+    if (fd < 0) return;
+    dup2(fd, STDIN_FILENO);
+    dup2(fd, STDERR_FILENO);
+    if (fd > 2) close(fd);
+}
+
+static void wake_cache_write(const char *state) {
+    FILE *f = fopen(WAKE_CACHE ".tmp", "w");
+    if (!f) return;
+    fprintf(f, "%s %lld\n", state, now_ms());
+    fclose(f);
+    rename(WAKE_CACHE ".tmp", WAKE_CACHE);
+}
+
+/* 1 = awake, 0 = not awake, -1 = unknown; state/age_ms optional */
+static int wake_cached(long long *age_ms, char *state, size_t n) {
+    if (age_ms) *age_ms = -1;
+    if (state && n) state[0] = 0;
+    FILE *f = fopen(WAKE_CACHE, "r");
+    if (!f) return -1;
+    char st[32] = {0};
+    long long ts = 0;
+    int got = fscanf(f, "%31s %lld", st, &ts) == 2;
+    fclose(f);
+    if (!got) return -1;
+    if (state && n) snprintf(state, n, "%s", st);
+    long long age = now_ms() - ts;
+    if (age_ms) *age_ms = age;
+    if (age < 0 || age > 8000) return -1;
+    return strcmp(st, "Awake") == 0 ? 1 : 0;
+}
+
+/* blocking mWakefulness read 鈥?only ever called from a child process */
+static int wakefulness_probe(char *state, size_t n) {
+    if (state && n) snprintf(state, n, "unknown");
+    FILE *p = popen("/system/bin/dumpsys power 2>/dev/null | /system/bin/grep -m1 mWakefulness=", "r");
+    if (!p) return -1;
     char b[128] = {0};
-    int awake = 0;
-    if (f) {
-        if (fgets(b, sizeof(b), f)) {
-            if (strstr(b, "Awake")) awake = 1;
+    int r = -1;
+    if (fgets(b, sizeof(b), p)) {
+        char *v = strchr(b, '=');
+        if (v) {
+            v++;
+            while (*v == ' ') v++;
+            size_t i = 0;
+            while (v[i] && v[i] != '\n' && v[i] != '\r' && i + 1 < n) {
+                if (state) state[i] = v[i];
+                i++;
+            }
+            if (state) state[i] = 0;
+            r = (state && strcmp(state, "Awake") == 0) ? 1 : 0;
         }
-        pclose(f);
     }
-    return awake;
+    pclose(p);
+    return r;
 }
-/* 通用文档 §6: wake the screen when a gamepad is connected (no unlock).
- * The virtual keyboard's KEY_WAKEUP is used first (uinput, SELinux-safe);
- * KEYCODE_WAKEUP via `input` is only a fallback. */
-static void wake_key_once(void) {
-    /* 1) the virtual keyboard's KEY_WAKEUP (kernel-level, no exec) */
-    if (g_kbd >= 0) {
-        ev_emit(g_kbd, EV_KEY, 224 /* KEY_WAKEUP */, 1);
-        ev_syn(g_kbd);
-        usleep(60 * 1000);
-        ev_emit(g_kbd, EV_KEY, 224, 0);
-        ev_syn(g_kbd);
-        usleep(500 * 1000);
-        if (screen_awake() == 1) return;
+
+/* keep the wakefulness cache warm without ever blocking the command loop.
+ * 姣?4s 涓€娆★細缂撳瓨鍙敤鏉ュ垽鏂€滄槸鍚﹀彲鑳介渶瑕佸敜閱掆€濓紝鐪熸鐨勪笉纭畾鍦烘櫙锛堣
+ * cmd_wake_screen锛変細鍏堟帰娴嬪啀娉ㄥ叆锛屾墍浠?4s 鐨勭矑搴﹁冻澶熴€?*/
+static void wake_refresh_async(void) {
+    long long now = now_ms();
+    if (now - g_last_wake_refresh_ms < 4000) return;
+    g_last_wake_refresh_ms = now;
+    pid_t c = fork();
+    if (c != 0) return;
+    devnull_redirect();
+    char prev[32] = {0};
+    long long prev_age = -1;
+    wake_cached(&prev_age, prev, sizeof(prev));
+    char probe[32] = {0};
+    if (wakefulness_probe(probe, sizeof(probe)) >= 0) {
+        if (prev[0] && strcmp(prev, probe) != 0)
+            logonly("WAKE_STATE %s -> %s", prev, probe);
+        wake_cache_write(probe);
     }
-    /* 2) KEYCODE_WAKEUP through `input` (works from the root context) */
-    system("/system/bin/input keyevent 224");
-    usleep(500 * 1000);
-    if (screen_awake() == 1) return;
-    /* 3) last resort: PowerManager.wakeUp() via a global-namespace shell */
-    system("/system/bin/su -M -c 'cmd power wakeup' </dev/null >/dev/null 2>&1");
-    usleep(500 * 1000);
+    _exit(0);
 }
+
+/* Linux KEY_WAKEUP = 143. (224 is KEY_BRIGHTNESSDOWN on Linux 鈥?the old
+ * wake_key_once() emitted 224 and therefore pressed brightness-down, which is
+ * why the "uinput wake" never worked reliably.) */
+static int wake_inject_uinput(void) {
+    if (g_kbd < 0) return 0;
+    key_down(g_kbd, 143);
+    key_release_later(g_kbd, 143, 60);
+    return 1;
+}
+
+/* blocking KEY_WAKEUP pulse 鈥?only used inside a child process */
+static int wake_pulse_uinput(void) {
+    if (g_kbd < 0) return 0;
+    ev_emit(g_kbd, EV_KEY, 143, 1);
+    ev_syn(g_kbd);
+    usleep(60 * 1000);
+    ev_emit(g_kbd, EV_KEY, 143, 0);
+    ev_syn(g_kbd);
+    return 1;
+}
+
+/* 鎱㈤摼璺細蹇呰鏃跺厛鎺㈡祴锛堢紦瀛樿鈥滀寒鐫€鈥濅絾鍙兘鍒氱伃灞忥級锛屽啀 KEY_WAKEUP 鈫?鍏滃簳銆? * 姘歌繙鍦ㄥ瓙杩涚▼閲岃窇銆俥mitted=1 琛ㄧず鐖惰繘绋嬪凡缁忓彂杩?uinput KEY_WAKEUP銆?*/
+static void wake_slow_path(const char *was, int emitted) {
+    pid_t c = fork();
+    if (c != 0) return;
+    child_quiet_stdio();
+    long long t0 = now_ms();
+    char probe[32] = {0};
+    int r = -1;
+    int did_probe = emitted ? 0 : 1;
+    const char *src = emitted ? "uinput" : "none";
+    if (!emitted) {
+        /* 鎺㈡祴浼樺厛锛氬睆骞曠湡鐨勪寒鐫€灏变粈涔堥兘涓嶅仛锛堣礋渚嬶級锛屽垰鐏睆鍒欑珛鍒昏ˉ鍙?*/
+        r = wakefulness_probe(probe, sizeof(probe));
+        if (r >= 0) wake_cache_write(probe);
+        if (r == 1) {
+            out("WAKE was=%s now=%s uinput=0 skip=1 probe=1", was, probe);
+            _exit(0);
+        }
+        emitted = wake_pulse_uinput();
+        src = emitted ? "uinput" : "input224";
+        usleep(400 * 1000);
+    } else {
+        usleep(400 * 1000);
+    }
+    r = wakefulness_probe(probe, sizeof(probe));
+    if (r >= 0) wake_cache_write(probe);
+    if (r != 1) {
+        /* fallback 1: Android KEYCODE_WAKEUP=224 through `input` */
+        system("/system/bin/input keyevent 224 >/dev/null 2>&1 </dev/null");
+        usleep(700 * 1000);
+        r = wakefulness_probe(probe, sizeof(probe));
+        if (r >= 0) wake_cache_write(probe);
+        src = "input224";
+        if (r != 1) {
+            /* fallback 2: PowerManager.wakeUp() from the global namespace */
+            system("/system/bin/su -M -c 'cmd power wakeup' >/dev/null 2>&1 </dev/null");
+            usleep(700 * 1000);
+            r = wakefulness_probe(probe, sizeof(probe));
+            if (r >= 0) wake_cache_write(probe);
+            src = "power";
+        }
+    }
+    out("WAKE was=%s now=%s uinput=%d done=1 src=%s probe=%d took=%lldms",
+        was, probe[0] ? probe : "unknown", emitted, src, did_probe, now_ms() - t0);
+    _exit(0);
+}
+
+/* `u` : 鐐逛寒灞忓箷锛堟憞鏉嗗ぇ骞呯Щ鍔ㄦ椂鐢卞簲鐢ㄨ皟鐢級銆? * 绔嬪嵆杩斿洖锛堝彧鍋氭枃浠惰 + 鍙€夌殑涓€娆?uinput 鍐欙級锛屾帰娴?鍏滃簳閮藉湪瀛愯繘绋嬨€? * 涓夌鍒ゅ畾锛? *   缂撳瓨鏄庣‘鈥滈潪 Awake鈥?    鈫?绔嬪埢娉ㄥ叆 KEY_WAKEUP锛屽啀寮傛纭锛? *   缂撳瓨璇粹€淎wake鈥濅笖寰堟柊     鈫?鍏堝紓姝ユ帰娴嬪啀鍐冲畾锛堝彲鑳藉垰鐏睆锛岀紦瀛樿繕娌℃洿鏂帮級锛? *   3s 鍐呴噸澶嶈姹?          鈫?鍘婚噸锛堢┖鎿嶄綔锛夈€?*/
+static void cmd_wake_screen(void) {
+    char was[32] = {0};
+    long long age = -1;
+    int st = wake_cached(&age, was, sizeof(was));
+    if (!was[0]) snprintf(was, sizeof(was), "unknown");
+    long long t0 = now_ms();
+    if (t0 - g_last_wake_req_ms < 3000) {
+        out("WAKE was=%s now=%s uinput=0 dedup=1 req=1 age=%lldms", was, was, age);
+        return;
+    }
+    g_last_wake_req_ms = t0;
+    if (st == 0) {
+        int emitted = wake_inject_uinput();
+        out("WAKE was=%s now=pending uinput=%d req=1 age=%lldms", was, emitted, age);
+        wake_slow_path(was, emitted);
+        return;
+    }
+    if (st == 1) {
+        /* 鍙兘鍒氱伃灞忥細鍏堟帰娴嬶紙瀛愯繘绋嬶級锛岀湡鐨勪寒鐫€灏遍浂娉ㄥ叆 */
+        out("WAKE was=%s now=pending uinput=0 req=1 probe=1 age=%lldms", was, age);
+        wake_slow_path(was, 0);
+        return;
+    }
+    /* 缂撳瓨缂哄け/杩囨湡锛氭寜鈥滀笉纭畾鈥濆鐞嗭紝娉ㄥ叆 KEY_WAKEUP锛堜寒灞忔椂鏄┖鎿嶄綔锛?*/
+    int emitted = wake_inject_uinput();
+    out("WAKE was=%s now=pending uinput=%d req=1 age=%lldms", was, emitted, age);
+    wake_slow_path(was, emitted);
+}
+
+/* 鏃х殑鏃犲鎴风鍞ら啋鍏ュ彛锛堟墜鏌勮繛鎺ユ椂鐢級銆傛暣鏉℃參閾捐矾閮藉湪瀛愯繘绋嬮噷璺戯紝
+ * 涓诲惊鐜笉鍐嶈 popen/usleep 鍗′綇銆?*/
+static void maybe_wake_on_connect(const char *name) {
+    time_t now = time(NULL);
+    if (now - g_last_wake_at < 3) return;   /* 3 s debounce */
+    g_last_wake_at = now;
+    pid_t c = fork();
+    if (c != 0) return;
+    child_quiet_stdio();
+    char st[32] = {0};
+    int before = wakefulness_probe(st, sizeof(st));
+    if (before == 1) {
+        out("WAKE skip awake %s", name);
+        _exit(0);
+    }
+    wake_inject_uinput();
+    usleep(600 * 1000);
+    int after = wakefulness_probe(st, sizeof(st));
+    if (after != 1) {
+        system("/system/bin/input keyevent 224 >/dev/null 2>&1 </dev/null");
+        usleep(600 * 1000);
+        after = wakefulness_probe(st, sizeof(st));
+        if (after != 1) {
+            system("/system/bin/su -M -c 'cmd power wakeup' >/dev/null 2>&1 </dev/null");
+            usleep(600 * 1000);
+            after = wakefulness_probe(st, sizeof(st));
+        }
+    }
+    if (after >= 0) wake_cache_write(st);
+    out("WAKE_CONNECT %s (was %d now %d)", name, before, after);
+    _exit(0);
+}
+
+/* ------------------------------------- `c`锛氱湡瀹炲厜鏍囦綅缃紙搴旂敤閫昏緫鍧愭爣锛?----
+ * `dumpsys input` 鐨?CursorStatesByDisplay 鏄?*鎸?display 鍒嗘**鐨勶紝涓旀閲岀殑
+ * hoveringPointers 鏄?**raw natural 鍧愭爣**锛堜緥濡?904脳2316 绔栧睆鐗╃悊绌洪棿锛夛紱
+ * 鑰?App 鐨?Display.getSize() 鏄?*閫昏緫绌洪棿**锛堜緥濡?2560脳1600 妯睆锛夈€? * 鏃у疄鐜版壂鍏ㄦ枃鍙栫涓€涓?hoveringPointers锛屼細闅忔満鍛戒腑鍒殑 display锛圚DMI/DeX銆? * display 30/1锛夌殑闄堟棫鐘舵€侊紝闂幆灞呬腑灏变細鎶婂厜鏍囨帹鍒板埆鐨勬樉绀轰笂銆? * 鐜板湪锛氭寜 display 鍒嗘瑙ｆ瀽 鈫?浼樺厛鍙?display 0 鐨?MOUSE hover锛堟病鏈夊氨鍙栫涓€涓? * 鏈?MOUSE hover 鐨?display锛夆啋 鐢ㄨ display 鐨?viewport锛坥rientation /
+ * logicalFrame / physicalFrame / deviceSize锛夋妸 raw 鑷劧鍧愭爣鎹㈢畻鎴愰€昏緫鍧愭爣銆? * 鎹㈢畻鍏紡涓?Android InputReader 鐨?rotateAndScaleLocked 涓€鑷达紙ROTATION_90:
+ * X=y_raw, Y=naturalWidth-x_raw锛夛紝鍐嶇敤 physicalFrame鈫抣ogicalFrame 缂╂斁骞崇Щ銆? */
+#define MAX_VIEWPORTS 8
+
+typedef struct {
+    int id;
+    int orientation;
+    int lx1, ly1, lx2, ly2;
+    int px1, py1, px2, py2;
+    int dw, dh;
+} viewport_t;
+
+static int parse_rect4(const char *s, const char *tag, int *a, int *b, int *c, int *d) {
+    const char *p = strstr(s, tag);
+    if (!p) return 0;
+    return sscanf(p + strlen(tag), "%d, %d, %d, %d", a, b, c, d) == 4;
+}
+
+static int parse_pair2(const char *s, const char *tag, int *a, int *b) {
+    const char *p = strstr(s, tag);
+    if (!p) return 0;
+    return sscanf(p + strlen(tag), "%d, %d", a, b) == 2;
+}
+
+/* raw natural (闈㈡澘鍘熷鍧愭爣) -> 閫昏緫鍧愭爣锛堜笌 InputReader 鐨勬棆杞崲绠椾竴鑷达級 */
+static void raw_to_logical(const viewport_t *v, double rx, double ry, int *out_x, int *out_y) {
+    double nw, nh, X, Y;
+    if (v->orientation == 1 || v->orientation == 3) { nw = v->dh; nh = v->dw; }
+    else { nw = v->dw; nh = v->dh; }
+    switch (v->orientation) {
+        case 1: X = ry; Y = nw - rx; break;          /* ROTATION_90  */
+        case 2: X = nw - rx; Y = nh - ry; break;     /* ROTATION_180 */
+        case 3: X = nh - ry; Y = rx; break;          /* ROTATION_270 */
+        default: X = rx; Y = ry; break;              /* ROTATION_0   */
+    }
+    double pw = (double)(v->px2 - v->px1), ph = (double)(v->py2 - v->py1);
+    double lw = (double)(v->lx2 - v->lx1), lh = (double)(v->ly2 - v->ly1);
+    double lx = v->lx1 + (pw > 1.0 ? (X - v->px1) * lw / pw : 0.0);
+    double ly = v->ly1 + (ph > 1.0 ? (Y - v->py1) * lh / ph : 0.0);
+    if (lx < v->lx1) lx = v->lx1;
+    if (lx > v->lx2) lx = v->lx2;
+    if (ly < v->ly1) ly = v->ly1;
+    if (ly > v->ly2) ly = v->ly2;
+    *out_x = (int)(lx + 0.5);
+    *out_y = (int)(ly + 0.5);
+}
+
+/* 杩斿洖 1 = 鎵惧埌鍏夋爣锛泂pace=1 琛ㄧず宸叉崲绠楁垚閫昏緫鍧愭爣锛? = 鍙湁 raw 鍧愭爣鍙敤 */
+static int cursor_logical(int *out_x, int *out_y, int *out_disp, int *out_space,
+                          double *out_raw_x, double *out_raw_y,
+                          int *out_frame_x, int *out_frame_w) {
+    *out_x = -1; *out_y = -1; *out_disp = -1; *out_space = 0;
+    *out_raw_x = -1; *out_raw_y = -1; *out_frame_x = 0; *out_frame_w = 0;
+    FILE *p = popen("/system/bin/dumpsys input 2>/dev/null", "r");
+    if (!p) return 0;
+    viewport_t vps[MAX_VIEWPORTS];
+    int nvp = 0;
+    memset(vps, 0, sizeof(vps));
+    int hov_id[8], hov_mouse[8], nhov = 0;
+    double hov_x[8], hov_y[8];
+    int in_cursor = 0, cur_disp = -1, cur_has = 0;
+    char line[2048];
+    while (fgets(line, sizeof(line), p)) {
+        if (strstr(line, "Viewport ") && strstr(line, "displayId=")) {
+            const char *d = strstr(line, "displayId=");
+            int id = d ? atoi(d + strlen("displayId=")) : -1;
+            const char *oo = strstr(line, "orientation=");
+            int o = oo ? atoi(oo + strlen("orientation=")) : 0;
+            int known = 0;
+            for (int i = 0; i < nvp; i++) if (vps[i].id == id) known = 1;
+            if (id >= 0 && !known && nvp < MAX_VIEWPORTS) {
+                viewport_t *v = &vps[nvp];
+                memset(v, 0, sizeof(*v));
+                v->id = id;
+                v->orientation = o;
+                v->lx2 = 2560;
+                v->ly2 = 1600;
+                if (parse_rect4(line, "logicalFrame=[", &v->lx1, &v->ly1, &v->lx2, &v->ly2) &&
+                    parse_rect4(line, "physicalFrame=[", &v->px1, &v->py1, &v->px2, &v->py2) &&
+                    parse_pair2(line, "deviceSize=[", &v->dw, &v->dh)) {
+                    nvp++;
+                }
+            }
+            continue;
+        }
+        if (strstr(line, "CursorStatesByDisplay:")) { in_cursor = 1; continue; }
+        if (!in_cursor) continue;
+        /* 缁撴潫鏍囪锛歝ursor 娈典箣鍚庣殑鍏跺畠椤跺眰灏忚妭锛堜袱涓┖鏍肩缉杩涳級 */
+        if (line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && strchr(line, ':') &&
+            !strstr(line, "hoveringPointers") && !strstr(line, "Windows:")) {
+            in_cursor = 0;
+            continue;
+        }
+        /* 鍒嗙粍琛岋紙4 绌烘牸缂╄繘 + displayId + " :"锛夛細"    0 :     Windows:" */
+        if (line[0] == ' ' && line[1] == ' ' && line[2] == ' ' && line[3] == ' ' &&
+            line[4] >= '0' && line[4] <= '9') {
+            cur_disp = atoi(line + 4);
+            cur_has = 0;
+            continue;
+        }
+        if (cur_disp < 0 || cur_has) continue;
+        if (!strstr(line, "hoveringPointers=[Pointer")) continue;
+        char *at = strstr(line, "at (");
+        if (!at) continue;
+        double rx = 0, ry = 0;
+        if (sscanf(at + 4, "%lf, %lf", &rx, &ry) != 2) continue;
+        if (nhov < 8) {
+            hov_id[nhov] = cur_disp;
+            hov_mouse[nhov] = strstr(line, "MOUSE") != NULL;
+            hov_x[nhov] = rx;
+            hov_y[nhov] = ry;
+            nhov++;
+            cur_has = 1;
+        }
+    }
+    pclose(p);
+    if (nhov <= 0) return 0;
+    /* 浼樺厛 display 0锛涘惁鍒欑涓€涓?MOUSE hover锛涘啀鍚﹀垯绗竴涓?*/
+    int pick = -1;
+    for (int i = 0; i < nhov; i++) if (hov_id[i] == 0) { pick = i; break; }
+    if (pick < 0) for (int i = 0; i < nhov; i++) if (hov_mouse[i]) { pick = i; break; }
+    if (pick < 0) pick = 0;
+    *out_disp = hov_id[pick];
+    *out_raw_x = hov_x[pick];
+    *out_raw_y = hov_y[pick];
+    const viewport_t *v = NULL;
+    for (int i = 0; i < nvp; i++) if (vps[i].id == hov_id[pick]) { v = &vps[i]; break; }
+    if (v) {
+        raw_to_logical(v, hov_x[pick], hov_y[pick], out_x, out_y);
+        *out_space = 1;
+        *out_frame_x = v->px1;
+        *out_frame_w = v->px2 - v->px1;
+    } else {
+        *out_x = (int)(hov_x[pick] + 0.5);
+        *out_y = (int)(hov_y[pick] + 0.5);
+        *out_space = 0;
+    }
+    return 1;
+}
+
+/* `c` : 鐪熷疄鍏夋爣浣嶇疆锛圓pp 鍋氬眳涓棴鐜爣瀹氭椂鐢級銆? * `dumpsys input` 鍦ㄥ瓙杩涚▼閲岃窇锛屼富寰幆闆堕樆濉烇紱
+ * 鍥炲寘 `CURSOR <lx> <ly> display=<id> space=logical [frame=<x,w> raw=<rx>,<ry>]`锛? * 鎵句笉鍒颁负 `CURSOR -1 -1 display=-1`銆?*/
+static void cmd_cursor_query(void) {
+    long long t0 = now_ms();
+    pid_t c = fork();
+    if (c < 0) { out("ERR cursor fork: %s", strerror(errno)); return; }
+    if (c != 0) {
+        out("CURSORQ pid=%d", (int)c);
+        return;
+    }
+    child_quiet_stdio();
+    int x = -1, y = -1, disp = -1, space = 0, fx = 0, fw = 0;
+    double rx = -1, ry = -1;
+    int found = cursor_logical(&x, &y, &disp, &space, &rx, &ry, &fx, &fw);
+    if (!found) {
+        out("CURSOR -1 -1 display=-1 took=%lldus", now_ms() - t0);
+    } else if (space) {
+        out("CURSOR %d %d display=%d space=logical frame=%d,%d raw=%.1f,%.1f took=%lldus",
+            x, y, disp, fx, fw, rx, ry, now_ms() - t0);
+    } else {
+        out("CURSOR %d %d display=%d space=raw frame=%d,%d took=%lldus",
+            x, y, disp, fx, fw, now_ms() - t0);
+    }
+    _exit(0);
+}
+
 
 /* kill every process whose /proc/<pid>/cmdline starts with the package name
  * (the KSU SELinux domain cannot always use `cmd activity force-stop`) */
@@ -873,24 +1368,6 @@ static int kill_pkg_procs(const char *pkg) {
     }
     closedir(d);
     return killed;
-}
-
-static void maybe_wake_on_connect(const char *name) {
-    time_t now = time(NULL);
-    if (now - g_last_wake_at < 3) return;   /* 3 s debounce */
-    int st = screen_awake();
-    if (st == 1) {
-        out("WAKE skip awake %s", name);
-        return;
-    }
-    g_last_wake_at = now;
-    wake_key_once();
-    usleep(600 * 1000);
-    if (screen_awake() != 1) {
-        system("/system/bin/su -c \"PATH=/system/bin cmd power wakeup\"");
-        usleep(600 * 1000);
-    }
-    out("WAKE_CONNECT %s (was %d now %d)", name, st, screen_awake());
 }
 
 static void scan_new_devices(void) {
@@ -1011,7 +1488,7 @@ static float normalize_abs(gpdev_t *d, int code, int value) {
         case ABS_GAS: case ABS_BRAKE:
             return (hi > lo) ? (float)(value - lo) / (float)(hi - lo) : 0.0f;
         case ABS_Z: case ABS_RZ:
-            /* 有右摇杆的手柄：Z/RZ 是扳机，按 0..1 归一（否则要按到 75% 才触发） */
+            /* 鏈夊彸鎽囨潌鐨勬墜鏌勶細Z/RZ 鏄壋鏈猴紝鎸?0..1 褰掍竴锛堝惁鍒欒鎸夊埌 75% 鎵嶈Е鍙戯級 */
             if (d->has_abs[ABS_RX] || d->has_abs[ABS_RY]) {
                 if (hi <= lo) return 0.0f;
                 return (float)(value - lo) / (float)(hi - lo);
@@ -1030,8 +1507,8 @@ static float normalize_abs(gpdev_t *d, int code, int value) {
 // ------------------------------------------------------------- commands ----
 static double g_mouse_acc_x = 0.0, g_mouse_acc_y = 0.0;
 
-/* 鼠标设备可能被「空闲隐藏」销毁了：任何一次移动/点击前都确保它存在，
- * 否则 App 侧状态一旦不同步，就会表现为「光标不见了/点了没反应」。 */
+/* 榧犳爣璁惧鍙兘琚€岀┖闂查殣钘忋€嶉攢姣佷簡锛氫换浣曚竴娆＄Щ鍔?鐐瑰嚮鍓嶉兘纭繚瀹冨瓨鍦紝
+ * 鍚﹀垯 App 渚х姸鎬佷竴鏃︿笉鍚屾锛屽氨浼氳〃鐜颁负銆屽厜鏍囦笉瑙佷簡/鐐逛簡娌″弽搴斻€嶃€?*/
 static void ensure_mouse(void) {
     if (g_mouse >= 0) return;
     g_mouse = make_mouse();
@@ -1063,8 +1540,17 @@ static void cmd_mouse_button(int btn, int down) {
     ev_syn(g_mouse);
 }
 
-/* pointer movement gain (REL delta -> on-screen pixels) measured at runtime */
+/* pointer movement gain (REL delta -> on-screen pixels). 3.24~3.25 measured on
+ * the SM-F9360 at pointer_speed=-1 (DIAG v166 搂4); it changes with the system
+ * pointer speed, so the app can read/set it through the `g` command. */
 static double g_pointer_gain = 3.25;
+
+/* the gain that actually converts display pixels -> REL units */
+static double effective_gain(void) {
+    if (g_center_gain > 0.2 && g_center_gain < 20.0) return g_center_gain;
+    if (g_pointer_gain > 0.2 && g_pointer_gain < 20.0) return g_pointer_gain;
+    return 2.16;
+}
 
 /* move the pointer in *display* coordinates, accounting for the display
  * rotation (REL events are in natural device space) */
@@ -1084,12 +1570,8 @@ static void move_display(double dx, double dy, int rot) {
 }
 
 /* move the pointer to the centre of the display: O <maxX> <maxY> [park] [rot] */
-/* 居中：先用"多个有界小步"把指针推到左上角（一个 -30000 的大位移会把指针甩出屏幕、
- * 之后连 hover 都没有），再按增益一步走到屏幕中心。
- * 用法：O <w> <h> <park> <rot> [gain] */
-/* 把指针放到屏幕上的任意绝对坐标：先有界步进到左上角(0,0)，再按增益一步到 (tx,ty)。
- * 因为「到左上角」是有界且会撞到屏幕边缘的，所以不管指针当前在哪都能对齐到 (0,0)，
- * 这样重建鼠标设备后也能精确地把光标放回"上次的位置"。 */
+/* 灞呬腑锛氬厛鐢?澶氫釜鏈夌晫灏忔"鎶婃寚閽堟帹鍒板乏涓婅锛堜竴涓?-30000 鐨勫ぇ浣嶇Щ浼氭妸鎸囬拡鐢╁嚭灞忓箷銆? * 涔嬪悗杩?hover 閮芥病鏈夛級锛屽啀鎸夊鐩婁竴姝ヨ蛋鍒板睆骞曚腑蹇冦€? * 鐢ㄦ硶锛歄 <w> <h> <park> <rot> [gain] */
+/* 鎶婃寚閽堟斁鍒板睆骞曚笂鐨勪换鎰忕粷瀵瑰潗鏍囷細鍏堟湁鐣屾杩涘埌宸︿笂瑙?0,0)锛屽啀鎸夊鐩婁竴姝ュ埌 (tx,ty)銆? * 鍥犱负銆屽埌宸︿笂瑙掋€嶆槸鏈夌晫涓斾細鎾炲埌灞忓箷杈圭紭鐨勶紝鎵€浠ヤ笉绠℃寚閽堝綋鍓嶅湪鍝兘鑳藉榻愬埌 (0,0)锛? * 杩欐牱閲嶅缓榧犳爣璁惧鍚庝篃鑳界簿纭湴鎶婂厜鏍囨斁鍥?涓婃鐨勪綅缃?銆?*/
 static void pointer_goto(int tx, int ty, int maxX, int maxY) {
     if (maxX <= 0) maxX = 2560;
     if (maxY <= 0) maxY = 1600;
@@ -1099,7 +1581,7 @@ static void pointer_goto(int tx, int ty, int maxX, int maxY) {
     if (ty < 0) ty = 0;
     if (tx > maxX) tx = maxX;
     if (ty > maxY) ty = maxY;
-    double gain = g_center_gain > 0.2 ? g_center_gain : 2.16;
+    double gain = effective_gain();
     if (g_mouse < 0) {
         g_mouse = make_mouse();
         usleep(120 * 1000);
@@ -1120,7 +1602,7 @@ static void cmd_center(int maxX, int maxY, int park, int rot) {
     (void)park; (void)rot;
     if (maxX <= 0) maxX = 2560;
     if (maxY <= 0) maxY = 1600;
-    double gain = g_center_gain > 0.2 ? g_center_gain : 2.16;
+    double gain = effective_gain();
     pointer_goto(maxX / 2, maxY / 2, maxX, maxY);
     out("CENTER(steps+gain %.2f) rot=%d -> %d,%d", gain, rot, maxX / 2, maxY / 2);
 }
@@ -1150,29 +1632,56 @@ static int screen_awake_readable(void) {
     return ok;
 }
 
-/* 链路自检 (通用 §8.1): one line per capability */
+/* 鑳藉惁鍒涘缓/娉ㄥ叆 uinput 璁惧锛堥紶鏍?閿洏/婊氳疆鐨勮兘鍔?= uinput 鑺傜偣鍙啓锛夈€? * 娉ㄦ剰锛氫笉鑳界敤鈥滆櫄鎷熼紶鏍囧綋鍓嶆槸鍚﹀凡鎵撳紑鈥濆綋鑳藉姏鈥斺€旂┖闂查殣钘忥紙h锛変細鎶婇紶鏍囪澶囬攢姣侊紝
+ * 閭ｅ彧鏄繍琛屾椂鐘舵€侊紝鑳藉姏涓€鐩村瓨鍦ㄣ€?*/
+static int uinput_capable(void) {
+    return (access("/dev/uinput", W_OK) == 0 ||
+            access("/dev/input/uinput", W_OK) == 0) ? 1 : 0;
+}
+
+/* 鏄惁鑳芥灇涓?鎶撳彇 /dev/input 涓嬬殑鎵嬫焺锛堣兘鍔涳紱鍏蜂綋鎶撳埌鍑犱釜璧?CAP devices 鏁伴噺锛?*/
+static int input_enum_capable(void) {
+    return access("/dev/input", R_OK | X_OK) == 0 ? 1 : 0;
+}
+
+/* 鏄惁鏈夋墜鏌勫浜?grab 鐘舵€侊紙INFO 鐢紝涓嶆槸鑳藉姏锛?*/
+static int any_device_grabbed(void) {
+    for (int i = 0; i < g_ndev; i++)
+        if (g_devs[i].grabbed) return 1;
+    return 0;
+}
+
+/* 閾捐矾鑷 (閫氱敤 搂8.1): one line per capability.
+ * 鍙ｅ緞锛坴1.66-r4锛宼11 淇锛夛細
+ *   CAP <name> <0|1>  鈥斺€?**鑳藉姏**锛屼笉鏄繍琛屾椂鐘舵€併€傝兘鍔涘瓨鍦?1锛堜緥濡?uinput 鑺傜偣鍙啓銆? *                        娉ㄥ叆浜岃繘鍒跺彲鎵ц锛夛紱鍙湁鐪熺殑缂轰緷璧栨墠 0銆侫pp 璁剧疆椤垫妸鎵€鏈? *                        CAP 0 鏄剧ず涓恒€岀己澶便€嶏紝鎵€浠ヨ繖閲岀粷涓嶈兘涓婃姤鐬椂鐘舵€併€? *   CAP devices <n>   鈥斺€?渚嬪锛氬綋鍓嶆姄鍒扮殑娓告垙鎵嬫焺**鏁伴噺**锛? = 娌℃帴鎵嬫焺锛? *                        涓嶄唬琛ㄨ兘鍔涚己澶憋紱璁剧疆椤典細鏄剧ず涓恒€岀己澶便€嶏紝灞炰簬濡傚疄鍙嶆槧鈥滄病鏈夋墜鏌勨€濓級銆? *                        鑳藉姏椤瑰彟瑙?CAP gamepad锛堣兘鍚︽灇涓?鎶撳彇鎵嬫焺锛夈€? *   CAP screen        鈥斺€?銆岃兘璇诲埌灞忓箷鐘舵€併€嶇殑鑳藉姏锛坉umpsys power 閲岃兘瑙ｆ瀽鍒? *                        mWakefulness锛夛紝涓嶆槸褰撳墠鏄惁浜睆銆? *   INFO ...          鈥斺€?杩愯鏃剁姸鎬?璇婃柇淇℃伅锛屼笉鍙備笌鈥滅己澶扁€濆垽瀹? *                        锛堝 INFO pointer device=on|off锛氭寚閽堣澶囧綋鍓嶆槸鍚﹀凡鍒涘缓锛夈€? */
 static void cmd_selftest(void) {
+    int ui = uinput_capable();
     out("SELFTEST begin");
-    out("CAP mouse %d", g_mouse >= 0 ? 1 : 0);
-    out("CAP kbd %d", g_kbd >= 0 ? 1 : 0);
-    out("CAP wheel %d", (g_mouse >= 0) ? 1 : 0);
+    out("CAP mouse %d", ui);                 /* 鑳藉惁鍒涘缓/娉ㄥ叆 uinput 榧犳爣锛堣兘鍔涳級 */
+    out("CAP kbd %d", ui);                   /* 鑳藉惁鍒涘缓/娉ㄥ叆 uinput 閿洏锛堣兘鍔涳級 */
+    out("CAP wheel %d", ui);                 /* 婊氳疆璧板悓涓€涓?uinput 榧犳爣锛堣兘鍔涳級 */
     out("CAP swipe %d", access("/system/bin/input", X_OK) == 0 ? 1 : 0);
     out("CAP notif %d", access("/system/bin/cmd", X_OK) == 0 ? 1 : 0);
     out("CAP power %d", access("/system/bin/input", X_OK) == 0 ? 1 : 0);
     out("CAP force %d", access("/system/bin/cmd", X_OK) == 0 ? 1 : 0);
     out("INFO apex %d", access("/apex/com.android.art/lib64/libnativeloader.so", R_OK) == 0 ? 1 : 0);
     out("CAP screen %d", screen_awake_readable());
-    out("CAP devices %d", g_ndev);
+    out("CAP wake %d", (ui || access("/system/bin/input", X_OK) == 0) ? 1 : 0);
+    out("CAP cursor %d", access("/system/bin/dumpsys", X_OK) == 0 ? 1 : 0);
+    out("CAP gamepad %d", input_enum_capable());   /* 鑳藉惁鏋氫妇/鎶撳彇鎵嬫焺锛堣兘鍔涳級 */
+    out("CAP devices %d", g_ndev);                 /* 鏁伴噺锛? = 鏈帴鎵嬫焺锛堢湡瀹炵姸鎬侊級 */
+    /* 涓茶鎵嬪娍闃熷垪鐨勮兘鍔?= 娉ㄥ叆鍣ㄥ彲鐢紙input 鍙墽琛岋級锛沚usy 鍙槸杩愯鏃剁姸鎬侊紝鏀?INFO */
+    out("CAP gesture %d", access("/system/bin/input", X_OK) == 0 ? 1 : 0);
+    out("INFO pointer device=%s", g_mouse >= 0 ? "on" : "off");
+    out("INFO kbd device=%s", g_kbd >= 0 ? "on" : "off");
+    out("INFO gesture busy=%d queued=%d", gesture_busy() ? 1 : 0, gesture_queued());
+    out("INFO devices_grabbed=%d", any_device_grabbed());
     out("SELFTEST end");
 }
 
-/* 读取当前前台包名（topResumedActivity）。
- *
- * `dumpsys activity activities` 要 100~300 ms，如果直接在命令循环里同步跑，
- * 每 2 秒就会卡住输入处理一次（游戏中能感觉到顿）。所以这里改成：
- *   1) 立即返回上一次缓存的结果（/data/adb/gpm/top.txt）
- *   2) 后台 fork 一个子进程去刷新缓存，下一次查询就是新的
- * 前台包名只用于「桌面/系统弹窗」判定，晚 2 秒完全没问题。 */
+/* 璇诲彇褰撳墠鍓嶅彴鍖呭悕锛坱opResumedActivity锛夈€? *
+ * `dumpsys activity activities` 瑕?100~300 ms锛屽鏋滅洿鎺ュ湪鍛戒护寰幆閲屽悓姝ヨ窇锛? * 姣?2 绉掑氨浼氬崱浣忚緭鍏ュ鐞嗕竴娆★紙娓告垙涓兘鎰熻鍒伴】锛夈€傛墍浠ヨ繖閲屾敼鎴愶細
+ *   1) 绔嬪嵆杩斿洖涓婁竴娆＄紦瀛樼殑缁撴灉锛?data/adb/gpm/top.txt锛? *   2) 鍚庡彴 fork 涓€涓瓙杩涚▼鍘诲埛鏂扮紦瀛橈紝涓嬩竴娆℃煡璇㈠氨鏄柊鐨? * 鍓嶅彴鍖呭悕鍙敤浜庛€屾闈?绯荤粺寮圭獥銆嶅垽瀹氾紝鏅?2 绉掑畬鍏ㄦ病闂銆?*/
 #define TOP_CACHE "/data/adb/gpm/top.txt"
 
 static void top_cache_read(char *out_pkg, size_t n) {
@@ -1188,7 +1697,7 @@ static void top_cache_read(char *out_pkg, size_t n) {
 static void top_cache_refresh_async(void) {
     pid_t c = fork();
     if (c != 0) return;
-    /* 子进程：跑 dumpsys，把包名写进缓存文件 */
+    /* 瀛愯繘绋嬶細璺?dumpsys锛屾妸鍖呭悕鍐欒繘缂撳瓨鏂囦欢 */
     FILE *p = popen("/system/bin/dumpsys activity activities 2>/dev/null | "
                     "/system/bin/grep -m1 topResumedActivity", "r");
     char pkg[192] = {0};
@@ -1221,7 +1730,7 @@ static void top_cache_refresh_async(void) {
 
 static void top_package(char *out_pkg, size_t n) {
     top_cache_read(out_pkg, n);
-    /* 缓存为空时同步查一次，保证第一次调用就有值 */
+    /* 缂撳瓨涓虹┖鏃跺悓姝ユ煡涓€娆★紝淇濊瘉绗竴娆¤皟鐢ㄥ氨鏈夊€?*/
     if (!out_pkg[0]) {
         FILE *p = popen("/system/bin/dumpsys activity activities 2>/dev/null | "
                         "/system/bin/grep -m1 topResumedActivity", "r");
@@ -1250,40 +1759,93 @@ static void top_package(char *out_pkg, size_t n) {
             }
         }
     } else {
-        /* 有缓存：让子进程去刷新，主循环立刻返回 */
+        /* 鏈夌紦瀛橈細璁╁瓙杩涚▼鍘诲埛鏂帮紝涓诲惊鐜珛鍒昏繑鍥?*/
         top_cache_refresh_async();
     }
 }
 
-/* ---------------------------------------------------------------- 滑动用的缓存
- * cmd_swipe 以前每次都同步 popen("dumpsys activity activities") 取前台 task 边界，
- * 一次 100~300 ms，滑动首帧会明显卡一下。现在改成：
- *   - 边界读缓存文件 /data/adb/gpm/taskbounds.txt（子进程后台刷新，最多 2 秒一次）
- *   - 光标位置由 App 随命令一起传过来（App 自己知道估算位置），不再 dumpsys input
- * 这样滑动命令本身就是纯内存计算 + fork 注入，主循环零阻塞。 */
-#define BOUNDS_CACHE "/data/adb/gpm/taskbounds.txt"
+/* ---------------------------------------------------------------- 婊戝姩鐢ㄧ殑缂撳瓨
+ * 鏃у疄鐜帮紙DIAG v166 搂2 瀹炴祴锛夋湁 4 涓棶棰橈紝鍏ㄩ儴鍦ㄨ繖閲屼慨鎺夛細
+ *   1) 鍙湁涓€浠?/data/adb/gpm/taskbounds.txt锛歞isplay 0/1 浜掔浉瑕嗙洊锛? *   2) 鍒锋柊澶辫触鏃跺啓 "0 0 maxX maxY"(鍏ㄥ睆)锛岃捣鎵嬬偣浠?task 涓績璺冲埌灞忓箷涓績锛? *   3) 缂撳瓨姘镐笉杩囨湡銆佷笉鏍￠獙褰掑睘锛氬垏搴旂敤鍚?2s 鍐呮粦鍔ㄤ細钀借繘涓婁竴涓簲鐢ㄧ殑鍖哄煙锛? *   4) 鍒锋柊 fork 鍦?cmd_swipe 鍐呴儴锛屾粦鍔ㄧ涓€甯х櫧浠樹竴娆?fork銆? * 鐜板湪锛? *   - 姣?display 涓€浠?/data/adb/gpm/taskbounds-<display>.txt
+ *   - 鍐呭 "pkg x1 y1 x2 y2 w h"锛氬寘鍚?+ 鍒嗚鲸鐜囬兘瑕佷笌褰撳墠涓€鑷存墠鍙俊
+ *   - 璇诲彇鏃舵牎楠岋細灞忓箷鍐呫€?=120x120銆乵time<=4s銆佸寘鍚?== g_top_pkg锛堣嫢宸茬煡锛? *   - 浠讳綍涓€椤逛笉婊¤冻 鈫?鍏ㄥ睆杈圭晫锛堝喅瀹氳锛屼笉浼氳鈥滄瘨鍖栤€濈殑鐭╁舰甯﹀亸锛夛紝
+ *     骞剁疆 flag 璁╀富寰幆鍘诲埛鏂帮紙cmd_swipe 鑷韩涓嶅啀 fork锛? */
+#define BOUNDS_CACHE_LEGACY "/data/adb/gpm/taskbounds.txt"
+#define BOUNDS_STALE_MS 4000
 
-/* 最近一次已知的光标位置（App 传进来的），用于没有显式传坐标时的回退 */
+static int g_bounds_need_refresh = 0;
+static int g_bounds_want_display = -1;
+static int g_bounds_want_w = 0, g_bounds_want_h = 0;
+static int g_bounds_force_refresh = 0;   /* 鍛ㄦ湡鍒锋柊锛氱粫杩?mtime 鑺傛祦锛堝懆鏈熸湰韬嵆鑺傛祦锛?*/
+/* 鏈€杩戜竴娆℃粦鍔ㄧ敤鍒扮殑 display/鍒嗚鲸鐜囷細涓诲惊鐜瘡 2s 涓诲姩鍒锋柊涓€娆★紝淇濊瘉琚啓鍧忕殑
+ * 缂撳瓨锛堟姇姣掞級鏈€澶?2s 灏辫鐪熷疄鍊艰鐩?*/
+static int g_bounds_last_display = -1;
+static int g_bounds_last_w = 0, g_bounds_last_h = 0;
+
+/* 鏈€杩戜竴娆″凡鐭ョ殑鍏夋爣浣嶇疆锛圓pp 浼犺繘鏉ョ殑锛夛紝鐢ㄤ簬娌℃湁鏄惧紡浼犲潗鏍囨椂鐨勫洖閫€ */
 static int g_ptr_x = -1, g_ptr_y = -1;
 
-static int bounds_cache_read(int *x1, int *y1, int *x2, int *y2) {
-    FILE *f = fopen(BOUNDS_CACHE, "r");
+static void bounds_cache_path(int display, char *out, size_t n) {
+    snprintf(out, n, "/data/adb/gpm/taskbounds-%d.txt", display);
+}
+
+static int bounds_cache_read(int display, int maxX, int maxY,
+                             int *x1, int *y1, int *x2, int *y2) {
+    char path[96];
+    bounds_cache_path(display, path, sizeof(path));
+    FILE *f = fopen(path, "r");
     if (!f) return 0;
-    int a = 0, b = 0, c = 0, d = 0;
-    int ok = fscanf(f, "%d %d %d %d", &a, &b, &c, &d) == 4;
+    char pkg[160] = {0};
+    int a = 0, b = 0, c = 0, d = 0, w = 0, h = 0;
+    int got = fscanf(f, "%159s %d %d %d %d %d %d", pkg, &a, &b, &c, &d, &w, &h);
     fclose(f);
-    if (!ok || c <= a || d <= b) return 0;
+    if (got != 7) return 0;
+    if (w != maxX || h != maxY) return 0;              /* 鍒嗚鲸鐜?鏃嬭浆鍙樹簡 */
+    if (pkg[0] && pkg[0] != '-') {
+        /* 褰掑睘鏍￠獙锛氱紦瀛橀噷鐨勫墠鍙板寘蹇呴』杩樻槸 App 鐜板湪鐪嬪埌鐨勫墠鍙板寘銆?         * top.txt 鐢?'t' 鏌ヨ/鍚庡彴鍒锋柊缁存姢锛堣法杩涚▼鍙锛夛紝姣斿唴瀛樺彉閲忓彲闈犮€?*/
+        char top[192] = {0};
+        top_cache_read(top, sizeof(top));
+        if (top[0] && strcmp(pkg, top) != 0) return 0;
+    }
+    if (a < -8 || b < -8 || c > maxX + 8 || d > maxY + 8) return 0;
+    if (c - a < 120 || d - b < 120) return 0;
+    struct stat st;
+    if (stat(path, &st) != 0) return 0;
+    long long age_ms = (long long)(time(NULL) - st.st_mtime) * 1000;
+    if (age_ms > BOUNDS_STALE_MS) return 0;
     *x1 = a; *y1 = b; *x2 = c; *y2 = d;
     return 1;
 }
 
-static void bounds_cache_refresh_async(int maxX, int maxY) {
+/* force=1锛氫富寰幆鐨勫懆鏈熷埛鏂帮紙鍛ㄦ湡鏈韩宸叉槸鑺傛祦锛屽繀椤荤粫杩?mtime 鑺傛祦锛? * 鍚﹀垯鎶曟瘨鍚庣殑绗竴涓?tick 鍙兘钀藉湪 mtime<2s 绐楀彛閲岃涓㈡帀锛屾渶鍧忚绛?~4s锛夛紱
+ * force=0锛氭粦鍔ㄨ矾寰勭殑鎸夐渶鍒锋柊锛堜繚鐣?2s 鑺傛祦锛岄伩鍏嶆瘡娆℃粦鍔ㄩ兘 fork dumpsys锛夈€?*/
+static void bounds_refresh_request(int display, int maxX, int maxY, int force) {
+    g_bounds_need_refresh = 1;
+    g_bounds_want_display = display;
+    g_bounds_want_w = maxX;
+    g_bounds_want_h = maxY;
+    if (force) g_bounds_force_refresh = 1;
+}
+
+/* 涓诲惊鐜皟鐢細鐪熸 fork 鍒锋柊瀛愯繘绋嬶紱婊戝姩璺緞涓嶅啀浠樿繖涓紑閿€ */
+static void bounds_refresh_poll(void) {
+    if (!g_bounds_need_refresh) return;
+    int display = g_bounds_want_display, maxX = g_bounds_want_w, maxY = g_bounds_want_h;
+    int force = g_bounds_force_refresh;
+    g_bounds_need_refresh = 0;
+    g_bounds_force_refresh = 0;
+    if (display < 0 || maxX <= 0 || maxY <= 0) return;
+    char path[96];
+    bounds_cache_path(display, path, sizeof(path));
     struct stat st;
-    if (stat(BOUNDS_CACHE, &st) == 0 && time(NULL) - st.st_mtime < 2) return;
+    if (!force && stat(path, &st) == 0 && time(NULL) - st.st_mtime < 2)
+        return;                                                        /* 浠呮粦鍔ㄨ矾寰勪繚鐣?2s 鑺傛祦 */
     pid_t c = fork();
     if (c != 0) return;
+    devnull_redirect();
     FILE *t = popen("dumpsys activity activities 2>/dev/null", "r");
     int bx1 = 0, by1 = 0, bx2 = maxX, by2 = maxY, found = 0;
+    char pkg[160] = {0};
     if (t) {
         char tl[2048];
         int l0 = 0, t0 = 0, r0 = 0, b0 = 0, have = 0, since = 999;
@@ -1298,6 +1860,16 @@ static void bounds_cache_refresh_async(int maxX, int maxY) {
                 }
             }
             if (strstr(tl, "topResumedActivity=ActivityRecord{")) {
+                char *u = strstr(tl, "u0 ");
+                if (u) {
+                    u += 3;
+                    size_t i = 0;
+                    while (u[i] && u[i] != '/' && u[i] != ' ' && i + 1 < sizeof(pkg)) {
+                        pkg[i] = u[i];
+                        i++;
+                    }
+                    pkg[i] = 0;
+                }
                 if (have && since <= 12 && r0 > l0 && b0 > t0 &&
                     r0 <= maxX + 200 && b0 <= maxY + 200) {
                     bx1 = l0; by1 = t0; bx2 = r0; by2 = b0; found = 1;
@@ -1307,19 +1879,147 @@ static void bounds_cache_refresh_async(int maxX, int maxY) {
         }
         pclose(t);
     }
-    if (found) {
-        FILE *f = fopen(BOUNDS_CACHE ".tmp", "w");
-        if (f) {
-            fprintf(f, "%d %d %d %d\n", bx1, by1, bx2, by2);
-            fclose(f);
-            rename(BOUNDS_CACHE ".tmp", BOUNDS_CACHE);
+    /* 鏃犺瑙ｆ瀽鎴愬姛涓庡惁閮藉啓涓€浠藉甫褰掑睘淇℃伅鐨勭紦瀛橈紙澶辫触鏃舵槸鈥?鈥濆叏灞忥級锛?     * 璁╀笅涓€娆℃粦鍔ㄦ湁鍐冲畾璁虹殑缁撴灉锛屼篃閬垮厤姣忓抚閲嶈瘯 */
+    if (!found) { bx1 = 0; by1 = 0; bx2 = maxX; by2 = maxY; }
+    FILE *f = fopen(path, "w");
+    if (f) {
+        fprintf(f, "%s %d %d %d %d %d %d\n", pkg[0] ? pkg : "-", bx1, by1, bx2, by2, maxX, maxY);
+        fclose(f);
+    }
+    if (display == 0) {
+        /* 鍏煎纾佺洏璇婃柇鑴氭湰锛歭egacy 鏂囦欢浠嶅啓 4 涓暟瀛?*/
+        FILE *lf = fopen(BOUNDS_CACHE_LEGACY ".tmp", "w");
+        if (lf) {
+            fprintf(lf, "%d %d %d %d\n", bx1, by1, bx2, by2);
+            fclose(lf);
+            rename(BOUNDS_CACHE_LEGACY ".tmp", BOUNDS_CACHE_LEGACY);
         }
-    } else {
-        /* 没解析出来也写个空标记，避免每帧都 fork 重试 */
-        FILE *f = fopen(BOUNDS_CACHE ".tmp", "w");
-        if (f) { fprintf(f, "0 0 %d %d\n", maxX, maxY); fclose(f); rename(BOUNDS_CACHE ".tmp", BOUNDS_CACHE); }
     }
     _exit(0);
+}
+
+/* ---------------------------------------------------------------- 鎵嬪娍涓茶闃熷垪
+ * `input swipe` 姣忔璧蜂竴鏉＄嫭绔嬫敞鍏ユ祦锛涗袱鏉″悓鏃跺湪椋炰細浜掔浉鍚炲苟锛圖IAG 瀹炴祴锛? * 搴旂敤鍙敹鍒?1 click / 0 TOUCH锛夈€傝繖閲屽仛鐪熸鐨勪覆琛屾敞鍏ワ細
+ *   - 浠绘剰鏃跺埢鏈€澶?1 鏉?input swipe 鍦ㄩ锛? *   - 鍦ㄩ锛堟垨鍒氱粨鏉熺殑鎹㈣酱淇濇姢绐楀唴锛夋椂锛?*鍙︿竴杞?*鐨勬墜鍔跨洿鎺ヤ涪寮冨苟鎵? *     SWIPE_DROP锛堣繖鏄€滀竴娆℃墜鍔垮彧浣滅敤涓€涓尯鍩熲€濈殑纭繚璇侊級锛? *   - 鍚岃酱鎵嬪娍杩?1 娣卞害绛夊緟闃熷垪锛屾寜椤哄簭鎵ц锛屼笉涓㈠綋鍓嶆柟鍚戯紱
+ *   - 姣忔潯娉ㄥ叆 start/done 鎴愬鍑虹幇鍦?helper.log锛堝彲璇佷吉锛氭病鏈夊苟鍙戯級銆? */
+#define SWIPE_QUEUE_MAX 2
+#define SWIPE_SETTLE_MS 60       /* 涓婁竴鏉＄粨鏉熷悗璁╃郴缁熷鐞嗗畬 UP */
+#define SWIPE_AXIS_GUARD_MS 90   /* 鎹㈣酱淇濇姢绐楋細鍒氭粦瀹岀珛鍒诲弽鍚戣涓轰覆鎵?*/
+
+typedef struct {
+    int display;
+    int x1, y1, x2, y2;
+    int ms;
+    int vertical;
+    int is_notif;
+    int queued;                  /* started from the queue (prep measured at enqueue) */
+    int tx1, tx2, ty1, ty2;      /* 浠呯敤浜庢棩蹇楋紙task 杈圭晫锛?*/
+} swipe_req_t;
+
+static swipe_req_t g_q[SWIPE_QUEUE_MAX];
+static int g_qn = 0;
+static pid_t g_swipe_pid = 0;
+static int g_swipe_axis = -1;
+static int g_swipe_is_notif = 0;
+static int g_swipe_display = 0;
+static long long g_swipe_started_ms = 0;
+static long long g_swipe_ended_ms = 0;
+static long long g_swipe_next_at_ms = 0;
+static unsigned long g_swipe_seq = 0;
+
+static const char *axis_name(int vertical) { return vertical ? "Z" : "V"; }
+
+static void swipe_spawn(const swipe_req_t *r, long long prep_us) {
+    char d[16], x1[16], y1[16], x2[16], y2[16], ms[16];
+    snprintf(d, sizeof(d), "%d", r->display);
+    snprintf(x1, sizeof(x1), "%d", r->x1);
+    snprintf(y1, sizeof(y1), "%d", r->y1);
+    snprintf(x2, sizeof(x2), "%d", r->x2);
+    snprintf(y2, sizeof(y2), "%d", r->y2);
+    snprintf(ms, sizeof(ms), "%d", r->ms);
+    char *argv[] = {"input", "-d", d, "swipe", x1, y1, x2, y2, ms, NULL};
+    pid_t pid = spawn_exec("/system/bin/input", argv);
+    if (pid < 0) { out("ERR swipe fork: %s", strerror(errno)); return; }
+    g_swipe_seq++;
+    g_swipe_pid = pid;
+    g_swipe_axis = r->vertical;
+    g_swipe_is_notif = r->is_notif;
+    g_swipe_display = r->display;
+    g_swipe_started_ms = now_ms();
+    if (r->is_notif) {
+        out("NOTIF swipe async n=%lu pid=%d prep=%lldus", g_swipe_seq, (int)pid, prep_us);
+    } else {
+        out("SWIPE %d %d,%d -> %d,%d (task %d..%d / %d..%d) axis=%s n=%lu pid=%d queued=%d async prep=%lldus",
+            r->display, r->x1, r->y1, r->x2, r->y2, r->tx1, r->tx2, r->ty1, r->ty2,
+            axis_name(r->vertical), g_swipe_seq, (int)pid, r->queued, prep_us);
+    }
+}
+
+/* submit one gesture: starts it, queues it (same axis) or drops it (other axis) */
+static void swipe_submit(swipe_req_t r, long long prep_us) {
+    long long now = now_ms();
+    if (g_swipe_pid > 0) {
+        if (r.vertical != g_swipe_axis) {
+            out("SWIPE_DROP axis=%s busy=%s n=%lu x=%d,y=%d reason=crosstalk",
+                axis_name(r.vertical), axis_name(g_swipe_axis), g_swipe_seq, r.x1, r.y1);
+            return;
+        }
+        if (g_qn < SWIPE_QUEUE_MAX) {
+            g_q[g_qn++] = r;
+            out("SWIPE_QUEUED axis=%s depth=%d n=%lu x=%d,y=%d",
+                axis_name(r.vertical), g_qn, g_swipe_seq, r.x1, r.y1);
+        } else {
+            out("SWIPE_DROP axis=%s busy=%s n=%lu reason=queue_full",
+                axis_name(r.vertical), axis_name(g_swipe_axis), g_swipe_seq);
+        }
+        return;
+    }
+    if (g_swipe_ended_ms > 0 && r.vertical != g_swipe_axis &&
+        now - g_swipe_ended_ms < SWIPE_AXIS_GUARD_MS) {
+        out("SWIPE_DROP axis=%s last=%s age=%lldms reason=axis_guard x=%d,y=%d",
+            axis_name(r.vertical), axis_name(g_swipe_axis), now - g_swipe_ended_ms, r.x1, r.y1);
+        return;
+    }
+    swipe_spawn(&r, prep_us);
+}
+
+/* called from reap_children() for every reaped child */
+static void gesture_reap(pid_t pid, int st) {
+    if (pid <= 0 || pid != g_swipe_pid) return;
+    int rc = WIFEXITED(st) ? WEXITSTATUS(st) : -1;
+    long long dur = now_ms() - g_swipe_started_ms;
+    if (g_swipe_is_notif) {
+        out("NOTIF swipe rc=%d dur=%lldms n=%lu", rc, dur, g_swipe_seq);
+    } else {
+        out("SWIPE_DONE %d axis=%s n=%lu rc=%d dur=%lldms",
+            g_swipe_display, axis_name(g_swipe_axis), g_swipe_seq, rc, dur);
+    }
+    g_swipe_pid = 0;
+    g_swipe_ended_ms = now_ms();
+    g_swipe_next_at_ms = g_swipe_ended_ms + SWIPE_SETTLE_MS;
+}
+
+/* start the next queued gesture when its settle window has passed */
+static void gesture_poll(void) {
+    if (g_swipe_pid > 0 || g_qn <= 0) return;
+    if (now_ms() < g_swipe_next_at_ms) return;
+    swipe_req_t r = g_q[0];
+    for (int i = 1; i < g_qn; i++) g_q[i - 1] = g_q[i];
+    g_qn--;
+    r.queued = 1;
+    swipe_spawn(&r, 0);
+}
+
+static int gesture_busy(void) { return g_swipe_pid > 0 || g_qn > 0; }
+static int gesture_queued(void) { return g_qn; }
+
+/* poll() timeout so a queued gesture starts on time without busy-waiting */
+static int gesture_poll_timeout(void) {
+    if (!gesture_busy()) return 400;
+    if (g_swipe_pid > 0) return 40;
+    long long d = g_swipe_next_at_ms - now_ms();
+    if (d <= 0) return 1;
+    return d > 40 ? 40 : (int)d;
 }
 
 static void cmd_swipe(int display, int delta, int ms, int maxX, int maxY, int vertical, int startPct,
@@ -1327,23 +2027,27 @@ static void cmd_swipe(int display, int delta, int ms, int maxX, int maxY, int ve
     if (delta == 0) return;
     struct timespec t_start, t_end;
     clock_gettime(CLOCK_MONOTONIC, &t_start);
-    if (maxX <= 0) maxX = 2560;
-    if (maxY <= 0) maxY = 1600;
+    if (display < 0) display = 0;
+    if (maxX <= 0) maxX = g_disp_w > 0 ? g_disp_w : 2560;
+    if (maxY <= 0) maxY = g_disp_h > 0 ? g_disp_h : 1600;
     /* foreground task bounds: the swipe must start inside the app, otherwise
      * it lands on the desktop and nothing scrolls. The bounds of the focused
      * task appear just above its topResumedActivity line; taking the first
      * mBounds in the dump would return the root task (full display) and let
      * the pointer anchor land on the desktop. */
     int bx1 = 0, by1 = 0, bx2 = maxX, by2 = maxY;
-    if (!bounds_cache_read(&bx1, &by1, &bx2, &by2)) {
+    g_bounds_last_display = display;
+    g_bounds_last_w = maxX;
+    g_bounds_last_h = maxY;
+    if (!bounds_cache_read(display, maxX, maxY, &bx1, &by1, &bx2, &by2)) {
         bx1 = 0; by1 = 0; bx2 = maxX; by2 = maxY;
+        /* 缂撳瓨涓嶅彲淇★細鏈鐢ㄥ叏灞忥紝鍒锋柊浜ょ粰涓诲惊鐜紙涓嶅湪婊戝姩璺緞 fork锛?*/
+        bounds_refresh_request(display, maxX, maxY, 0);   /* 滑动路径：保留 2s 节流 */
     }
-    /* 后台刷新边界（2 秒节流），本次用缓存/全屏兜底，绝不同步 dumpsys */
-    bounds_cache_refresh_async(maxX, maxY);
 
     int x = (bx1 + bx2) / 2, y = (by1 + by2) / 2;
-    /* 光标位置：优先用命令里带的坐标（App 传的），其次用上次已知值；
-     * 都不行就落在 task 中心。不再调用 dumpsys input。 */
+    /* 鍏夋爣浣嶇疆锛氫紭鍏堢敤鍛戒护閲屽甫鐨勫潗鏍囷紙App 浼犵殑锛夛紝鍏舵鐢ㄤ笂娆″凡鐭ュ€硷紱
+     * 閮戒笉琛屽氨钀藉湪 task 涓績銆備笉鍐嶈皟鐢?dumpsys input銆?*/
     int cx = -1, cy = -1;
     if (have_cursor) { cx = cursor_x; cy = cursor_y; g_ptr_x = cursor_x; g_ptr_y = cursor_y; }
     else if (g_ptr_x >= 0 && g_ptr_y >= 0) { cx = g_ptr_x; cy = g_ptr_y; }
@@ -1377,30 +2081,35 @@ static void cmd_swipe(int display, int delta, int ms, int maxX, int maxY, int ve
         if (x2 < bx1 + 20) x2 = bx1 + 20;
         if (x2 > bx2 - 20) x2 = bx2 - 20;
     }
-    /* 手势保护区：从顶部 12% 往下的滑动会被系统/桌面当成「拉通知栏」，
-     * 所以向下的滑动必须从保护区以下起手（这是桌面下滑拉出状态栏的根因）。 */
+    /* 鎵嬪娍淇濇姢鍖猴細浠庨《閮?12% 寰€涓嬬殑婊戝姩浼氳绯荤粺/妗岄潰褰撴垚銆屾媺閫氱煡鏍忋€嶏紝
+     * 鎵€浠ュ悜涓嬬殑婊戝姩蹇呴』浠庝繚鎶ゅ尯浠ヤ笅璧锋墜锛堣繖鏄闈笅婊戞媺鍑虹姸鎬佹爮鐨勬牴鍥狅級銆?*/
     if (vertical && delta > 0) {
         int guard = by1 + (by2 - by1) * 12 / 100;
         if (y < guard) { y = guard; y2 = guard + delta; }
         if (y2 > by2 - 20) y2 = by2 - 20;
     }
+    /* 鏈€缁堝す鍒板睆骞曞唴锛氳秺鐣屽潗鏍?`input` 浼氱洿鎺ヤ涪寮冩暣鏉℃墜鍔?*/
+    if (x < 0) x = 0;
+    if (x > maxX) x = maxX;
+    if (y < 0) y = 0;
+    if (y > maxY) y = maxY;
+    if (x2 < 0) x2 = 0;
+    if (x2 > maxX) x2 = maxX;
+    if (y2 < 0) y2 = 0;
+    if (y2 > maxY) y2 = maxY;
     if (ms <= 0) ms = 480;
-    char cmd[256];
-    snprintf(cmd, sizeof(cmd), "input -d %d swipe %d %d %d %d %d", display, x, y, x2, y2, ms);
-    /* async: `input swipe` takes ~300 ms and would stall the helper's command
-     * loop (queued pointer moves => visible stutter while paging) */
-    pid_t child = fork();
-    if (child == 0) {
-        int rc = system(cmd);
-        out("SWIPE %d %d,%d -> %d,%d (task %d..%d / %d..%d) rc=%d", display, x, y, x2, y2,
-            bx1, bx2, by1, by2, rc);
-        _exit(0);
-    }
+    swipe_req_t r;
+    memset(&r, 0, sizeof(r));
+    r.display = display;
+    r.x1 = x; r.y1 = y; r.x2 = x2; r.y2 = y2;
+    r.ms = ms;
+    r.vertical = vertical ? 1 : 0;
+    r.is_notif = 0;
+    r.tx1 = bx1; r.tx2 = bx2; r.ty1 = by1; r.ty2 = by2;
     clock_gettime(CLOCK_MONOTONIC, &t_end);
     long long prep_us = (long long)(t_end.tv_sec - t_start.tv_sec) * 1000000 +
                         (t_end.tv_nsec - t_start.tv_nsec) / 1000;
-    out("SWIPE %d %d,%d -> %d,%d (task %d..%d / %d..%d) async prep=%lldus", display, x, y, x2, y2,
-        bx1, bx2, by1, by2, prep_us);
+    swipe_submit(r, prep_us);
 }
 
 /* root task ids that belong to one display (from `am stack list`) */
@@ -1532,7 +2241,7 @@ static void cmd_close_app(void) {
         out("CLOSE_APP skip %s", pkg);
         return;
     }
-    /* 真正杀：am force-stop + 直接 SIGKILL 兜底（保证"确实死了"） */
+    /* 鐪熸鏉€锛歛m force-stop + 鐩存帴 SIGKILL 鍏滃簳锛堜繚璇?纭疄姝讳簡"锛?*/
     {
         int n = kill_pkg_procs(pkg);
         out("CLOSE_APP sigkill %s n=%d", pkg, n);
@@ -1574,7 +2283,7 @@ static void cmd_switch_app(int display) {
     int target = -1;
     /* compare by *package*: one app can have several activity components
      * (Settings has dozens), and matching components would "switch" to another
-     * activity of the same app — which looks like nothing happened. */
+     * activity of the same app 鈥?which looks like nothing happened. */
     char cur_pkg[128] = {0};
     snprintf(cur_pkg, sizeof(cur_pkg), "%s", cur);
     char *slash = strchr(cur_pkg, '/');
@@ -1605,7 +2314,7 @@ static void cmd_key(int code, int down) {
     ev_syn(g_kbd);
 }
 
-/* Android keycode -> Linux input code（只覆盖映射表里会用到的组合键） */
+/* Android keycode -> Linux input code锛堝彧瑕嗙洊鏄犲皠琛ㄩ噷浼氱敤鍒扮殑缁勫悎閿級 */
 static int android_to_linux(int a) {
     switch (a) {
         case 113: return 29;   /* CTRL_LEFT */
@@ -1629,7 +2338,7 @@ static int android_to_linux(int a) {
         case 33:  return 18;   /* E */
         case 122: return 172;  /* HOME -> KEY_HOMEPAGE */
         case 4:   return 158;  /* BACK */
-        case 187: return 580;  /* APP_SWITCH（多任务/最近任务）*/
+        case 187: return 580;  /* APP_SWITCH锛堝浠诲姟/鏈€杩戜换鍔★級*/
         case 3:   return 172;  /* HOME -> KEY_HOMEPAGE */
         case 24:  return 115;  /* VOLUME_UP */
         case 25:  return 114;  /* VOLUME_DOWN */
@@ -1637,7 +2346,7 @@ static int android_to_linux(int a) {
         case 85:  return 164;  /* MEDIA_PLAY_PAUSE */
         case 87:  return 163;  /* MEDIA_NEXT */
         case 88:  return 165;  /* MEDIA_PREVIOUS */
-        /* 常用字符 / 功能键（自定义快捷键用） */
+        /* 甯哥敤瀛楃 / 鍔熻兘閿紙鑷畾涔夊揩鎹烽敭鐢級 */
         case 62:  return 57;   /* SPACE */
         case 66:  return 28;   /* ENTER */
         case 160: return 28;   /* NUMPAD_ENTER */
@@ -1648,9 +2357,9 @@ static int android_to_linux(int a) {
         case 21:  return 105;  /* DPAD_LEFT */
         case 22:  return 106;  /* DPAD_RIGHT */
         case 123: return 107;  /* MOVE_END */
-        case 120: return 99;   /* SYSRQ (截图) */
-        /* DPAD_CENTER：Samsung 上 KEY_OK(352) 不会触发确认，KEY_ENTER(28) 可以
-         * （实测 KEY_SELECT 353 / KPENTER 96 也可以，取最通用的 ENTER） */
+        case 120: return 99;   /* SYSRQ (鎴浘) */
+        /* DPAD_CENTER锛歋amsung 涓?KEY_OK(352) 涓嶄細瑙﹀彂纭锛孠EY_ENTER(28) 鍙互
+         * 锛堝疄娴?KEY_SELECT 353 / KPENTER 96 涔熷彲浠ワ紝鍙栨渶閫氱敤鐨?ENTER锛?*/
         case 23:  return 28;
         case 82:  return 139;  /* MENU */
         case 92:  return 104;  /* PAGE_UP */
@@ -1700,7 +2409,7 @@ static int android_to_linux(int a) {
     }
 }
 
-/* 依次按下，再逆序释放：Ctrl+Minus 这类组合才会被应用当成“按住组合” */
+/* 渚濇鎸変笅锛屽啀閫嗗簭閲婃斁锛欳trl+Minus 杩欑被缁勫悎鎵嶄細琚簲鐢ㄥ綋鎴愨€滄寜浣忕粍鍚堚€?*/
 static int cmd_key_combo(const int *androidCodes, int count) {
     if (g_kbd < 0) return 0;
     int lcode[8];
@@ -1725,7 +2434,7 @@ static int cmd_key_combo(const int *androidCodes, int count) {
 }
 
 /* Alt+Tab via the virtual keyboard: keep ALT held while TAB is pressed, then
- * release both — this is what the DeX app switcher expects (a bare
+ * release both 鈥?this is what the DeX app switcher expects (a bare
  * `input keycombination` Alt+Tab is often swallowed). */
 static void cmd_alttab(void) {
     if (g_kbd < 0) return;
@@ -1741,6 +2450,48 @@ static void cmd_alttab(void) {
     ev_emit(g_kbd, EV_KEY, 56, 0);
     ev_syn(g_kbd);
     out("ALTTAB sent");
+}
+
+/* read the first non-empty line of a file (child-process helper) */
+static void read_first_line(const char *path, char *out, size_t n) {
+    out[0] = 0;
+    FILE *f = fopen(path, "r");
+    if (!f) return;
+    while (fgets(out, (int)n, f)) {
+        char *nl = strpbrk(out, "\r\n");
+        if (nl) *nl = 0;
+        if (out[0]) break;
+        out[0] = 0;
+    }
+    fclose(f);
+}
+
+/* resolve the launcher component of a package -> "pkg/activity".
+ * Two spellings are tried because `cmd package` / `pm` differ by version.
+ * Only ever called from a child process (it pops a shell). */
+static int resolve_component(const char *pkg, char *out, size_t n) {
+    out[0] = 0;
+    const char *tpl[2] = {
+        "/system/bin/cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER %s 2>/dev/null | /system/bin/tail -1",
+        "/system/bin/pm resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER %s 2>/dev/null | /system/bin/tail -1"
+    };
+    for (int i = 0; i < 2 && !out[0]; i++) {
+        char rcmd[512];
+        snprintf(rcmd, sizeof(rcmd), tpl[i], pkg);
+        FILE *pr = popen(rcmd, "r");
+        if (!pr) continue;
+        char line[512] = {0};
+        int got = fgets(line, sizeof(line), pr) != NULL;
+        pclose(pr);
+        if (!got) continue;
+        /* 鏈夌殑鐗堟湰浼氬甫 "priority=0 ..." 鍓嶇紑锛屽彇鏈€鍚庝竴涓惈 '/' 鐨?token */
+        char *best = NULL;
+        for (char *t = strtok(line, " \t\r\n"); t; t = strtok(NULL, " \t\r\n")) {
+            if (strchr(t, '/')) best = t;
+        }
+        if (best) snprintf(out, n, "%s", best);
+    }
+    return out[0] ? 1 : 0;
 }
 
 static void handle_line(char *line) {
@@ -1788,11 +2539,22 @@ static void handle_line(char *line) {
             double gain = 0;
             int n = sscanf(line, "%d %d %d %d %lf", &w, &h, &park, &rot, &gain);
             if (n >= 5 && gain > 0.5 && gain < 20.0) g_center_gain = gain;
-            if (n >= 2) cmd_center(w, h, park, rot);
+            if (n >= 2) {
+                /* 灞呬腑瑕?280ms 鐨勬湁鐣屾杩涳紝鏀惧埌瀛愯繘绋嬮噷鍋氾細鍛戒护寰幆涓嶈鍗′綇銆?                 * 瀛愯繘绋嬬户鎵垮悓涓€涓?uinput 榧犳爣 fd锛孯EL 浜嬩欢椤哄簭涓嶅彉銆?*/
+                if (fork() == 0) {
+                    child_quiet_stdio();
+                    cmd_center(w, h, park, rot);
+                    _exit(0);
+                }
+            }
             break;
         }
         case 'T': {
-            cmd_alttab();
+            if (fork() == 0) {
+                child_quiet_stdio();
+                cmd_alttab();
+                _exit(0);
+            }
             break;
         }
         case 'Y': {
@@ -1821,8 +2583,9 @@ static void handle_line(char *line) {
             ungrab_all();
             break;
         case 'f': {
-            /* 杀前台：包名依次尝试 dumpsys activity / dumpsys window / 缓存，
-             * 然后 am force-stop（functional）+ 直接 SIGKILL 所有进程（兜底） */
+            /* 鏉€鍓嶅彴锛氬寘鍚嶄緷娆″皾璇?dumpsys activity / dumpsys window / 缂撳瓨锛?             * 鐒跺悗 am force-stop锛坒unctional锛? 鐩存帴 SIGKILL 鎵€鏈夎繘绋嬶紙鍏滃簳锛夈€?             * 涓や釜 dumpsys锛?00~300ms锛夐兘鍦ㄥ瓙杩涚▼閲岃窇锛屽懡浠ゅ惊鐜笉闃诲銆?*/
+            if (fork() != 0) break;
+            child_quiet_stdio();
             char pkg[192] = {0};
             const char *pipes[2] = {
                 "/system/bin/dumpsys activity activities 2>/dev/null | /system/bin/grep -m1 topResumedActivity | /system/bin/sed 's/.*u0 \\([^ ]*\\)\\/.*/\\1/'",
@@ -1838,6 +2601,10 @@ static void handle_line(char *line) {
                 pclose(fp);
                 if (pkg[0] == '\0') pkg[0] = 0;
             }
+            if (!pkg[0]) {
+                /* 鏈€鍚庡厹搴曪細App 涓婃鏌ヨ鍒板苟缂撳瓨鍦?top.txt 閲岀殑鍓嶅彴鍖?*/
+                top_cache_read(pkg, sizeof(pkg));
+            }
             if (!pkg[0] && g_top_pkg[0]) {
                 snprintf(pkg, sizeof(pkg), "%s", g_top_pkg);
             }
@@ -1850,27 +2617,31 @@ static void handle_line(char *line) {
             } else {
                 out("FORCE_STOP none (no foreground package detected)");
             }
-            break;
+            _exit(0);
         }
         case '?':
-            cmd_selftest();
+            if (fork() == 0) {
+                child_quiet_stdio();
+                cmd_selftest();
+                _exit(0);
+            }
             break;
         case 'p': {
-            /* 模拟电源键：优先用我们自己虚拟键盘的 KEY_POWER（内核级，不依赖
-             * SELinux/binder），失败再退回 `input keyevent 26`。 */
+            /* 妯℃嫙鐢垫簮閿細浼樺厛鐢ㄦ垜浠嚜宸辫櫄鎷熼敭鐩樼殑 KEY_POWER锛堝唴鏍哥骇锛屼笉渚濊禆
+             * SELinux/binder锛夛紝澶辫触鍐嶉€€鍥?`input keyevent 26`銆?             * 閲婃斁璧颁富寰幆鐨勫欢鏃堕槦鍒楋細涓嶅啀 usleep(40ms) 鍗′綇鍛戒护寰幆銆?*/
             int ok = 0;
             if (g_kbd >= 0) {
-                ev_emit(g_kbd, EV_KEY, 116 /* KEY_POWER */, 1);
-                ev_syn(g_kbd);
-                usleep(40 * 1000);
-                ev_emit(g_kbd, EV_KEY, 116, 0);
-                ev_syn(g_kbd);
+                key_down(g_kbd, 116 /* KEY_POWER */);
+                key_release_later(g_kbd, 116, 40);
                 ok = 1;
+                /* 鐢垫簮閿細缈昏浆灞忓箷鐘舵€侊細绔嬪埢璁╁敜閱掔紦瀛樺け鏁堬紝涓嬩竴娆?`u` 涓嶅啀璇垽 */
+                wake_cache_write("Toggling");
             }
             if (!ok) {
-                /* 兜底放到子进程里跑：`input` 在这个域里可能长时间不返回，
-                 * 它会卡住整个命令循环（表现为按键全部失灵）。 */
+                /* 鍏滃簳鏀惧埌瀛愯繘绋嬮噷璺戯細`input` 鍦ㄨ繖涓煙閲屽彲鑳介暱鏃堕棿涓嶈繑鍥烇紝
+                 * 瀹冧細鍗′綇鏁翠釜鍛戒护寰幆锛堣〃鐜颁负鎸夐敭鍏ㄩ儴澶辩伒锛夈€?*/
                 if (fork() == 0) {
+                    devnull_redirect();
                     system("/system/bin/input keyevent 26");
                     _exit(0);
                 }
@@ -1880,7 +2651,11 @@ static void handle_line(char *line) {
         }
         case 'r': {
             int rot = 0;
-            if (sscanf(line, "%d", &rot) == 1) cmd_rotation(rot);
+            if (sscanf(line, "%d", &rot) == 1 && fork() == 0) {
+                child_quiet_stdio();
+                cmd_rotation(rot);
+                _exit(0);
+            }
             break;
         }
         case 'I': {
@@ -1892,25 +2667,28 @@ static void handle_line(char *line) {
             break;
         }
         case 'L':
-            cmd_close_app();
+            if (fork() == 0) {
+                child_quiet_stdio();
+                cmd_close_app();
+                _exit(0);
+            }
             break;
         case 'D': {
             int kd, kc;
             if (sscanf(line, "%d %d", &kd, &kc) == 2) {
-                /* 优先用我们自己的虚拟键盘注入（内核级，稳定）：
-                 * `input keyevent` 在 ksu 域里返回 512（exit code 2），事件根本进不去，
-                 * HOME/BACK/音量/静音/媒体键全都是"日志有、实际没反应"。 */
+                /* 浼樺厛鐢ㄦ垜浠嚜宸辩殑铏氭嫙閿洏娉ㄥ叆锛堝唴鏍哥骇锛岀ǔ瀹氾級锛?                 * `input keyevent` 鍦?ksu 鍩熼噷杩斿洖 512锛坋xit code 2锛夛紝浜嬩欢鏍规湰杩涗笉鍘伙紝
+                 * HOME/BACK/闊抽噺/闈欓煶/濯掍綋閿叏閮芥槸"鏃ュ織鏈夈€佸疄闄呮病鍙嶅簲"銆?*/
                 int lc = android_to_linux(kc);
                 if (g_kbd >= 0 && lc >= 0) {
-                    ev_emit(g_kbd, EV_KEY, lc, 1);
-                    ev_syn(g_kbd);
-                    usleep(8 * 1000);
-                    ev_emit(g_kbd, EV_KEY, lc, 0);
-                    ev_syn(g_kbd);
+                    key_down(g_kbd, lc);
+                    key_release_later(g_kbd, lc, 8);   /* 涓嶉樆濉炲懡浠ゅ惊鐜?*/
                     out("KEYUIN %d %d lcode=%d", kd, kc, lc);
+                    /* 鐢垫簮閿紙26锛夌炕杞睆骞曠姸鎬侊細鍞ら啋缂撳瓨绔嬪嵆澶辨晥 */
+                    if (kc == 26) wake_cache_write("Toggling");
                 } else {
-                    /* 没映射的键才退回 input（子进程里跑，避免卡主循环） */
+                    /* 娌℃槧灏勭殑閿墠閫€鍥?input锛堝瓙杩涚▼閲岃窇锛岄伩鍏嶅崱涓诲惊鐜級 */
                     if (fork() == 0) {
+                        child_quiet_stdio();
                         char cmd[160];
                         snprintf(cmd, sizeof(cmd), "/system/bin/input -d %d keyevent %d", kd, kc);
                         int rc = system(cmd);
@@ -1922,9 +2700,7 @@ static void handle_line(char *line) {
             break;
         }
         case 'C': {
-            /* C <display> <androidKeyCode> ... : 组合键（Ctrl+Plus 等）。
-             * 不走 `input keycombination`：在 root 上下文里它返回 512（
-             * 需要更宽的注入权限），而 uinput 键盘是进程内操作，稳定可用。 */
+            /* C <display> <androidKeyCode> ... : 缁勫悎閿紙Ctrl+Plus 绛夛級銆?             * 涓嶈蛋 `input keycombination`锛氬湪 root 涓婁笅鏂囬噷瀹冭繑鍥?512锛?             * 闇€瑕佹洿瀹界殑娉ㄥ叆鏉冮檺锛夛紝鑰?uinput 閿洏鏄繘绋嬪唴鎿嶄綔锛岀ǔ瀹氬彲鐢ㄣ€?*/
             char *p = line;
             char *end = NULL;
             int cd = (int)strtol(p, &end, 10);
@@ -1942,22 +2718,35 @@ static void handle_line(char *line) {
                 p = e2;
             }
             if (count > 0) {
-                int n = cmd_key_combo(codes, count);
-                out("KCOMBO %d %d emitted=%d", cd, count, n);
+                /* 组合键的按下/间隔/释放有固定 sleep（8 键最坏 8×8+30+8×8≈158ms），
+                 * 放子进程执行：与 O/P/Y/T 一致，命令循环不再被阻塞。
+                 * 子进程继承同一个 uinput 键盘 fd，事件顺序不变。 */
+                pid_t kc = fork();
+                if (kc == 0) {
+                    child_quiet_stdio();
+                    int n = cmd_key_combo(codes, count);
+                    out("KCOMBO %d %d emitted=%d", cd, count, n);
+                    _exit(0);
+                }
+                if (kc < 0) out("ERR C fork: %s", strerror(errno));
             } else {
                 out("ERR C no keys");
             }
             break;
         }
         case 't': {
-            /* 当前前台包名：桌面/游戏要用 d-pad 转发，而不是触摸滑动 */
-            char pkg[160];
-            top_package(pkg, sizeof(pkg));
-            out("TOP %s", pkg);
+            /* 褰撳墠鍓嶅彴鍖呭悕锛氭闈?娓告垙瑕佺敤 d-pad 杞彂锛岃€屼笉鏄Е鎽告粦鍔ㄣ€?             * 棣栨娌℃湁缂撳瓨鏃朵細鍚屾 dumpsys锛氭暣涓煡璇涪缁欏瓙杩涚▼锛屽惊鐜笉鍗°€?*/
+            if (fork() == 0) {
+                child_quiet_stdio();
+                char pkg[160];
+                top_package(pkg, sizeof(pkg));
+                out("TOP %s", pkg);
+                _exit(0);
+            }
             break;
         }
         case 'h': {
-            /* 隐藏系统鼠标指针：销毁虚拟鼠标设备（指针图标随之消失） */
+            /* 闅愯棌绯荤粺榧犳爣鎸囬拡锛氶攢姣佽櫄鎷熼紶鏍囪澶囷紙鎸囬拡鍥炬爣闅忎箣娑堝け锛?*/
             if (g_mouse >= 0) {
                 ioctl(g_mouse, UI_DEV_DESTROY);
                 close(g_mouse);
@@ -1967,36 +2756,33 @@ static void handle_line(char *line) {
             break;
         }
         case 'j': {
-            /* 重新创建虚拟鼠标（指针重新出现） */
+            /* 閲嶆柊鍒涘缓铏氭嫙榧犳爣锛堟寚閽堥噸鏂板嚭鐜帮級 */
             ensure_mouse();
             out("POINTER on");
             break;
         }
         case 'A': {
-            /* A <dir> [hold]  dir: 1上 2下 3左 4右
-             * 由 App 决策后回写方向：走虚拟键盘的箭头键（与旧的原生转发等价，
-             * 系统会把它当成 DPAD_*），没有虚拟键盘时退回 `input keyevent`。 */
+            /* A <dir> [hold]  dir: 1涓?2涓?3宸?4鍙?             * 鐢?App 鍐崇瓥鍚庡洖鍐欐柟鍚戯細璧拌櫄鎷熼敭鐩樼殑绠ご閿紙涓庢棫鐨勫師鐢熻浆鍙戠瓑浠凤紝
+             * 绯荤粺浼氭妸瀹冨綋鎴?DPAD_*锛夛紝娌℃湁铏氭嫙閿洏鏃堕€€鍥?`input keyevent`銆?             * 閲婃斁鐢变富寰幆寤舵椂闃熷垪琛ュ彂锛屼笉鍐?usleep(45ms) 鍗′綇寰幆銆?*/
             int dir = 0, hold = 0;
             if (sscanf(line, "%d %d", &dir, &hold) < 1) { out("ERR A"); break; }
             int key = (dir == 1) ? 103 : (dir == 2) ? 108 : (dir == 3) ? 105 : 106;
             if (g_kbd >= 0) {
-                ev_emit(g_kbd, EV_KEY, key, 1);
-                ev_syn(g_kbd);
+                key_down(g_kbd, key);
                 if (hold) {
                     out("ARROW %d hold", dir);
                     break;
                 }
-                usleep(45 * 1000);
-                ev_emit(g_kbd, EV_KEY, key, 0);
-                ev_syn(g_kbd);
+                key_release_later(g_kbd, key, 45);
                 out("ARROW %d", dir);
                 break;
             }
             if (hold) {
-                /* 没有虚拟键盘：按住语义用 keyevent 实现不了，退化成一次点击 */
+                /* 娌℃湁铏氭嫙閿洏锛氭寜浣忚涔夌敤 keyevent 瀹炵幇涓嶄簡锛岄€€鍖栨垚涓€娆＄偣鍑?*/
             }
             int kc = (dir == 1) ? 19 : (dir == 2) ? 20 : (dir == 3) ? 21 : 22;
             if (fork() == 0) {
+                devnull_redirect();
                 char c2[96];
                 snprintf(c2, sizeof(c2), "/system/bin/input keyevent %d", kc);
                 system(c2);
@@ -2006,108 +2792,127 @@ static void handle_line(char *line) {
             break;
         }
         case 'N': {
-            /* 展开通知栏：uinput 的 KEY_NOTIFICATION_CENTER 在三星上不生效，
-             * cmd statusbar 同域注入失败，所以改成"从顶部边缘下滑"的真实触摸手势
-             * （和用户手指下拉通知栏完全一样）。 */
+            /* 灞曞紑閫氱煡鏍忥細uinput 鐨?KEY_NOTIFICATION_CENTER 鍦ㄤ笁鏄熶笂涓嶇敓鏁堬紝
+             * cmd statusbar 鍚屽煙娉ㄥ叆澶辫触锛屾墍浠ユ敼鎴?浠庨《閮ㄨ竟缂樹笅婊?鐨勭湡瀹炶Е鎽告墜鍔?             * 锛堝拰鐢ㄦ埛鎵嬫寚涓嬫媺閫氱煡鏍忓畬鍏ㄤ竴鏍凤級銆傝蛋涓茶鎵嬪娍闃熷垪锛屼笉浼氬拰婊氬姩/缈婚〉
+             * 鎵嬪娍骞跺彂锛堝苟鍙戜細浜掔浉鍚炲苟鎴愪竴娆＄偣鍑伙級銆?*/
             int nw = g_disp_w > 0 ? g_disp_w : 2560;
             int nh = g_disp_h > 0 ? g_disp_h : 1600;
-            pid_t nch = fork();
-            if (nch == 0) {
-                char ncmd[192];
-                snprintf(ncmd, sizeof(ncmd),
-                         "/system/bin/input -d 0 swipe %d 4 %d %d 320",
-                         nw / 2, nw / 2, nh * 55 / 100);
-                int rc = system(ncmd);
-                out("NOTIF swipe rc=%d", rc);
-                _exit(0);
-            }
-            out("NOTIF swipe async");
+            swipe_req_t r;
+            memset(&r, 0, sizeof(r));
+            r.display = 0;
+            r.x1 = nw / 2;
+            r.y1 = 4;
+            r.x2 = nw / 2;
+            r.y2 = nh * 55 / 100;
+            r.ms = 320;
+            r.vertical = 1;
+            r.is_notif = 1;
+            r.tx1 = 0; r.tx2 = nw; r.ty1 = 0; r.ty2 = nh;
+            swipe_submit(r, 0);
             break;
         }
         case 'W':
-            query_cursor();
+            /* SurfaceFlinger dump 200~600ms锛氬瓙杩涚▼鎵ц锛屽洖鍖?CURSOR */
+            if (fork() == 0) {
+                child_quiet_stdio();
+                query_cursor();
+                _exit(0);
+            }
             break;
         case 'J': {
             int jd = 0, jw = 0, jh = 0;
             int n = sscanf(line, "%d %d %d", &jd, &jw, &jh);
-            if (n >= 1 && jd > 0) caption_fullscreen_click(jd, n >= 2 ? jw : 0, n >= 3 ? jh : 0);
+            if (n >= 1 && jd > 0 && fork() == 0) {
+                child_quiet_stdio();
+                caption_fullscreen_click(jd, n >= 2 ? jw : 0, n >= 3 ? jh : 0);
+                _exit(0);
+            }
             break;
         }
         case 'F': {
             int fd = 0;
             char fcomp[192];
-            if (sscanf(line, "%d %191s", &fd, fcomp) == 2 && fd > 0) {
+            if (sscanf(line, "%d %191s", &fd, fcomp) == 2 && fd > 0 && fork() == 0) {
+                child_quiet_stdio();
                 char cmd[420];
                 snprintf(cmd, sizeof(cmd),
                     "/system/bin/am start --display %d --windowingMode 1 -n %s >/dev/null 2>&1",
                     fd, fcomp);
                 int rc = system(cmd);
                 out("FULLSCREEN %d %s rc=%d", fd, fcomp, rc);
+                _exit(0);
             }
             break;
         }
         case 'X': {
             int xd = 0;
             char xc[96];
-            if (sscanf(line, "%d %95s", &xd, xc) == 2) injector_combo(xd, xc);
+            if (sscanf(line, "%d %95s", &xd, xc) == 2 && fork() == 0) {
+                child_quiet_stdio();
+                injector_combo(xd, xc);
+                _exit(0);
+            }
             break;
         }
         case 'E': {
             int hd = 0;
-            if (sscanf(line, "%d", &hd) == 1 && hd > 0) {
+            if (sscanf(line, "%d", &hd) == 1 && hd > 0 && fork() == 0) {
+                child_quiet_stdio();
                 char cmd[320];
                 snprintf(cmd, sizeof(cmd),
                     "/system/bin/am start --display %d -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1",
                     hd);
                 int rc = system(cmd);
                 out("HOMEDEX %d rc=%d", hd, rc);
+                _exit(0);
             }
             break;
         }
         case 'w': {
-            /* w <pkg> : 启动目标应用（后台服务自己 startActivity 会被系统拦，
-             * 走 root 的 am start 才可靠） */
+            /* w <pkg> : 鍚姩鐩爣搴旂敤锛堝悗鍙版湇鍔¤嚜宸?startActivity 浼氳绯荤粺鎷︼紝
+             * 璧?root 鐨?am start 鎵嶅彲闈狅級銆?             * 涓昏矾寰勫浐瀹氫负銆宺esolve-activity 瑙ｆ瀽缁勪欢 + am start -n銆嶏細
+             *   - `am start -p <pkg>` 瀵归儴鍒嗗簲鐢ㄤ細 unable to resolve Intent
+             *     锛堝疄娴?PiliPlus锛夛紝鎵€浠?-p 鍙湪瑙ｆ瀽澶辫触鏃跺仛娆￠€夛紝骞舵墦
+             *     fallback=pkg 鏍囪锛岀粷涓嶄綔涓轰富璺緞锛?             *   - 缁勪欢瑙ｆ瀽鍏堣瘯 `cmd package resolve-activity --brief`锛屽啀璇?             *     `pm resolve-activity --brief`锛?             *   - am start 鐨勮緭鍑轰細琚鏌ワ紙"Error:" 涔熷綋浣滃け璐ワ級锛屽け璐ユ墠 monkey 鍏滃簳銆?*/
             char pkg3[192] = {0};
             if (sscanf(line, "%191s", pkg3) == 1 && pkg3[0]) {
                 pid_t ch = fork();
                 if (ch == 0) {
-                    /* 先解析出启动 Activity 再 am start -n：
-                     * `am start -p <pkg>` 对部分应用会 "unable to resolve Intent"（实测 PiliPlus），
-                     * 解析后用组件名启动最可靠。 */
+                    child_quiet_stdio();
                     char comp[256] = {0};
-                    char rcmd[460];
-                    snprintf(rcmd, sizeof(rcmd),
-                             "/system/bin/cmd package resolve-activity --brief -a android.intent.action.MAIN "
-                             "-c android.intent.category.LAUNCHER %s 2>/dev/null | /system/bin/tail -1", pkg3);
-                    FILE *pr = popen(rcmd, "r");
-                    if (pr) {
-                        if (fgets(comp, sizeof(comp), pr)) {
-                            char *nl = strpbrk(comp, "\r\n");
-                            if (nl) *nl = 0;
-                        }
-                        pclose(pr);
-                    }
+                    int resolved = resolve_component(pkg3, comp, sizeof(comp));
                     int rc = -1;
-                    if (strchr(comp, '/')) {
-                        char cmd4[520];
+                    char firstline[192] = {0};
+                    if (resolved) {
+                        char cmd4[640];
+                        char tmpout[80];
+                        snprintf(tmpout, sizeof(tmpout), "/data/local/tmp/gpm_open_%d.out", (int)getpid());
                         snprintf(cmd4, sizeof(cmd4),
-                                 "/system/bin/am start -n %s -f 0x10000000 >/dev/null 2>&1", comp);
+                                 "/system/bin/am start -W -n %s -f 0x10000000 --user 0 >%s 2>&1",
+                                 comp, tmpout);
                         rc = system(cmd4);
-                        out("OPEN_APP %s via %s rc=%d", pkg3, comp, rc);
+                        read_first_line(tmpout, firstline, sizeof(firstline));
+                        unlink(tmpout);
+                        out("OPEN_APP %s via %s rc=%d out=%s", pkg3, comp, rc, firstline[0] ? firstline : "-");
+                        if (strstr(firstline, "Error")) rc = rc ? rc : 1;
                     } else {
-                        char cmd4[420];
-                        snprintf(cmd4, sizeof(cmd4),
-                                 "/system/bin/am start -a android.intent.action.MAIN "
-                                 "-c android.intent.category.LAUNCHER -p %s >/dev/null 2>&1", pkg3);
-                        rc = system(cmd4);
-                        out("OPEN_APP %s (pkg) rc=%d", pkg3, rc);
+                        out("OPEN_APP %s resolve_failed=1", pkg3);
                     }
                     if (rc != 0) {
-                        /* 最后兜底：monkey 启动（老办法，几乎总能拉起主界面） */
-                        char cmd5[320];
+                        /* 娆￠€夛紙涓嶆槸涓昏矾寰勶級锛欼ntent + 鍖呭悕杩囨护 */
+                        char cmd5[420];
                         snprintf(cmd5, sizeof(cmd5),
+                                 "/system/bin/am start -a android.intent.action.MAIN "
+                                 "-c android.intent.category.LAUNCHER -p %s >/dev/null 2>&1", pkg3);
+                        rc = system(cmd5);
+                        out("OPEN_APP %s fallback=pkg rc=%d", pkg3, rc);
+                    }
+                    if (rc != 0) {
+                        /* 鏈€鍚庡厹搴曪細monkey 鍚姩锛堣€佸姙娉曪紝鍑犱箮鎬昏兘鎷夎捣涓荤晫闈級 */
+                        char cmd6[420];
+                        snprintf(cmd6, sizeof(cmd6),
                                  "/system/bin/monkey -p %s -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1", pkg3);
-                        int rc2 = system(cmd5);
+                        int rc2 = system(cmd6);
                         out("OPEN_APP %s monkey rc=%d", pkg3, rc2);
                     }
                     _exit(0);
@@ -2117,7 +2922,7 @@ static void handle_line(char *line) {
             break;
         }
         case 'q': {
-            /* q <w> <h> : 触摸面尺寸（像素 -> 触摸坐标） */
+            /* q <w> <h> : 瑙︽懜闈㈠昂瀵革紙鍍忕礌 -> 瑙︽懜鍧愭爣锛?*/
             int tw = 0, th = 0;
             if (sscanf(line, "%d %d", &tw, &th) == 2 && tw > 0 && th > 0) {
                 g_touch_w = tw;
@@ -2127,13 +2932,13 @@ static void handle_line(char *line) {
             break;
         }
         case 'k': {
-            /* k <x> <y> <down> : 单指触摸（点击 / 长按） */
+            /* k <x> <y> <down> : 鍗曟寚瑙︽懜锛堢偣鍑?/ 闀挎寜锛?*/
             int tx = 0, ty = 0, dn = 0;
             if (sscanf(line, "%d %d %d", &tx, &ty, &dn) == 3) touch_single(tx, ty, dn);
             break;
         }
         case 'l': {
-            /* l <dir> <x> <y> : 双指缩放，dir 0=停止 1=放大 -1=缩小 */
+            /* l <dir> <x> <y> : 鍙屾寚缂╂斁锛宒ir 0=鍋滄 1=鏀惧ぇ -1=缂╁皬 */
             int dir = 0, px = 0, py = 0;
             if (sscanf(line, "%d %d %d", &dir, &px, &py) == 3) {
                 if (dir == 0) pinch_stop();
@@ -2142,24 +2947,44 @@ static void handle_line(char *line) {
             break;
         }
         case 'g': {
-            /* 标定：设置居中增益（raw -> px） */
-            double g = 0;
-            if (sscanf(line, "%lf", &g) == 1 && g > 0.2 && g < 20.0) {
-                g_center_gain = g;
-                out("GAIN %.2f", g_center_gain);
+            /* 澧炵泭鏍囧畾锛?             *   g                 鏌ヨ 鈫?GAIN center=鈥?ptr=鈥?             *   g ?               鍚屼笂锛堟樉寮忔煡璇級
+             *   g <center>        璁剧疆灞呬腑澧炵泭锛堝悜鍚庡吋瀹规棫璋冪敤锛?             *   g <center> <ptr>  鍚屾椂璁剧疆 REL->px 瀹炴祴澧炵泭
+             * ptr 澧炵泭鍦?center 鏈爣瀹氭椂浣滀负榛樿鍊硷紝鎵€浠ユ爣瀹氳繃鐨勫€间竴瀹氱敓鏁堛€?*/
+            double g1 = 0, g2 = 0;
+            int n = sscanf(line, "%lf %lf", &g1, &g2);
+            if (n <= 0) {
+                out("GAIN center=%.3f ptr=%.3f effective=%.3f", g_center_gain, g_pointer_gain,
+                    effective_gain());
+                break;
             }
+            if (g1 == 0.0) g_center_gain = 0.0;        /* 0 = 鍥炶惤鍒板疄娴?ptr 澧炵泭 */
+            else if (g1 > 0.2 && g1 < 20.0) g_center_gain = g1;
+            if (n >= 2 && g2 > 0.2 && g2 < 20.0) g_pointer_gain = g2;
+            out("GAIN center=%.3f ptr=%.3f effective=%.3f", g_center_gain, g_pointer_gain,
+                effective_gain());
+            break;
+        }
+        case 'u': {
+            /* 鐐逛寒灞忓箷锛堟憞鏉嗗ぇ骞呯Щ鍔ㄦ椂鐢卞簲鐢ㄨ皟鐢級銆傚凡浜椂闆舵敞鍏ャ€?*/
+            cmd_wake_screen();
+            break;
+        }
+        case 'c': {
+            /* 鐪熷疄鍏夋爣浣嶇疆锛堥棴鐜眳涓敤锛夛細瀛愯繘绋嬫煡璇紝鍥炲寘 CURSOR x y */
+            cmd_cursor_query();
             break;
         }
         case 'P': {
-            /* P <x> <y> <maxX> <maxY> : 把光标放到绝对坐标
-             * （空闲隐藏会销毁鼠标设备，重建后用这条把光标放回"上次的位置"） */
+            /* P <x> <y> <maxX> <maxY> : 鎶婂厜鏍囨斁鍒扮粷瀵瑰潗鏍?             * 锛堢┖闂查殣钘忎細閿€姣侀紶鏍囪澶囷紝閲嶅缓鍚庣敤杩欐潯鎶婂厜鏍囨斁鍥?涓婃鐨勪綅缃?锛夈€?             * 鏈夌晫姝ヨ繘瑕?~280ms锛屾斁瀛愯繘绋嬶細涓诲惊鐜笉琚崱浣忋€?*/
             int px = 0, py = 0, pw = 0, ph = 0;
             int pn = sscanf(line, "%d %d %d %d", &px, &py, &pw, &ph);
-            if (pn >= 2) {
+            if (pn >= 2 && fork() == 0) {
+                child_quiet_stdio();
                 if (pw <= 0) pw = 2560;
                 if (ph <= 0) ph = 1600;
                 pointer_goto(px, py, pw, ph);
                 out("POSPTR %d,%d", px, py);
+                _exit(0);
             }
             break;
         }
@@ -2264,7 +3089,15 @@ int main(int argc, char **argv) {
             check_injector();
             scan_new_devices();
             ping_client();
+            /* 姣?2s 鐢ㄧ湡瀹?task 杈圭晫瑕嗙洊缂撳瓨锛氳鍐欏潖鐨?bounds 鏈€澶?2s 灏辫绾犳 */
+            if (g_bounds_last_display >= 0)
+                bounds_refresh_request(g_bounds_last_display, g_bounds_last_w, g_bounds_last_h, 1);  /* 周期刷新：force */
         }
+        /* 闈為樆濉炴敹灏撅細鍒版湡鎸夐敭閲婃斁 / 鎺掗槦鎵嬪娍鍚姩 / 鍚庡彴缂撳瓨鍒锋柊 */
+        long long next_key = key_release_due();
+        gesture_poll();
+        bounds_refresh_poll();
+        wake_refresh_async();
         int n = 0;
         pfd[n].fd = STDIN_FILENO; pfd[n].events = POLLIN; n++;
         for (int i = 0; i < g_ndev; i++) {
@@ -2279,8 +3112,12 @@ int main(int argc, char **argv) {
             pfd[n].events = POLLIN;
             n++;
         }
-        int rc = poll(pfd, n, g_pinch_dir != 0 ? 8 : 400);
+        int timeout = g_pinch_dir != 0 ? 8 : gesture_poll_timeout();
+        if (next_key >= 0 && next_key < timeout) timeout = next_key <= 0 ? 1 : (int)next_key;
+        int rc = poll(pfd, n, timeout);
         reap_children();
+        gesture_poll();
+        key_release_due();
         pinch_tick();
         if (rc < 0) {
             if (errno == EINTR) continue;
@@ -2338,8 +3175,8 @@ int main(int argc, char **argv) {
                 if (ev->type == EV_ABS) {
                     /* mouse mode off: the system owns the axes; report nothing */
                     if (!g_grab_mode) continue;
-                    /* d-pad 一律上报给 App（软件在虚拟控制器层之上）：
-                     * App 决定这是组合键还是普通方向键，再由 H 命令回写到虚拟手柄 */
+                    /* d-pad 涓€寰嬩笂鎶ョ粰 App锛堣蒋浠跺湪铏氭嫙鎺у埗鍣ㄥ眰涔嬩笂锛夛細
+                     * App 鍐冲畾杩欐槸缁勫悎閿繕鏄櫘閫氭柟鍚戦敭锛屽啀鐢?H 鍛戒护鍥炲啓鍒拌櫄鎷熸墜鏌?*/
                     if (ev->code == 3 || ev->code == 4 || ev->code == 2 || ev->code == 5) {
                         if (0) out("AXMAP raw=%d android=%d rx=%d ry=%d name=%s",
                             ev->code, axis_to_android(&g_devs[i], ev->code),
@@ -2350,7 +3187,7 @@ int main(int argc, char **argv) {
                         normalize_abs(&g_devs[i], ev->code, ev->value));
                 } else if (ev->type == EV_KEY) {
                     if (ev->value) held_add(ev->code); else held_del(ev->code);
-                    /* d-pad 键同样交给 App 处理 */
+                    /* d-pad 閿悓鏍蜂氦缁?App 澶勭悊 */
                     out("KEY %d %d %d %lld", g_devs[i].id, ev->code, ev->value, now_ms());
                 }
             }
@@ -2360,6 +3197,10 @@ int main(int argc, char **argv) {
         ungrab_all();
         for (int i = 0; i < g_ndev; i++) close(g_devs[i].fd);
         g_ndev = 0;
+        /* 浼氳瘽缁撴潫锛氱粷涓嶇暀涓嬫寜浣忕殑閿紝涔熶笉鎶婁笂涓€鏉′細璇濈殑鎺掗槦鎵嬪娍甯﹁繘涓嬩竴鏉?*/
+        key_release_all();
+        g_qn = 0;
+        g_swipe_next_at_ms = 0;
         if (g_listen < 0) break;   /* stdio mode: single session */
         int devnull = open("/dev/null", O_RDWR);
         if (devnull >= 0) {

@@ -1,0 +1,5 @@
+SWIPE 0 1282,803 -> 130,803 (task 0..2560 / 0..1600) axis=V n=31 pid=31208 queued=0 async prep=180us
+SWIPE 0 1282,803 -> 130,803 (task 0..2560 / 0..1600) axis=V n=32 pid=31226 queued=0 async prep=549us
+SWIPE 0 1282,803 -> 130,803 (task 0..2560 / 0..1600) axis=V n=33 pid=31241 queued=0 async prep=388us
+SWIPE 0 1282,803 -> 130,803 (task 0..2560 / 0..1600) axis=V n=34 pid=31272 queued=0 async prep=255us
+SWIPE 0 1282,803 -> 130,803 (task 0..2560 / 0..1600) axis=V n=35 pid=31280 queued=0 async prep=614us

@@ -1,0 +1,68 @@
+﻿# popen()/system() audit — gpminput.c (v1.66 helper)
+# 每一处都只在「子进程分支」或「子进程专用函数」里执行；命令主循环只做内存计算 + write/fork。
+
+line 203: * fork+system(), so an injected gesture starts sooner. */
+line 641: FILE *p = popen("dumpsys SurfaceFlinger 2>/dev/null", "r");
+line 750: FILE *p = popen("dumpsys SurfaceFlinger 2>/dev/null", "r");
+line 776: FILE *p = popen("dumpsys input 2>/dev/null", "r");
+line 807: FILE *p = popen("dumpsys activity activities 2>/dev/null | grep -m1 -oE 'Task\\{[^}]*#[0-9]+ type=standard A=[0-9]+:com\\.example\\.' 2>/dev/null", "r");
+line 808: if (!p) p = popen("dumpsys activity activities 2>/dev/null | grep -m1 -oE 'Task\\{[^}]*#[0-9]+' ", "r");
+line 825: int rc = system(cmd);
+line 840: system(tap);
+line 1003: FILE *p = popen("/system/bin/dumpsys power 2>/dev/null | /system/bin/grep -m1 mWakefulness=", "r");
+line 1097: system("/system/bin/input keyevent 224 >/dev/null 2>&1 </dev/null");
+line 1104: system("/system/bin/su -M -c 'cmd power wakeup' >/dev/null 2>&1 </dev/null");
+line 1170: system("/system/bin/input keyevent 224 >/dev/null 2>&1 </dev/null");
+line 1174: system("/system/bin/su -M -c 'cmd power wakeup' >/dev/null 2>&1 </dev/null");
+line 1489: FILE *p = popen("/system/bin/dumpsys power 2>/dev/null | /system/bin/grep -c mWakefulness=", "r");
+line 1541: FILE *p = popen("/system/bin/dumpsys activity activities 2>/dev/null | "
+line 1575: FILE *p = popen("/system/bin/dumpsys activity activities 2>/dev/null | "
+line 1687: FILE *t = popen("dumpsys activity activities 2>/dev/null", "r");
+line 1964: FILE *p = popen("am stack list 2>/dev/null", "r");
+line 1996: FILE *p = popen("dumpsys activity recents 2>/dev/null", "r");
+line 2046: system("settings put system accelerometer_rotation 1");
+line 2047: system("wm set-ignore-orientation-request false");
+line 2052: system(cmd);
+line 2054: system("wm set-ignore-orientation-request true");
+line 2064: FILE *p = popen("dumpsys activity activities 2>/dev/null", "r");
+line 2099: int rc = system(cmd);
+line 2109: FILE *p = popen("dumpsys activity activities 2>/dev/null", "r");
+line 2152: int rc = system(cmd);
+line 2327: FILE *pr = popen(rcmd, "r");
+line 2444: FILE *fp = popen(pipes[i], "r");
+line 2463: int rc = system(cmd);
+line 2495: system("/system/bin/input keyevent 26");
+line 2545: int rc = system(cmd);
+line 2635: system(c2);
+line 2689: int rc = system(cmd);
+line 2713: int rc = system(cmd);
+line 2745: rc = system(cmd4);
+line 2759: rc = system(cmd5);
+line 2767: int rc2 = system(cmd6);
+
+# cmd_swipe 函数体内（几何 + 串行队列，无 popen/system/exec）:
+        /* 缂撳瓨涓嶅彲淇★細鏈鐢ㄥ叏灞忥紝鍒锋柊浜ょ粰涓诲惊鐜紙涓嶅湪婊戝姩璺緞 fork锛?*/
+
+# 命令分发里 fork 覆盖的重命令:
+line 1070: static void wake_slow_path(const char *was, int emitted) {
+line 1136: wake_slow_path(was, emitted);
+line 1142: wake_slow_path(was, 0);
+line 1148: wake_slow_path(was, emitted);
+line 1187: static void cmd_cursor_query(void) {
+line 1806: static void swipe_submit(swipe_req_t r, long long prep_us) {
+line 1863: static int gesture_poll_timeout(void) {
+line 1958: swipe_submit(r, prep_us);
+line 2391: if (fork() == 0) {
+line 2400: if (fork() == 0) {
+line 2411: if (fork() == 0) {
+line 2436: if (fork() != 0) break;
+line 2472: if (fork() == 0) {
+line 2493: if (fork() == 0) {
+line 2520: if (fork() == 0) {
+line 2541: if (fork() == 0) {
+line 2584: if (fork() == 0) {
+line 2631: if (fork() == 0) {
+line 2659: swipe_submit(r, 0);
+line 2664: if (fork() == 0) {
+line 2829: cmd_cursor_query();
+line 2972: int timeout = g_pinch_dir != 0 ? 8 : gesture_poll_timeout();

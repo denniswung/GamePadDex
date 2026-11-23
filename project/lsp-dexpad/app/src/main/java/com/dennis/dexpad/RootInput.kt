@@ -37,6 +37,12 @@ class RootInput(
         fun onPadKey(key: Int)
         /** a grabbed gamepad disappeared: its held keys will never send an up */
         fun onDeviceGone()
+        /** 真实光标位置（助手 `c` 命令回包；-1,-1 = 不可用/指针隐藏） */
+        fun onCursor(x: Int, y: Int) {}
+        /** 助手 `u`（唤醒）回包原文，例如 "WAKE was=Asleep now=Awake uinput=1" */
+        fun onWake(line: String) {}
+        /** 助手 `P`（绝对定位）完成回包 `POSPTR x,y` */
+        fun onPositioned(x: Int, y: Int) {}
     }
 
     @Volatile
@@ -48,6 +54,8 @@ class RootInput(
     private val running = AtomicBoolean(false)
     private val devices = ArrayList<String>()
     private val caps = HashMap<String, Int>()
+    /** 8 ms 循环里复用，避免每帧 String.format 的分配 */
+    private val lineBuf = StringBuilder(96)
 
     @Volatile
     var helperReady: Boolean = false
@@ -193,6 +201,26 @@ class RootInput(
                 if (p.size >= 3) p[2].toIntOrNull()?.let { caps[p[1]] = it }
             }
             line.startsWith("ERR ") -> Log.w(TAG, "helper: $line")
+            line.startsWith("CURSOR ") -> {
+                val p = line.split(' ')
+                if (p.size >= 3) {
+                    val x = p[1].toIntOrNull() ?: return
+                    val y = p[2].toIntOrNull() ?: return
+                    listener.onCursor(x, y)
+                }
+            }
+            line.startsWith("WAKE ") -> listener.onWake(line)
+            line.startsWith("POSPTR ") -> {
+                val p = line.split(' ')
+                if (p.size >= 2) {
+                    val xy = p[1].split(',')
+                    if (xy.size >= 2) {
+                        val x = xy[0].toIntOrNull()
+                        val y = xy[1].toIntOrNull()
+                        if (x != null && y != null) listener.onPositioned(x, y)
+                    }
+                }
+            }
         }
     }
 
@@ -219,7 +247,36 @@ class RootInput(
     /** 链路自检 (通用 §8.1): the helper answers with CAP <name> <0|1> lines */
     fun selftest() = send("?")
 
-    fun move(dx: Float, dy: Float) = send(String.format(Locale.US, "M %.2f %.2f", dx, dy))
+    fun move(dx: Float, dy: Float) {
+        val w = writer ?: return
+        try {
+            synchronized(this) {
+                val b = lineBuf
+                b.setLength(0)
+                b.append("M ")
+                appendFixed2(b, dx)
+                b.append(' ')
+                appendFixed2(b, dy)
+                b.append('\n')
+                w.write(b.toString())
+                w.flush()
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "send 'M $dx $dy' failed: ${t.message}")
+        }
+    }
+
+    /** %.2f 的无分配替代（8 ms 循环里每帧都走这条路径） */
+    private fun appendFixed2(b: StringBuilder, v: Float) {
+        var scaled = Math.round(Math.abs(v) * 100.0)
+        if (scaled < 0) scaled = 0
+        if (v < 0f && scaled != 0L) b.append('-')
+        b.append(scaled / 100L)
+        b.append('.')
+        val frac = (scaled % 100L).toInt()
+        if (frac < 10) b.append('0')
+        b.append(frac)
+    }
 
     fun button(index: Int, down: Boolean) = send("B $index ${if (down) 1 else 0}")
 
@@ -270,6 +327,21 @@ class RootInput(
     fun powerKey() {
         send("p")
     }
+
+    /**
+     * 真实光标位置（v1.66）：助手 `c` → `CURSOR <x> <y>`（-1,-1 = 不可用）。
+     * 老助手没有 `c`，调用方会用 [queryCursorLegacy] 兜底。
+     */
+    fun queryCursor() = send("c")
+
+    /** 老助手（v1.65）的真实光标位置命令：`W`（SurfaceFlinger sprite，较慢） */
+    fun queryCursorLegacy() = send("W")
+
+    /** 唤醒屏幕：只在灭屏时注入（助手 `u`；已亮时零注入） */
+    fun wakeScreen() = send("u")
+
+    /** 设置助手的 raw→px 有效增益（`g 0 <gain>`），用于 P 绝对定位与 O 居中 */
+    fun setGain(g: Float) = send(String.format(Locale.US, "g 0 %.3f", g))
 
     /** force phone rotation: 1 landscape, 0 portrait, -1 automatic */
     fun setRotation(rot: Int) {

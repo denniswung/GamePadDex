@@ -1,0 +1,40 @@
+﻿== appaxis Mon Nov 23 22:56:31 CST 2026 ==
+socket=srw-rw-rw- 1 root root 0 2026-11-23 22:54 /data/data/com.dennis.dexpad/files/gpm.sock helper=31234 engine=31237
+
+[1] 纯纵向 RY=-24000 (0.73) 1200ms —— 期望 helper Z=n, app TOUCH/swipe=n, click=0
+  helper: Z=5 V=0  regions:       5 Z@480 
+  app: TOUCH/swipe=5 MOUSE/click=5
+
+[2] 双轴同阈值 RX=+11796 (0.36) + RY=-11796 (0.36) 1200ms —— 期望只有一个轴注入/一个区域
+  helper: Z=5 V=0  regions:       5 Z@480 
+  app: TOUCH/swipe=5 MOUSE/click=5
+
+[3] 同轴连发 Z 600ms + Z 600ms（间隔 0）—— 期望两条都完整到达（串行，不吞）
+  helper: Z=6 V=0  regions:       6 Z@480 
+  app: TOUCH/swipe=6 MOUSE/click=6
+
+[4] 同 tick 双轴 RX=+13000 (0.40) + RY=-24000 (0.73) —— 期望只有一个区域
+  helper: Z=4 V=0  regions:       3 Z@480       1 Z@800 
+  app: TOUCH/swipe=4 MOUSE/click=4
+
+== logcat PadProbe tail ==
+  11-23 22:56:50.810  3645  3645 I PadProbe: MOUSE/drag x=1280 y=1039 dx=0 dy=559 dist=559
+  11-23 22:56:50.810  3645  3645 I PadProbe: TOUCH/swipe dx=0 dy=559 dist=559
+  11-23 22:56:50.943  3645  3645 I PadProbe: MOUSE/click-down x=1280 y=480 btn=0
+  11-23 22:56:51.168  3645  3645 I PadProbe: MOUSE/drag x=1280 y=1039 dx=0 dy=559 dist=559
+  11-23 22:56:51.169  3645  3645 I PadProbe: TOUCH/swipe dx=0 dy=559 dist=559
+  11-23 22:56:51.269  3645  3645 I PadProbe: MOUSE/click-down x=1280 y=480 btn=0
+  11-23 22:56:51.493  3645  3645 I PadProbe: MOUSE/drag x=1280 y=1039 dx=0 dy=559 dist=559
+  11-23 22:56:51.493  3645  3645 I PadProbe: TOUCH/swipe dx=0 dy=559 dist=559
+== helper.log SWIPE tail ==
+  SWIPE 0 1280,480 -> 1280,1040 (task 0..2560 / 0..1600) axis=Z n=66 pid=4298 queued=0 async prep=195us
+  SWIPE_DROP axis=V busy=Z n=66 x=1280,y=800 reason=crosstalk
+  SWIPE_QUEUED axis=Z depth=1 n=66 x=1280,y=480
+  SWIPE_DONE 0 axis=Z n=66 rc=0 dur=291ms
+  SWIPE 0 1280,480 -> 1280,1040 (task 0..2560 / 0..1600) axis=Z n=67 pid=4310 queued=1 async prep=0us
+  SWIPE_QUEUED axis=Z depth=1 n=67 x=1280,y=480
+  SWIPE_DONE 0 axis=Z n=67 rc=0 dur=266ms
+  SWIPE_DROP axis=V last=Z age=0ms reason=axis_guard x=1280,y=800
+  SWIPE 0 1280,480 -> 1280,1040 (task 0..2560 / 0..1600) axis=Z n=68 pid=4320 queued=1 async prep=0us
+  SWIPE_DONE 0 axis=Z n=68 rc=0 dur=276ms
+DONE

@@ -1,0 +1,19 @@
+﻿== probe_v166_helper_cmds mode=poison Tue Nov 24 02:28:53 CST 2026 ==
+CHANNEL pid=17406 ready=1 err=
+== BOUNDS CACHE POISON (threshold ≤2.5s, samples 2.0/2.3/2.5s) ==
+  [wait 2.0s]
+    SWIPE 0 900,408 -> 900,260 (task 600..1200 / 240..800) axis=Z n=2 pid=17460 queued=0 async prep=227us
+    SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=3 pid=17502 queued=0 async prep=353us
+    cache=com.dennis.padtest 0 0 2560 1600 2560 1600
+  [wait 2.3s]
+    SWIPE 0 900,408 -> 900,260 (task 600..1200 / 240..800) axis=Z n=5 pid=17557 queued=0 async prep=146us
+    SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=6 pid=17594 queued=0 async prep=290us
+    cache=com.dennis.padtest 0 0 2560 1600 2560 1600
+  [wait 2.5s]
+    SWIPE 0 900,408 -> 900,260 (task 600..1200 / 240..800) axis=Z n=8 pid=17634 queued=0 async prep=168us
+    SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=9 pid=17678 queued=0 async prep=318us
+    cache=com.dennis.padtest 0 0 2560 1600 2560 1600
+  legacy mirror: 0 0 2560 1600
+CHANNEL closed
+STARTED helper=17759 engine=17763 sock=srw-rw-rw- 1 root root 0 2026-11-24 02:29 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==
