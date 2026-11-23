@@ -1,5 +1,11 @@
 # APP-v166 · 应用侧（Kotlin）真机验收证据摘要
 
+> **哈希注记（t7 集成）**：本文件头部与正文的数字是 t16/t20 时期在 **debug 字节**上测的（`b7fa2662` → `d2194406`）。
+> v1.66 的**发布字节**是 `assembleRelease` 的 `73477ecaef948aa4b4a9ffdc5f51e8026200a66228cebd635b8aba8c79aa8bf5`（2677039 B），
+> 发布助手是 `1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf`（851928 B）。
+> 两者 Kotlin 源码相同，差异只有构建变体标志与 `assets/gpminput`；发布字节上的行为由
+> `work/docs/evidence-v166-install/release_smoke.result.txt`（23/23 PASS）复核，完整对照见 `work/docs/RELEASE-v166.md`。
+
 - 装机：`versionName=1.66` / `versionCode=68`；**实际装机 base.apk sha256=`b7fa26623ba87f3801794cd74a42ac8770b4c0f74c2b99b9fd68626c0e0c984d`（t16 构建，`pm path` + `sha256sum`，与本机 `app-debug.apk` 一致；t3 报告中的 1F8A… 是 t3 当时产物，已被后续构建替换）**
 - Helper：`gpminput` sha256=`4f261754d80bea69dfc6d8af46608800195c05bc4bd68bca0e220e5d37d059a5`（t2 产物，含 `u` / `c` / 串行手势队列）
 - 显示：display 0 = 内置外屏，app 空间 **2560x1600** rot1，`display_size_forced=1600,2560`、`user_rotation=1`、`accelerometer_rotation=0`、`pointer_speed=-1`
