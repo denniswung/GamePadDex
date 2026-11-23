@@ -98,9 +98,10 @@ d-pad+A→DPAD_CENTER、X 双击→Recents、X+LB dx=+672、X+RB dx=−1536、�
 
 | 项 | 值 |
 |---|---|
-| 提交 | `git@local: f79b8a8`（本地） → 远端提交 **`4d7ff5c156de17bdb733f4c619d6824a41a796ba`**（父 `4f99b17`），**远端 tree = `620da491…` = 本地 HEAD tree**（逐字节一致） |
+| 提交 | 远端提交 **`fbef712f2ea5764e69db4caf51f6f580c45eb7b6`**（v1.66 内容提交 `4d7ff5c` + 集成文档提交），**远端 tree = `7635c176…` = 本地 HEAD tree**（逐字节一致） |
+| 父提交 | `4d7ff5c`（内容）← `4f99b17`（远端原 head） |
 | 推送方式 | `git push` 直连 github.com:443 被网络重置/超时（重试 3 次均失败）→ 改用 **GitHub REST Git Data API**（`work/docs/evidence-v166-install/push_via_api.py`：blob→tree→commit→ref），并校验 tree 相同 |
-| 标签 / Release | tag **v1.66** → `4d7ff5c`；https://github.com/denniswung/GamePadDex/releases/tag/v1.66 |
+| 标签 / Release | tag **v1.66** → `fbef712`；https://github.com/denniswung/GamePadDex/releases/tag/v1.66 （`isDraft=false isPrerelease=false`） |
 | 资产 | `dexpad-v1.66.apk`、`gpm_dex-v1.66.zip`、`gpminput-v1.66`、`padtest-v1.1.apk`、`SHA256SUMS.txt`；**重新下载后 sha256 与本地逐一相同**（5/5 match=True） |
 
 ## 8 残留偏差（如实记录，不阻塞发布）
