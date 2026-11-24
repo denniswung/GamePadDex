@@ -1,0 +1,64 @@
+
+===== RS-0 基线（v1.67 发布字节） =====
+  apk=/data/app/~~Lhqe-OnC74mbMWKsgWtziw==/com.dennis.dexpad-O28Hp88AkpRzPC_tXES7lA==/base.apk
+  apk_sha256=8aeef7b7d6d5ea01b650a26e18c0eb8f0c4233f647a0cb0a17048be1e2180312 size=2678947
+  versionName=1.67 versionCode=69
+  helper=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf module=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+  [PASS] RS0-APK | 8aeef7b7d6d5ea01b650a26e18c0eb8f0c4233f647a0cb0a17048be1e2180312 (2678947B)
+  [PASS] RS0-VER | versionName=1.67 versionCode=69
+  [PASS] RS0-HELPER | 1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf / 1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+  [PASS] RS0-LAND | user_rotation=1 accel=0 app=2560x1600 engine=2560x1600 dumpsys_rot=1
+  wake=Awake focus=Window{94dc0a8 u0 com.dennis.padtest/com.dennis.padtest.ui.ScrollTestActivity}
+
+===== RS-1 L3 居中 + A=鼠标点击（release 字节） =====
+  L3 click=[1281 799] err=[] mouse_click=1 key_enter=0 l3TookMs=n/a
+  [PASS] RS1-L3 | click=[1281 799] err=[] d=1px mouse_click=1 key_enter=0 l3TookMs=n/a
+
+===== RS-2 光标 dpi（左摇杆满推 300ms 后真实点击落点位移） =====
+  move: click=[2559 799] dx_from_center=1279
+  [PASS] RS2-MOVE | click=[2559 799] dx=+1279px
+
+===== RS-3 右摇杆滑动：竖向/横向真实页面位移 + helper 手势轴向 =====
+  vertical: PY 1415 -> 0 d=1415 HS d=0 Zn=4 Vn=0
+  [PASS] RS3-V | PY 1415->0 d=1415 HS d=0 Zn=4 Vn=0
+  horizontal: HS 0 -> 512 d=512 Vn=3 Zn=0
+  [PASS] RS3-H | HS 0->512 d=512 Vn=3 Zn=0
+
+===== RS-4 指针空闲隐藏后第一次推杆（t20 修复点，release 字节） =====
+  idle 9.5s: POINTER off 0 -> 1, engine hidden=1, pointer device present=0
+  hidden first push: PY 1415 -> 0 d=1415 Zn=4
+  [PASS] RS4-HIDDEN | POINTER off 0->1 ptr_dev=0 PY 1415->0 d=1415 Zn=4
+  [PASS] RS4-HIDDEN-H | HS 0->512 d=512
+
+===== RS-5 Y+上→PiliPlus / Y+下→抖音（release 字节） =====
+  Y+up top=com.example.piliplus/.MainActivity | OPEN_APP com.example.piliplus via com.example.piliplus/.MainActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.example.piliplus/.MainActivity }
+  [PASS] RS5-YUP | top=com.example.piliplus/.MainActivity | OPEN_APP com.example.piliplus via com.example.piliplus/.MainActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.example.piliplus/.MainActivity }
+  Y+down top=com.ss.android.ugc.aweme/.splash.SplashActivity | OPEN_APP com.ss.android.ugc.aweme via com.ss.android.ugc.aweme/.splash.SplashActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.ss.android.ugc.aweme/.splash.SplashActivity }
+  [PASS] RS5-YDOWN | top=com.ss.android.ugc.aweme/.splash.SplashActivity | OPEN_APP com.ss.android.ugc.aweme via com.ss.android.ugc.aweme/.splash.SplashActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.ss.android.ugc.aweme/.splash.SplashActivity }
+
+===== RS-6 回归（不得回退的 6 项，release 字节） =====
+  I1 d-pad then A: mouse_click=0 key_enter=1
+  [PASS] RS6-I1 | mouse_click=0 key_enter=1
+  [PASS] RS6-I1B | mouse_click=1 key_enter=0
+  [PASS] RS6-I2 | top=com.sec.android.app.launcher/com.android.quickstep.RecentsActivity
+  [PASS] RS6-I3 | SWIPE=[SWIPE 0 1889,800 -> 2540,800 (task 0..2560 / 0..1600) axis=V n=17 pid=26976 queued=0 async prep=180us] dx=+651
+  [PASS] RS6-I4 | SWIPE=[SWIPE 0 1889,800 -> 353,800 (task 0..2560 / 0..1600) axis=V n=18 pid=27123 queued=0 async prep=228us] dx=-1536
+  I5: P1=[1916 799] P2=[1916 799] d=0px hidden=0->1 corr=[pointer shown at last position (no correction move)]
+  [PASS] RS6-I5 | P1=[1916 799] P2=[1916 799] d=0px corr=[pointer shown at last position (no correction move)]
+  [PASS] RS6-I6 | shade=1 notif=NOTIF swipe async n=19 pid=27717 prep=0us|NOTIF swipe rc=0 dur=391ms n=19|
+
+===== RS-7 横屏守护：外部改竖屏后 ≤5s 自动回横屏 =====
+  guardian: 2000ms(8 polls) app=2560x1600 user_rotation=1 accel=0 | landscape guardian: rotation 3 -> 1 (force_landscape=true)
+  [PASS] RS7-GUARD | recovered≈2000ms(8×250ms) app=2560x1600
+
+===== RS-8 提速与资源（release 字节，60s 空闲） =====
+  60s idle: pid=22420 cpu(proc utime+stime)=0.93% thread_sum=0.93% cutime+cstime(delta, should≈0)=0.00% cursorq=0 cursor=0
+  perf tick: perf tick n=625 avg=36us max=2047us prefs_per_tick=0 gain=2.1541455|perf tick n=625 avg=40us max=2975us prefs_per_tick=0 gain=2.1541455|
+  helper log lines during idle: 30
+  [PASS] RS8-CPU | cpu=0.93% thread_sum=0.93% child=0.00%
+  [PASS] RS8-Q | CURSORQ=0 CURSOR=0
+  [PASS] RS8-TICK | perf tick: perf tick n=625 avg=36us max=2047us prefs_per_tick=0 gain=2.1541455|perf tick n=625 avg=40us max=2975us prefs_per_tick=0 gain=2.1541455|
+
+===== RESTORE 恢复安装状态 =====
+  restored: helper=22455 engine=22420 user_rotation=1 accel=0 app=2560x1600 wake=Awake focus=Window{a4bf585 u0 com.dennis.padtest/com.dennis.padtest.ui.CursorTestActivity}
+PASS=23 FAIL=0 FAILED=[]

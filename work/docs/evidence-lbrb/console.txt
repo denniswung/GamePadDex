@@ -1,0 +1,77 @@
+
+===== A 机制互斥：LB / RB 各按住 1.5s（触屏模式） =====
+  LB: SWIPE=6 (Z=6 V=0) WHEEL=0 mode=[hold-scroll scroll_swipe_down by lb mode=swipe]
+[A-LB] PASS | 阈值: 一次按压内 SWIPE>0 且 WHEEL=0（同按只一种机制，触屏=连续滑动） | 实测: SWIPE=6 WHEEL=0 mode=[hold-scroll scroll_swipe_down by lb mode=swipe]
+  RB: SWIPE=6 (Z=6 V=0) WHEEL=0 mode=[hold-scroll scroll_swipe_up by rb mode=swipe]
+[A-RB] PASS | 阈值: 一次按压内 SWIPE>0 且 WHEEL=0（同按只一种机制，触屏=连续滑动） | 实测: SWIPE=6 WHEEL=0 mode=[hold-scroll scroll_swipe_up by rb mode=swipe]
+
+===== B 触屏模式：内容连续位移 + 相邻位移间隔 =====
+  LB 1.5s: PY 1415->0 d=1415 SWIPE=6
+[B-LB] PASS | 阈值: LB 1.5s 竖向内容位移 dPY ≥1000px（helper 连续 SWIPE ≥6 条） | 实测: dPY=1415 SWIPE=6
+  RB 前置：下滚至 PY=0（微调 10 次，目标 ≤450 且 ≥250）
+  RB 1.5s: PY 0->0 d=0 HS 0->0 d=0 SWIPE=6
+[B-RB] FAIL | 阈值: RB 1.5s 内容位移（竖 dPY≥1000 或横 dHS≥400，SWIPE≥6） | 实测: dPY=0 dHS=0 SWIPE=6
+     REPRO: starts; hold RB 1.5s; uiautomator dump
+  gesture click-down n=6 gaps(ms,扣除220ms手势时长)=[ 141 110 106 132 120] max=141
+[B-INT] PASS | 阈值: 相邻位移空档 ≤150ms（无 >150ms 空档；按每次注入手势的 click-down 时间戳扣除 220ms 手势时长） | 实测: n=6 maxgap=141ms gaps=[ 141 110 106 132 120]
+
+===== C 滚轮模式（v_touch_scroll=false；系统设置列表） =====
+  vtouch=false
+  LB 1.5s: WHEEL=9 SWIPE=0 设置列表共同文本最大位移 dSET=0px mode=[hold-scroll scroll_swipe_down by lb mode=wheel]
+[C-WHEEL] PASS | 阈值: 滚轮模式按住 LB 1.5s：WHEEL 步数 ≥8 且 SWIPE=0 | 实测: WHEEL=9 SWIPE=0 mode=[hold-scroll scroll_swipe_down by lb mode=wheel]
+[C-MOVE] FAIL | 阈值: 滚轮模式内容连续位移（系统设置列表同一文本节点 uiautomator 前后差 ≥100px） | 实测: dSET=0px before=[连接|144;WLAN|305;Anner_5G|368;] after=[连接|144;WLAN|305;Anner_5G|368;]
+     REPRO: wheel 是否到达设置列表：cat /data/local/tmp/lbrb_raw/C_set_before.txt /data/local/tmp/lbrb_raw/C_set_after.txt
+
+===== D 按压期间机制不切换（30s 内多次按压） =====
+  touch press#1 SWIPE=4 WHEEL=0 mode=swipe
+  touch press#2 SWIPE=4 WHEEL=0 mode=swipe
+  touch press#3 SWIPE=4 WHEEL=0 mode=swipe
+  touch press#4 SWIPE=4 WHEEL=0 mode=swipe
+  touch press#5 SWIPE=4 WHEEL=0 mode=swipe
+  wheel press#1 SWIPE=0 WHEEL=6 mode=wheel
+  wheel press#2 SWIPE=0 WHEEL=6 mode=wheel
+  wheel press#3 SWIPE=0 WHEEL=6 mode=wheel
+  wheel press#4 SWIPE=0 WHEEL=6 mode=wheel
+  wheel press#5 SWIPE=0 WHEEL=6 mode=wheel
+  touch: ok=5 bad=0 (n=5) ; wheel: ok=5 bad=0 (n=5)
+[D-STABLE] PASS | 阈值: 30s 内多次按压机制不切换（触屏全 swipe、滚轮全 wheel；切换次数=0） | 实测: touch ok=5/5 wheel ok=5/5 bad=0
+
+===== E 速度（竖 1.5s 总位移） =====
+  滑动模式 LB 1.5s: Z=6 total=3360px
+[E-SPEED] PASS | 阈值: 滑动模式竖 1.5s 总位移 ≥3360px（v1.66 基线） | 实测: n=6 total=3360px（单条≈560px）
+  滚轮模式 LB 1.5s: WHEEL=9（等效 ≥8 步/1.5s）
+[E-WHEEL] PASS | 阈值: 滚轮模式 1.5s 等效步数 ≥8（v1.66 等效） | 实测: WHEEL=9 steps/1.5s
+
+===== F 回归 =====
+  X+LB: SWIPE 0 1282,802 -> 2540,802 (task 0..2560 / 0..1600) axis=V n=537 pid=15261 queued=0 async prep=176us
+[F1] PASS | 阈值: X+LB 上一页：横向手势 dx>0 | 实测: dx=+1258
+  X+RB: SWIPE 0 1282,802 -> 20,802 (task 0..2560 / 0..1600) axis=V n=538 pid=15406 queued=0 async prep=566us
+[F2] PASS | 阈值: X+RB 下一页：横向手势 dx<0 | 实测: dx=-1262
+[F3] PASS | 阈值: 右摇杆竖滚：Z≥4 且无 V/wheel | 实测: Z=6 V=0 wheel=0
+[F4] PASS | 阈值: 右摇杆横滚：V≥1 且无 Z/wheel | 实测: V=3 Z=0 wheel=0
+[F5] PASS | 阈值: d-pad 粘性导航 + A 注入 DPAD_CENTER | 实测: mouse_click=0 key_enter=1
+[F6] PASS | 阈值: X 双击 400ms → 多任务 Recents | 实测: top=com.sec.android.app.launcher/com.android.quickstep.RecentsActivity
+[F7] PASS | 阈值: 空闲隐藏原地恢复 0px + 无修正移动 | 实测: P1=[1279 799] P2=[1279 799] d=0px corr=[11-24 13:12:42.315 24112 24146 I DexPad  : pointer shown at last position (no correction move)]
+[F8] PASS | 阈值: SELECT 通知栏展开（NotificationShade + 截图前后差异） | 实测: shade=12 before=19838B after=19838B
+
+===== G 设备/应用/助手哈希 =====
+  apk=20eddf98793e1a658cb263b6d8e41e14eac43f8ebcd51475a3a2814b83a86e0d
+  helper=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+  module=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+Failed to write while dumping service package: Broken pipe
+Failed to write while dumping service package: Broken pipe
+  version=1.66/68
+Failed to write while dumping service window: Broken pipe
+Failed to write while dumping service power: Broken pipe
+  screen=2560x1600 wf=Awake rot=1 accel=0
+  vtouch=true prefs=[<?xml version='1.0' encoding='utf-8' standalone='yes' ?> <int name="hswipe_speed" value="3" /> <int name="scroll_speed" value="4" /> <boolean name="force_landscape" value="true" /> <float name="move_gain" value="2.1541455" /> <string name="btn_lb">scroll_swipe]
+  focus=NotificationShade
+
+===== RESTORE =====
+  vtouch=true focus=com.dennis.padtest/com.dennis.padtest.ui.ScrollTestActivity helper=24163 engine=24112 vg=
+Failed to write while dumping service power: Broken pipe
+  恢复: screen=2560x1600 rot=1 accel=0 wf=Awake
+
+PASS=16 FAIL=2
+FAILED_IDS: B-RB C-MOVE
+RESULT: /data/local/tmp/v166_lbrb.log ; RAW: /data/local/tmp/lbrb_raw

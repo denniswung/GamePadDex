@@ -1,0 +1,5 @@
+#! /system/bin/sh
+EXPECT_APK=df26e461bcfaf6243a50f0b6ee72e51a0d21eb0de0c74bf098a0422cfb3e3a9e
+EXPECT_HELPER=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+export EXPECT_APK EXPECT_HELPER
+exec sh /data/local/tmp/v167_lbrb_verify.sh

@@ -1,0 +1,35 @@
+
+===== 0 基线（v1.67 release 字节） =====
+  apk=8aeef7b7d6d5ea01b650a26e18c0eb8f0c4233f647a0cb0a17048be1e2180312
+  helper=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf module=1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+  version=1.67/69  module.prop=version=v1.67 versionCode=69 
+  vtouch=true prefs=<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map> <int name="hswipe_speed" value="3" /> <int name="scroll_speed" value="4" /> <boolean name="force_landscape" value="true" /> <float name="move_gain" value="2.1541455" /> <string name="btn_lb">scroll_
+[V167-APK] PASS | 阈值: 设备 base.apk == 发布 dexpad-v1.67.apk 8aeef7b7d6d5ea01b650a26e18c0eb8f0c4233f647a0cb0a17048be1e2180312 | 实测: 8aeef7b7d6d5ea01b650a26e18c0eb8f0c4233f647a0cb0a17048be1e2180312
+[V167-HELPER] PASS | 阈值: 助手 gpm==模块==1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf | 实测: 1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf / 1bf7306f38421c574bb8fa39ffd327ccad487a9a1f40662dac7381f710b6f4bf
+[V167-VER] PASS | 阈值: versionName=1.67 / versionCode=69（module.prop v1.67/69） | 实测: 1.67/69 | version=v1.67 versionCode=69 
+[V167-LAND] PASS | 阈值: 默认横屏：user_rotation=1 accel=0 app=2560x1600（display rotation 1） | 实测: rot=1 accel=0 app=2560x1600
+
+===== A 触屏模式（v_touch_scroll=true）：LB/RB 只出滑动，不出滚轮 =====
+  LB: SWIPE=6 WHEEL=0 dPY=1415 mode=[hold-scroll scroll_swipe_down by lb mode=swipe|]
+[V167-LB-SWIPE] PASS | 阈值: LB 按住 1.5s：SWIPE≥5 且 WHEEL=0 且 mode=swipe（同按内不混） | 实测: SWIPE=6 WHEEL=0 dPY=1415 | hold-scroll scroll_swipe_down by lb mode=swipe|
+  RB: SWIPE=6 WHEEL=0 dPY=1415 mode=[hold-scroll scroll_swipe_up by rb mode=swipe|]
+[V167-RB-SWIPE] PASS | 阈值: RB 按住 1.5s：SWIPE≥5 且 WHEEL=0 且 mode=swipe（同按内不混） | 实测: SWIPE=6 WHEEL=0 dPY=1415 | hold-scroll scroll_swipe_up by rb mode=swipe|
+[V167-RB-MOVE] PASS | 阈值: RB 触屏模式内容确实滚动 dPY>0 | 实测: dPY=1415 PY 1415->0
+
+===== B 滚轮模式（v_touch_scroll=false，prefs 直改 + 重启引擎）：LB/RB 只出滚轮 =====
+[V167-VT-OFF] PASS | 阈值: release 包上把 v_touch_scroll 设为 false 并生效（无调试广播，改 prefs+重启引擎） | 实测: vtouch=false engine=21610
+  LB: SWIPE=0 WHEEL=9 mode=[hold-scroll scroll_swipe_down by lb mode=wheel|]
+[V167-LB-WHEEL] PASS | 阈值: LB 按住 1.5s（滚轮模式）：WHEEL≥6 且 SWIPE=0 且 mode=wheel | 实测: SWIPE=0 WHEEL=9 | hold-scroll scroll_swipe_down by lb mode=wheel|
+  RB: SWIPE=0 WHEEL=9 mode=[hold-scroll scroll_swipe_up by rb mode=wheel|]
+[V167-RB-WHEEL] PASS | 阈值: RB 按住 1.5s（滚轮模式）：WHEEL≥6 且 SWIPE=0 且 mode=wheel | 实测: SWIPE=0 WHEEL=9 | hold-scroll scroll_swipe_up by rb mode=wheel|
+[V167-RESTORE] PASS | 阈值: 恢复 v_touch_scroll=true（默认安装态） | 实测: vtouch=true engine=22170 helper=22214 22263
+
+===== C 双击文案（ButtonDetail）：400 ms 内 =====
+  ButtonDetail text=[连续按两下 A（400 ms 内）时触发]
+[V167-DBLTEXT] PASS | 阈值: ButtonDetail 双击说明为 400 ms（与 DOUBLE_WINDOW=400 一致） | 实测: 连续按两下 A（400 ms 内）时触发
+
+===== RESTORE =====
+  restored: helper=22455 engine=22420 vtouch=true rot=1 accel=0 app=2560x1600
+
+PASS=12 FAIL=0 FAILED=[]
+PASS=12 FAIL=0

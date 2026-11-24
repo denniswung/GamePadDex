@@ -62,6 +62,13 @@ class EngineService : Service(), RootInput.Listener {
     private var wheelAcc = 0f
     private var wheelHold = 0
     private var lastWheelHoldAt = 0L
+    /** t22: LB/RB 按住滚动统一——按压开始时定下的机制（true=连续滑动，false=滚轮） */
+    private var holdTouchMode = true
+    /** 连续滑动模式：当前按住的竖向滑动方向（0=无，-1=上，+1=下） */
+    private var swipeHold = 0
+    private var lastSwipeHoldAt = 0L
+    /** t26: 主/备锚点交替标志 */
+    private var holdSwipeAlt = false
     /** buttons whose wheel scroll is currently running (first key wins) */
     private val wheelButtons = mutableSetOf<String>()
     private var ticks = 0L
@@ -1395,20 +1402,36 @@ class EngineService : Service(), RootInput.Listener {
     private fun startWheel(name: String, mapped: String) {
         if (!modeOn || !root.helperReady) return
         wheelButtons.add(name)
+        // t22: 机制在按压开始时定下，按压期间不切换：
+        // 触摸滚动开 -> 只用连续滑动；关 -> 只用滚轮。同一按压内绝不混用。
+        holdTouchMode = cVTouch
         when (mapped) {
-            // swipe-then-scroll: the short quick swipe starts a scrollable
-            // surface that a plain wheel event cannot move on its own
-            // finger up = content moves up (scroll down): the wheel must keep
-            // scrolling the same way, so it is the opposite sign of the swipe
+            // v1.66 的“先滑一次再滚”混合已删除：两种模式二选一
             Action.SCROLL_SWIPE_UP -> {
-                doSwipe(true, -1, slow = true)
-                wheelHold = -1
-                lastWheelHoldAt = 0L
+                if (holdTouchMode) {
+                    swipeHold = -1
+                    lastSwipeHoldAt = 0L
+                    swipeHoldStep(-1)
+                } else {
+                    ensureWheelAnchor()
+                    wheelHold = -1
+                    lastWheelHoldAt = 0L
+                    root.wheel(-wheelStep())
+                }
+                Log.i(TAG, "hold-scroll $mapped by $name mode=${if (holdTouchMode) "swipe" else "wheel"}")
             }
             Action.SCROLL_SWIPE_DOWN -> {
-                doSwipe(true, 1, slow = true)
-                wheelHold = 1
-                lastWheelHoldAt = 0L
+                if (holdTouchMode) {
+                    swipeHold = 1
+                    lastSwipeHoldAt = 0L
+                    swipeHoldStep(1)
+                } else {
+                    ensureWheelAnchor()
+                    wheelHold = 1
+                    lastWheelHoldAt = 0L
+                    root.wheel(wheelStep())
+                }
+                Log.i(TAG, "hold-scroll $mapped by $name mode=${if (holdTouchMode) "swipe" else "wheel"}")
             }
             Action.SCROLL_SWIPE_LEFT -> {
                 doSwipe(false, -1, slow = true)
@@ -1448,9 +1471,54 @@ class EngineService : Service(), RootInput.Listener {
         if (!wheelButtons.remove(name)) return
         if (wheelButtons.isEmpty()) {
             wheelHold = 0
+            swipeHold = 0
             hScrollDir = 0
         }
-        Log.i(TAG, "wheel stopped by $name")
+        Log.i(TAG, "wheel stopped by $name (mode=${if (holdTouchMode) "swipe" else "wheel"})")
+    }
+
+    /** t26: 滚轮模式按压开始前，确保指针可见且悬停在当前 task 中部（否则 REL_WHEEL 可能落在不可滚区域） */
+    private fun ensureWheelAnchor() {
+        val wasHidden = pointerHidden
+        showPointer()
+        val (lx, ly) = pointerPos()
+        val cx = geomW / 2f
+        val cy = geomH / 2f
+        if (wasHidden || Math.abs(lx - cx) > 8f || Math.abs(ly - cy) > 8f) {
+            root.positionPointer(
+                (physOffX + physAppW / 2f).toInt(),
+                (physOffY + physAppH / 2f).toInt(),
+                physPanelW,
+                physPanelH,
+            )
+            Log.i(TAG, "wheel anchor: pointer to task center (hidden=$wasHidden was=$lx,$ly)")
+        } else {
+            Log.i(TAG, "wheel anchor: pointer already at task center ($lx,$ly)")
+        }
+    }
+
+    /** t26: 连续滑动锚点自适应——按 task 高度百分比取中部滚动区，主/备锚点交替（避开顶部手势区/底部导航区） */
+    private fun swipeHoldStep(dir: Int) {
+        val fingerUp = dir < 0
+        val rawDist = (geomH * 0.35f).toInt()
+        val dist = rawDist.coerceIn(320, 1100)
+        val shortened = dist < 560
+        holdSwipeAlt = !holdSwipeAlt
+        // t28: 行程必须恒为 560px（只有 task 可视高度不足才允许缩短）。
+        // 纵向锚点固定 40%（finger-up，避开内层 ListView 起点 668）与 60%（finger-down），
+        // 两个候选改在 **横向位置** 30%/70% 交替——既能重试不同区域，又不会让纵向行程被夹短。
+        val pct = if (fingerUp) 40 else 60
+        val candX = if (holdSwipeAlt) (geomW * 0.30f) else (geomW * 0.70f)
+        val dyy = if (fingerUp) -dist else dist
+        val ms = 220
+        root.swipeV(geomId, dyy, ms, geomW, geomH, pct, candX.toInt(), (geomH * pct / 100))
+        lastSwipeHoldAt = SystemClock.elapsedRealtime()
+        Log.i(
+            TAG,
+            "hold swipe $dyy dir=$dir anchorPct=$pct (cands 40/60y x30/70) anchorX=${candX.toInt()} " +
+                "stroke=$dist${if (shortened) " shortened reason=task-height(${geomH}px)" else ""} " +
+                "task=0..${geomH} cycle=${swipeRepeatMs()}ms",
+        )
     }
 
     /** the action side of a button press (delayed by DOUBLE_WINDOW when the button has a double action) */
@@ -1860,6 +1928,7 @@ class EngineService : Service(), RootInput.Listener {
         ltDown = false
         rtDown = false
         wheelHold = 0
+        swipeHold = 0
         hScrollDir = 0
         wheelButtons.clear()
         vSwipeCooldownUntil = 0L
@@ -2073,6 +2142,7 @@ class EngineService : Service(), RootInput.Listener {
         // 普通方向键与 X+方向键 只是 App 里的两种分支，互不抢占。
         if (!modeOn) {
             wheelHold = 0
+            swipeHold = 0
             hScrollDir = 0
             wheelButtons.clear()
             wakeArmed = true
@@ -2309,6 +2379,14 @@ class EngineService : Service(), RootInput.Listener {
             }
         }
 
+        if (swipeHold != 0) {
+            // 连续滑动模式：按住期间按 swipeRepeatMs 节奏反复“滑—回位—再滑”，
+            // 手势 ms=220、周期 250ms → 间隔 ~30ms（远小于 150ms 空档上限）。
+            if (nowMs - lastSwipeHoldAt >= swipeRepeatMs()) {
+                swipeHoldStep(swipeHold)
+            }
+        }
+
         if (wheelHold != 0) {
             if (nowMs - lastWheelHoldAt >= wheelIntervalMs()) {
                 lastWheelHoldAt = nowMs
@@ -2492,6 +2570,7 @@ class EngineService : Service(), RootInput.Listener {
         EngineState.modeOn = false
         modeOn = false
         wheelHold = 0
+        swipeHold = 0
         centerActive = false
         cursorQueryInFlight = false
         ptrX = Float.NaN

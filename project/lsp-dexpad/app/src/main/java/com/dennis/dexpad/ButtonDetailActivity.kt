@@ -119,7 +119,7 @@ class ButtonDetailActivity : Activity() {
             header("单击动作", "单独按 ${Prefs.buttonLabel(button)} 时触发"),
             actionRow,
             divider(),
-            header("双击动作", "连续按两下 ${Prefs.buttonLabel(button)}（320 ms 内）时触发"),
+            header("双击动作", "连续按两下 ${Prefs.buttonLabel(button)}（400 ms 内）时触发"),
             actionRow("双击动作", doubleSummary()) { pickDouble() },
             divider(),
             header("长按动作", "按住 ${Prefs.buttonLabel(button)} 超过 ${prefs.longMs()} ms 时触发（会取消单击/双击）"),
