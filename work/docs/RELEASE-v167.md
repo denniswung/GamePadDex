@@ -103,9 +103,10 @@ SELECT `NOTIF rc=0 dur=391ms`、横屏守护 ≈2000ms、60s 空闲 CURSORQ=0。
 
 | 项 | 值 |
 |---|---|
-| 推送 | `git push` 直连 github.com:443 在本环境不稳定，沿用 t7 的 **Git Data API** 方案（`work/docs/evidence-v166-install/push_via_api.py`：blob→tree→commit→ref），并校验 **远端 tree == 本地 HEAD tree** |
-| 标签 / Release | tag **v1.67**；https://github.com/denniswung/GamePadDex/releases/tag/v1.67 （非 draft / 非 prerelease） |
-| 资产 | `dexpad-v1.67.apk`、`gpm_dex-v1.67.zip`、`gpminput-v1.67`、`padtest-v1.1.apk`、`SHA256SUMS.txt`；重新下载后逐个 sha256 与本地一致 |
+| 推送 | `git push` 直连 github.com:443 在本环境不稳定，沿用 t7 的 **Git Data API** 方案；本轮因本地提交链与 API 提交链不同源，改用**树对比**版本 `work/docs/evidence-v167/push_via_api_tree.py`（远端 tree vs 本地 `git ls-tree -r` → 只上传差异 blob → 建 tree/commit → 快进 ref） |
+| 提交 | 远端 main = **`58d807fd4db736729fb67221dfcbaad324b9909a`**（父 `f1c2548`），**远端 tree = `6520b0ae…` = 本地 HEAD tree**（`TREE MATCH`） |
+| 标签 / Release | tag **v1.67** → `58d807f`；https://github.com/denniswung/GamePadDex/releases/tag/v1.67 （`isDraft=false` / `isPrerelease=false`） |
+| 资产 | `dexpad-v1.67.apk`、`gpm_dex-v1.67.zip`、`gpminput-v1.67`、`padtest-v1.1.apk`、`SHA256SUMS.txt`；**重新下载后 sha256 与本地 5/5 相同**（apk `8aeef7b7…`、zip `b39af5c5…`、helper `1bf7306f…`、padtest `27478cef…`、SHA256SUMS `6278eb12…`） |
 
 ## 8 残留偏差（如实记录，不阻塞发布）
 
