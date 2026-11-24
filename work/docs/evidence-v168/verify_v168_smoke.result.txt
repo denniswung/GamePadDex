@@ -1,0 +1,34 @@
+===== RS-0 基线（v1.68 发布字节） =====
+[RS0-APK] PASS | 阈值: 设备 base.apk sha256 == 发布 dexpad-v1.68.apk c8b002880c70dedc1fc6ddbc047bcf87503a6539b8d72693ae32b7e925bbc998 | 实测: c8b002880c70dedc1fc6ddbc047bcf87503a6539b8d72693ae32b7e925bbc998 (2684731B)
+[RS0-VER] PASS | 阈值: versionName=1.68 versionCode=70 | 实测: versionName=1.68 versionCode=70
+[RS0-HELPER] PASS | 阈值: /data/adb/gpm == 模块目录 == 发布 gpminput-v1.68 a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d | 实测: a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d / a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d
+[RS0-LAND] PASS | 阈值: 默认启动即横屏：user_rotation=1 accel=0 app 宽>高（dumpsys display rotation 1；本机 mLandscapeRotation=ROTATION_0 常量） | 实测: user_rotation=1 accel=0 app=2560x1600 engine=2560x1600 dumpsys_rot=1
+===== RS-1 L3 居中 + A=鼠标点击（release 字节） =====
+[RS1-L3] PASS | 阈值: L3 居中落点距 (1280,800) ≤40px 且 A=鼠标点击（mouse_click≥1 key_enter=0） | 实测: click=[1281 799] err=[] d=1px mouse_click=1 key_enter=0 l3TookMs=n/a
+===== RS-2 光标 dpi（左摇杆满推 300ms 后真实点击落点位移） =====
+[RS2-MOVE] PASS | 阈值: 300ms 满推左摇杆右后落点相对中心右移 ≥1000px（鼠标设备可移动 + 光标夹取到边缘 2559） | 实测: click=[2559 799] dx=+1279px
+===== RS-3 右摇杆滑动：竖向/横向真实页面位移 + helper 手势轴向 =====
+[RS3-V] PASS | 阈值: 竖推 1.5s 页面纵向下移 ≥1000px（HS 变化 ≤20）且 helper 仅竖向手势 Z（V=0） | 实测: PY 1415->0 d=1415 HS d=0 Zn=4 Vn=0
+[RS3-H] PASS | 阈值: 横推 1.5s 横向分页位移 ≥400px 且 helper 仅横向手势 V（Z=0） | 实测: HS 0->512 d=512 Vn=3 Zn=0
+===== RS-4 指针空闲隐藏后第一次推杆（t20 修复点，release 字节） =====
+[RS4-HIDDEN] PASS | 阈值: 空闲隐藏（POINTER off 且设备不存在）后第一次竖推仍滚页 ≥1000px | 实测: POINTER off 0->1 ptr_dev=0 PY 1415->0 d=1415 Zn=4
+[RS4-HIDDEN-H] PASS | 阈值: 隐藏首推后横推仍生效（横向分页位移 ≥400px） | 实测: HS 0->512 d=512
+===== RS-5 Y+上→PiliPlus / Y+下→抖音（release 字节） =====
+[RS5-YUP] PASS | 阈值: Y+上 → 前台 com.example.piliplus/.MainActivity（helper OPEN_APP 组件启动） | 实测: top=com.example.piliplus/.MainActivity | OPEN_APP com.example.piliplus via com.example.piliplus/.MainActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.example.piliplus/.MainActivity }
+[RS5-YDOWN] PASS | 阈值: Y+下 → 前台 抖音（helper OPEN_APP 组件启动） | 实测: top=com.ss.android.ugc.aweme/.splash.SplashActivity | OPEN_APP com.ss.android.ugc.aweme via com.ss.android.ugc.aweme/.splash.SplashActivity rc=0 out=Starting: Intent { flg=0x10000000 cmp=com.ss.android.ugc.aweme/.splash.SplashActivity }
+===== RS-6 回归（不得回退的 6 项，release 字节） =====
+[RS6-I1] PASS | 阈值: d-pad 粘性导航 + A 注入 DPAD_CENTER（mouse_click=0 key_enter≥1） | 实测: mouse_click=0 key_enter=1
+[RS6-I1B] PASS | 阈值: 摇杆移动后 A 恢复鼠标点击（mouse_click≥1 key_enter=0） | 实测: mouse_click=1 key_enter=0
+[RS6-I2] PASS | 阈值: X 双击（400ms 窗口）→ 前台 RecentsActivity | 实测: top=com.sec.android.app.launcher/com.android.quickstep.RecentsActivity
+[RS6-I3] PASS | 阈值: X+LB → 横向手势向右（dx>0，上一页方向） | 实测: SWIPE=[SWIPE 0 1885,800 -> 2540,800 (task 0..2560 / 0..1600) axis=V n=36 pid=19005 queued=0 async prep=226us] dx=+655
+[RS6-I4] PASS | 阈值: X+RB → 横向手势向左（dx<0，下一页方向） | 实测: SWIPE=[SWIPE 0 1885,800 -> 349,800 (task 0..2560 / 0..1600) axis=V n=37 pid=19131 queued=0 async prep=192us] dx=-1536
+[RS6-I5] PASS | 阈值: 空闲隐藏后原地隐形恢复（同点误差 ≤10px 且 no correction move） | 实测: P1=[1910 799] P2=[1910 799] d=0px corr=[pointer shown at last position (no correction move)]
+[RS6-I6] PASS | 阈值: SELECT → 通知栏展开（NotificationShade）+ helper 真实下滑 rc=0 | 实测: shade=1 notif=NOTIF swipe async n=38 pid=19741 prep=0us|NOTIF swipe rc=0 dur=391ms n=38|
+===== RS-7 横屏守护：外部改竖屏后 ≤5s 自动回横屏 =====
+[RS7-GUARD] PASS | 阈值: 外部改竖屏后 ≤5s 自动回横屏（settings 回 1/0 且 app 宽>高） | 实测: recovered≈1000ms(4×250ms) app=2560x1600
+===== RS-8 提速与资源（release 字节，60s 空闲） =====
+[RS8-CPU] PASS | 阈值: release 进程级 60s 空闲 CPU（utime+stime）记录并与 v1.65 同口径对比（判定见报告） | 实测: cpu=0.82% thread_sum=0.88% child=0.00%
+[RS8-Q] PASS | 阈值: 60s 空闲内真实光标查询 ≤15 次 | 实测: CURSORQ=0 CURSOR=0
+[RS8-TICK] PASS | 阈值: 引擎帧耗时日志存在（release 字节，avg/max 见 perf tick） | 实测: perf tick: perf tick n=625 avg=29us max=1358us prefs_per_tick=0 gain=2.1541455|perf tick n=625 avg=33us max=2521us prefs_per_tick=0 gain=2.1541455|
+===== RESTORE 恢复安装状态 =====
+PASS=23 FAIL=0

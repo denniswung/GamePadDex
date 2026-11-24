@@ -1,0 +1,51 @@
+
+===== 0 基线（v1.68 release 字节） =====
+  apk=c8b002880c70dedc1fc6ddbc047bcf87503a6539b8d72693ae32b7e925bbc998
+  helper=a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d module=a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d
+  version=1.68/70 module.prop=version=v1.68 versionCode=70 
+[V168-APK] PASS | 阈值: 设备 base.apk == 发布 dexpad-v1.68.apk | 实测: c8b002880c70dedc1fc6ddbc047bcf87503a6539b8d72693ae32b7e925bbc998
+[V168-HELPER] PASS | 阈值: 助手 gpm==模块==发布哈希 | 实测: a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d / a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d
+[V168-VER] PASS | 阈值: versionName=1.68 / versionCode=70（module.prop v1.68/70） | 实测: 1.68/70 | version=v1.68 versionCode=70 
+[V168-LAND] PASS | 阈值: 默认横屏 user_rotation=1 accel=0 app=2560x1600 | 实测: rot=1 accel=0 app=2560x1600
+
+===== A 触屏模式（v_touch_scroll=true）：LB/RB = 连续拖拽（d/m/e） =====
+  vtouch=true
+  100ms: total=71px dur=100ms SWIPE=0 WHEEL=0 start=[dir=-1 anchor=(1280,960) scroll_speed=4 mult=1.0 task=0..1600 maxTotal=2200]
+[V168-SHORT] PASS | 阈值: RB 短按 100ms 位移 0<t≤150px | 实测: total=71px (dur=100ms)
+[V168-NOSWIPE] PASS | 阈值: 触屏拖拽期间 SWIPE=0 且 WHEEL=0（纯 d/m/e） | 实测: SWIPE=0 WHEEL=0
+  300ms: total=248px dur=300ms
+[V168-300MS] PASS | 阈值: RB 300ms 位移 ≤450px 且 >100ms 位移（单调） | 实测: total=248px (100ms=71px)
+  1500ms: total=1623px dur=1499ms SWIPE=0 WHEEL=0 start=[dir=-1 anchor=(1280,960) scroll_speed=4 mult=1.0 task=0..1600 maxTotal=2200]
+[V168-1500] PASS | 阈值: RB 按住 1.5s 位移 ∈[1200,2200]px | 实测: total=1623px (dur=1499ms)
+[V168-1500-PURE] PASS | 阈值: 1.5s 拖拽期间仍 SWIPE=0/WHEEL=0 | 实测: SWIPE=0 WHEEL=0
+[V168-MULT] PASS | 阈值: 默认 scroll_speed=4 → mult=1.0（速度可调基准） | 实测: dir=-1 anchor=(1280,960) scroll_speed=4 mult=1.0 task=0..1600 maxTotal=2200
+  PY0=1415 (dump tries=1)
+  content: PY 1415 -> 0 d=1415 (engine total=1616px)
+[V168-MOVE] PASS | 阈值: RB 1.5s 内容实际位移 ≥600px（padtest 页顶起手） | 实测: PY 1415->0 d=1415
+
+===== B 滚轮模式（v_touch_scroll=false）：LB/RB 只出滚轮 =====
+[V168-VT-OFF] PASS | 阈值: release 包上 v_touch_scroll=false 生效（prefs+重启引擎） | 实测: vtouch=false engine=3294
+  wheel RB 1.5s: WHEEL=9 SWIPE=0 drag=[] mode=[hold-scroll scroll_swipe_up by rb mode=wheel|]
+[V168-WHEEL-RB] PASS | 阈值: 滚轮 RB 1.5s：WHEEL≥6 且 SWIPE=0 且 mode=wheel | 实测: WHEEL=9 SWIPE=0 | hold-scroll scroll_swipe_up by rb mode=wheel|
+  wheel LB 1.5s: WHEEL=9 SWIPE=0 mode=[hold-scroll scroll_swipe_down by lb mode=wheel|]
+[V168-WHEEL-LB] PASS | 阈值: 滚轮 LB 1.5s：WHEEL≥6 且 SWIPE=0 且 mode=wheel | 实测: WHEEL=9 SWIPE=0 | hold-scroll scroll_swipe_down by lb mode=wheel|
+[V168-RESTORE] PASS | 阈值: 恢复 v_touch_scroll=true（默认安装态） | 实测: vtouch=true engine=3756
+
+===== C PiliPlus 前台 RB 1.5s：前后截图 + 引擎总位移 =====
+  top=com.example.piliplus/.MainActivity
+  pili drag: total=1643px dur=1499ms
+[V168-PILI-TOP] PASS | 阈值: PiliPlus 在前台（截图对象正确） | 实测: top=com.example.piliplus/.MainActivity
+[V168-PILI-TOTAL] PASS | 阈值: PiliPlus 1.5s 引擎总位移 ∈[1200,2200]px（≈2200 封顶） | 实测: total=1643px (dur=1499ms)
+  progressive totals: 431/434/424/
+  shot pili_before.png = 2701800B
+  shot pili_after.png = 2053842B
+  shot prog0.png = 2405411B
+  shot prog1.png = 2222243B
+  shot prog2.png = 2667628B
+  shot prog3.png = 2306521B
+
+===== RESTORE =====
+  restored: helper=3794 engine=3756 vtouch=true rot=1 accel=0 app=2560x1600
+
+PASS=17 FAIL=0 FAILED=[]
+PASS=17 FAIL=0

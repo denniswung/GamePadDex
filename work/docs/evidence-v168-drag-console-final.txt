@@ -1,0 +1,87 @@
+
+===== 0 基线：字节绑定 =====
+  apk=e2e9a05b79e263c66f54ea7a704996a849008c86d31c5298d77a44c8bc913d2d
+  helper=a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d
+  module=a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d
+Failed to write while dumping service package: Broken pipe
+  version=1.67/69
+[BASE-APK] PASS | 阈值: APK sha256 == t31 报告哈希 | 实测: e2e9a05b79e263c66f54ea7a704996a849008c86d31c5298d77a44c8bc913d2d
+[BASE-HELPER] PASS | 阈值: helper == t30 报告哈希 且 gpm==模块 | 实测: a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d
+
+===== A 不过头：短按 100/300/1500ms（padtest 页顶起手） =====
+  RB 100ms: dPY=73 drag=[]
+[A-100] PASS | 阈值: 短按 100ms dPY ≤150px | 实测: dPY=73
+  RB 300ms: total=238
+[A-300] PASS | 阈值: 短按 300ms dPY ≤450px | 实测: dPY=238
+  RB 1500ms: total=1595
+[A-1500] PASS | 阈值: 1.5s 总位移 ∈[1200,2200]px（对照旧 3360） | 实测: dPY=1595
+
+===== B 连续性：6 个固定时长独立按压（曲线取引擎 drag end total）+ move 帧间隔 =====
+  250ms -> drag total=204px (PY d=0)
+  500ms -> drag total=414px (PY d=0)
+  750ms -> drag total=664px (PY d=0)
+  1000ms -> drag total=932px (PY d=0)
+  1250ms -> drag total=1242px (PY d=0)
+  1500ms -> drag total=1594px (PY d=0)
+  曲线(引擎 total): 250:204px/PY0 500:414px/PY0 750:664px/PY0 1000:932px/PY0 1250:1242px/PY0 1500:1594px/PY0 | 单调=1 相邻增量最大差=19%
+[B-CURVE] PASS | 阈值: 六点曲线单调且相邻 250ms 增量差 ≤25%（引擎 drag total） | 实测: mono=1 maxdiff=19% [ 250:204px/PY0 500:414px/PY0 750:664px/PY0 1000:932px/PY0 1250:1242px/PY0 1500:1594px/PY0]
+  drag#1: frames=53 emitted=53 dur=959ms mean=18.1ms
+  drag#2: frames=53 emitted=53 dur=945ms mean=17.8ms
+  drag#3: frames=53 emitted=53 dur=959ms mean=18.1ms
+  drag#4: frames=53 emitted=53 dur=948ms mean=17.9ms
+  drag#5: frames=53 emitted=53 dur=948ms mean=17.9ms
+  move 帧 mean 样本=[ 18.1 17.8 18.1 17.9 17.9] 中位=17.9ms 最大=18.1ms（helper 侧 p95 不可测，以最大 mean 作保守上界）
+[B-FRAME] PASS | 阈值: move 帧间隔中位 ≤20ms 且 最大（p95 保守上界）≤40ms | 实测: means=[ 18.1 17.8 18.1 17.9 17.9] median=17.9ms max=18.1ms
+
+===== C 无弹回 + 三次一致性 =====
+  松手后 500ms：TOUCH/drag 事件 2->2（新增 0），截图 /data/local/tmp/drag_raw/C_release0/500.png
+[C-REBOUND] PASS | 阈值: 松手 500ms 内无新拖拽事件（不滑行/不弹回；截图另作 PC 差） | 实测: drag events 2->2
+  三次 1000ms: 931 929 938
+[C-CONSIST] PASS | 阈值: 连续 3 次 1000ms 按压总位移一致性 ±15% | 实测: t=931/929/938 maxdev=0.6%
+
+===== D 边界续拖：页顶按住 RB 2.5s（跨越 up/down 续拖） =====
+  RB 2.5s: drag totals 见下（累计上限 2200px）
+  drag: re-anchor=[drag re-anchor y=960 (margin=80, total=1738)] end=[drag end total=2212px dur=1931ms]
+  停止检查: drag end frames=18 getevent 帧=（1s 内无新增）
+[D-REANCHOR] PASS | 阈值: 跨越一次 up/down 续拖且到达累计上限（drag end total≈2200） | 实测: re-anchor=[drag re-anchor y=960 (margin=80, total=1738)] end=[drag end total=2212px dur=1931ms]
+  续拖主拖拽: frames=52 emitted=52 dur=947ms mean=18.2ms
+[D-SMOOTH] PASS | 阈值: 续拖期间帧连续（frames==emitted，平均间隔 ≤60ms） | 实测: frames=52 emitted=52 mean=18.2ms
+[D-STOP] PASS | 阈值: 到底后停止注入（主拖拽 emitted≥40，累计到 2200 后结束） | 实测: emitted=52 end=[drag end total=2212px dur=1931ms]
+
+===== E 真实应用：PiliPlus 首页 RB 1.5s（截图差 ≤40%） =====
+  PiliPlus 截图: before=2247925B mid=2628467B after=2481299B
+  页顶 LB 1s：截图 /data/local/tmp/drag_raw/E_lbtop_before/after.png 已存（PC 端像素差判「是否大幅跳变」，见报告）
+
+===== F 互斥与滚轮 =====
+  触屏 RB 1s: SWIPE=0 WHEEL=0 drag=[11-24 23:58:26.329  9065  9113 I DexPad  : drag end total=949px dur=999ms]
+[F-TOUCH] PASS | 阈值: 触屏模式 0 WHEEL（只 drag/swipe） | 实测: SWIPE=0 WHEEL=0
+  滚轮 LB 1.5s: WHEEL=9 SWIPE=0 dSET=921
+[F-WHEEL] PASS | 阈值: 滚轮模式 9 WHEEL/0 SWIPE | 实测: WHEEL=9 SWIPE=0
+[F-MOVE] PASS | 阈值: 滚轮模式内容位移 ≥200px | 实测: dSET=921px
+
+===== G 回归 =====
+[G-XLB] PASS | 阈值: X+LB 上一页 dx>0 | 实测: dx=+1258
+[G-XRB] PASS | 阈值: X+RB 下一页 dx<0 | 实测: dx=-1262
+[G-STICK] PASS | 阈值: 右摇杆竖滚 Z≥4 无 wheel | 实测: Z=6 wheel=0
+[G-STICK2] PASS | 阈值: 右摇杆横滚 V≥1 | 实测: V=3
+[G-DPAD] PASS | 阈值: d-pad + DPAD_CENTER | 实测: kc=1 mc=0
+[G-RECENTS] PASS | 阈值: X 双击 → Recents | 实测: top=com.sec.android.app.launcher/com.android.quickstep.RecentsActivity
+[G-HIDE] PASS | 阈值: 空闲隐藏恢复 0px + no correction | 实测: P1=[1279 799] P2=[1279 799] d=0
+[G-NOTIF] PASS | 阈值: SELECT 通知栏 | 实测: shade=12
+
+===== H 哈希与环境 =====
+  apk=e2e9a05b79e263c66f54ea7a704996a849008c86d31c5298d77a44c8bc913d2d
+  helper=a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d
+  module=a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d
+Failed to write while dumping service package: Broken pipe
+  version=1.67/69
+Failed to write while dumping service window: Broken pipe
+Failed to write while dumping service power: Broken pipe
+  screen=2560x1600 wf=Awake rot=1 accel=0 vtouch=true vg= helper=9125 engine=9065
+  prefs=[<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map> <int name="hswipe_speed" value="3" /> <int name="scroll_speed" value="4" /> <boolean name="force_landscape" value="true" /> <float name="move_gain" value="2.1541455" /> <string n]
+
+===== RESTORE =====
+  restored: vtouch=true vg= helper=9125 engine=9065
+
+PASS=23 FAIL=0
+RESULT: /data/local/tmp/v168_drag.log ; RAW: /data/local/tmp/drag_raw

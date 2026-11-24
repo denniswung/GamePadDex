@@ -1,0 +1,5 @@
+#! /system/bin/sh
+EXPECT_APK=991c051090a3286a83bd0d6433d268f4db722fc0b96e3b727d55b1226102c143
+EXPECT_HELPER=a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d
+export EXPECT_APK EXPECT_HELPER
+exec sh /data/local/tmp/v168_drag_verify.sh

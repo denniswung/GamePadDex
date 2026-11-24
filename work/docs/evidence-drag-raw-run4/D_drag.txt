@@ -1,0 +1,5 @@
+drag lines: 11-24 23:26:45.640 22899 22931 I DexPad  : drag start dir=-1 anchor=(1280,960) task=0..1600 maxTotal=2200
+11-24 23:26:46.585 22899 22932 I DexPad  : drag re-anchor y=960 (margin=80, total=865)
+11-24 23:26:47.247 22899 22932 I DexPad  : drag re-anchor y=960 (margin=80, total=1737)
+11-24 23:26:47.555 22899 22932 I DexPad  : drag end total=2211px dur=1915ms
+11-24 23:26:47.556 22899 22932 I DexPad  : drag stop cap total=2211 t=1915ms

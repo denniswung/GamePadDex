@@ -322,6 +322,20 @@ class RootInput(
         }
     }
 
+    /** t31：连续拖拽原语（helper t30 的 d/m/e） */
+    fun dragDown(display: Int, x: Int, y: Int) {
+        send("d $display $x $y")
+    }
+
+    fun dragMove(display: Int, dx: Int, dy: Int, ms: Int) {
+        // 允许 dx=dy=0：连续拖拽松手前发两帧 0 位移，清掉 fling 速度
+        send("m $display $dx $dy $ms")
+    }
+
+    fun dragUp(display: Int) {
+        send("e $display")
+    }
+
     /** move the pointer to the centre of the display (park=true: phone screens) */
     /** press the power key (screen on/off), injected by the root helper */
     fun powerKey() {

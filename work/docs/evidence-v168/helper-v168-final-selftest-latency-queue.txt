@@ -1,0 +1,30 @@
+== final Tue Nov 24 21:00:26 CST 2026 ==
+ready=1
+selftest CAP lines=13 INFO lines=5 ERR=0
+  SELFTEST begin
+  CAP mouse 1
+  CAP kbd 1
+  CAP wheel 1
+  CAP swipe 1
+  CAP notif 1
+  CAP power 1
+  CAP force 1
+  INFO apex 1
+  CAP screen 1
+  CAP wake 1
+  CAP cursor 1
+  CAP gamepad 1
+  CAP devices 1
+  move reply latency = 15ms (poll 5ms, iter=0)
+  move reply latency = 14ms (poll 5ms, iter=0)
+  move reply latency = 13ms (poll 5ms, iter=0)
+  move reply latency = 14ms (poll 5ms, iter=0)
+  move reply latency = 16ms (poll 5ms, iter=0)
+drag down/up lines:
+  DRAG down display=0 x=1000,y=800 rect=20..2540/20..1580
+  DRAG up display=0 x=1100,y=800 frames=20 emitted=20 dur=1405ms why=cmd-e
+  queue lines:
+    SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=1 pid=31462 queued=0 async prep=184us
+  OUT ERR count=0
+restored helper=31538 engine=31542
+DONE

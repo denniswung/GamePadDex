@@ -1,0 +1,5 @@
+drag lines: 11-25 00:23:32.873 16326 16370 I DexPad  : drag start dir=-1 anchor=(1280,960) scroll_speed=4 mult=1.0 task=0..1600 maxTotal=2200
+11-25 00:23:33.818 16326 16371 I DexPad  : drag re-anchor y=960 (margin=80, total=868)
+11-25 00:23:34.473 16326 16371 I DexPad  : drag re-anchor y=960 (margin=80, total=1740)
+11-25 00:23:34.790 16326 16371 I DexPad  : drag end total=2218px dur=1914ms
+11-25 00:23:34.791 16326 16371 I DexPad  : drag stop cap total=2218 t=1914ms mult=1.0

@@ -1,6 +1,6 @@
 id=gpm_dex
 name=Gamepad Mouse DeX Helper
-version=v1.67
-versionCode=69
+version=v1.68
+versionCode=70
 author=Dennis
 description=手机专用（无 DeX）：Starts the root helper (EVIOCGRAB gamepad + uinput mouse) on the socket of com.dennis.dexpad and boots the DeX gamepad mapping engine (foreground service).

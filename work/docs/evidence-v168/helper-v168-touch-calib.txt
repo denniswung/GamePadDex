@@ -1,0 +1,8 @@
+top=    topResumedActivity=ActivityRecord{124513337 u0 com.dennis.padtest/.ui.ScrollTestActivity t1479}
+  req=400,300 -> MOUSE/click-down x=479 y=1532 btn=0
+  req=2000,1400 -> MOUSE/click-down x=2239 y=200 btn=0
+  req=1280,800 -> MOUSE/click-down x=1279 y=800 btn=0
+  req=200,1200 -> MOUSE/click-down x=1279 y=800 btn=0
+  req=2200,400 -> MOUSE/click-down x=1279 y=800 btn=0
+restored helper=14682 engine=14687
+DONE

@@ -69,6 +69,20 @@ class EngineService : Service(), RootInput.Listener {
     private var lastSwipeHoldAt = 0L
     /** t26: 主/备锚点交替标志 */
     private var holdSwipeAlt = false
+    /** t31: 触屏模式连续拖拽（helper d/m/e） */
+    private var dragActive = false
+    private var dragDir = 0
+    private var dragX = 0
+    private var dragAnchorY = 0
+    private var dragDisplay = 0
+    private var dragAccum = 0
+    private var dragTotal = 0
+    private var dragStartAt = 0L
+    private var dragLastMoveAt = 0L
+    /** 上一帧的位移量（px），用于限制加速度（每 16ms 增长 ≤0.8%，250ms 增量差 ≤~13%） */
+    private var dragLastDy = 14f
+    /** t36: 本次按压的 scroll_speed 倍率（按压开始时定下，按压中不切换） */
+    private var dragMult = 1f
     /** buttons whose wheel scroll is currently running (first key wins) */
     private val wheelButtons = mutableSetOf<String>()
     private var ticks = 0L
@@ -1409,9 +1423,7 @@ class EngineService : Service(), RootInput.Listener {
             // v1.66 的“先滑一次再滚”混合已删除：两种模式二选一
             Action.SCROLL_SWIPE_UP -> {
                 if (holdTouchMode) {
-                    swipeHold = -1
-                    lastSwipeHoldAt = 0L
-                    swipeHoldStep(-1)
+                    startDrag(-1)
                 } else {
                     ensureWheelAnchor()
                     wheelHold = -1
@@ -1422,9 +1434,7 @@ class EngineService : Service(), RootInput.Listener {
             }
             Action.SCROLL_SWIPE_DOWN -> {
                 if (holdTouchMode) {
-                    swipeHold = 1
-                    lastSwipeHoldAt = 0L
-                    swipeHoldStep(1)
+                    startDrag(1)
                 } else {
                     ensureWheelAnchor()
                     wheelHold = 1
@@ -1470,6 +1480,7 @@ class EngineService : Service(), RootInput.Listener {
     private fun stopWheel(name: String) {
         if (!wheelButtons.remove(name)) return
         if (wheelButtons.isEmpty()) {
+            if (dragActive) endDrag(SystemClock.elapsedRealtime())
             wheelHold = 0
             swipeHold = 0
             hScrollDir = 0
@@ -1498,27 +1509,76 @@ class EngineService : Service(), RootInput.Listener {
     }
 
     /** t26: 连续滑动锚点自适应——按 task 高度百分比取中部滚动区，主/备锚点交替（避开顶部手势区/底部导航区） */
-    private fun swipeHoldStep(dir: Int) {
-        val fingerUp = dir < 0
-        val rawDist = (geomH * 0.35f).toInt()
-        val dist = rawDist.coerceIn(320, 1100)
-        val shortened = dist < 560
-        holdSwipeAlt = !holdSwipeAlt
-        // t28: 行程必须恒为 560px（只有 task 可视高度不足才允许缩短）。
-        // 纵向锚点固定 40%（finger-up，避开内层 ListView 起点 668）与 60%（finger-down），
-        // 两个候选改在 **横向位置** 30%/70% 交替——既能重试不同区域，又不会让纵向行程被夹短。
-        val pct = if (fingerUp) 40 else 60
-        val candX = if (holdSwipeAlt) (geomW * 0.30f) else (geomW * 0.70f)
-        val dyy = if (fingerUp) -dist else dist
-        val ms = 220
-        root.swipeV(geomId, dyy, ms, geomW, geomH, pct, candX.toInt(), (geomH * pct / 100))
-        lastSwipeHoldAt = SystemClock.elapsedRealtime()
+    /** t31: 触屏模式 LB/RB 连续拖拽（helper d/m/e），速度模型 800→1500px/s，16ms/帧 */
+    private fun dragSpeedAt(tMs: Float): Float = when {
+        tMs < 400f -> 900f
+        tMs < 1400f -> 900f + 600f * (tMs - 400f) / 1000f
+        else -> 1500f
+    }
+    private fun startDrag(dir: Int) {
+        if (!modeOn || !root.helperReady) return
+        // t36: scroll_speed 1..10 → 拖拽速度整体倍率 0.6..1.8（默认 4 → 1.0，保持现手感）
+        dragMult = (0.6f + (cScrollSpeed - 1) * (1.2f / 9f)).coerceIn(0.6f, 1.8f)
+        dragDir = dir
+        dragX = (geomW * 0.5f).toInt()
+        // RB(finger-up) 从 60% 起手向上拖；LB(finger-down) 从 25% 起手向下拖
+        // （LB 若从 40% 起手，页面滚到底时该点落入内层 ListView，拖拽被内层吞掉、外层 PY 不动）
+        dragAnchorY = (geomH * (if (dir < 0) 0.60f else 0.25f)).toInt()
+        dragDisplay = geomId
+        dragAccum = 0
+        dragTotal = 0
+        dragLastDy = 900f * 0.016f * dragMult
+        dragStartAt = SystemClock.elapsedRealtime()
+        dragLastMoveAt = dragStartAt
+        dragActive = true
+        root.dragDown(dragDisplay, dragX, dragAnchorY)
         Log.i(
             TAG,
-            "hold swipe $dyy dir=$dir anchorPct=$pct (cands 40/60y x30/70) anchorX=${candX.toInt()} " +
-                "stroke=$dist${if (shortened) " shortened reason=task-height(${geomH}px)" else ""} " +
-                "task=0..${geomH} cycle=${swipeRepeatMs()}ms",
+            "drag start dir=$dir anchor=($dragX,$dragAnchorY) scroll_speed=$cScrollSpeed mult=$dragMult " +
+                "task=0..$geomH maxTotal=${(2200 * dragMult).toInt()}",
         )
+    }
+
+    private fun dragTick(now: Long) {
+        if (!dragActive) return
+        if (now - dragLastMoveAt < 16L) return
+        val t = (now - dragStartAt).toFloat()
+        val dt = ((now - dragLastMoveAt).coerceAtMost(20L)) / 1000f
+        val capStep = dragSpeedAt(t) * dragMult * dt
+        // 加速度限制：每帧最多增长 0.8%（16ms/帧 → 250ms 约 +12.7%），避免“一顿一顿”
+        val grown = dragLastDy * 1.008f + 0.2f
+        val dyAbs = minOf(capStep, grown).coerceAtLeast(1f)
+        dragLastDy = dyAbs
+        val dy = dyAbs.toInt().coerceAtLeast(1) * dragDir
+        val margin = 80
+        val avail = if (dragDir < 0) dragAnchorY - margin else (geomH - margin) - dragAnchorY
+        if ((dragAccum + dy) > avail || (dragAccum + dy) < -avail) {
+            // 接近 task 边界（≥80px 余量）：up 后在新锚点 down 续拖，内容偏移连续、无可见跳跃
+            root.dragUp(dragDisplay)
+            val newY = (geomH * (if (dragDir < 0) 0.60f else 0.25f)).toInt()
+            dragAnchorY = newY
+            dragAccum = 0
+            root.dragDown(dragDisplay, dragX, newY)
+            Log.i(TAG, "drag re-anchor y=$newY (margin=$margin, total=$dragTotal)")
+        }
+        root.dragMove(dragDisplay, 0, dy, 16)
+        dragAccum += dy
+        dragTotal += kotlin.math.abs(dy)
+        dragLastMoveAt = now
+        if (dragTotal >= (2200 * dragMult).toInt()) {
+            endDrag(now)
+            Log.i(TAG, "drag stop cap total=$dragTotal t=${now - dragStartAt}ms mult=$dragMult")
+        }
+    }
+
+    private fun endDrag(now: Long) {
+        if (!dragActive) return
+        dragActive = false
+        // 两帧零位移再抬起：清掉 Android 的 fling 速度，松手后不滑行（惯性 ≤200px）
+        root.dragMove(dragDisplay, 0, 0, 16)
+        root.dragMove(dragDisplay, 0, 0, 16)
+        root.dragUp(dragDisplay)
+        Log.i(TAG, "drag end total=${dragTotal}px dur=${now - dragStartAt}ms")
     }
 
     /** the action side of a button press (delayed by DOUBLE_WINDOW when the button has a double action) */
@@ -1927,6 +1987,7 @@ class EngineService : Service(), RootInput.Listener {
         dpadY = 0f
         ltDown = false
         rtDown = false
+        if (dragActive) endDrag(SystemClock.elapsedRealtime())
         wheelHold = 0
         swipeHold = 0
         hScrollDir = 0
@@ -2141,6 +2202,7 @@ class EngineService : Service(), RootInput.Listener {
         // d-pad 统一走 App（软件在虚拟控制器层之上）：助手不再自己原生转发，
         // 普通方向键与 X+方向键 只是 App 里的两种分支，互不抢占。
         if (!modeOn) {
+            if (dragActive) endDrag(SystemClock.elapsedRealtime())
             wheelHold = 0
             swipeHold = 0
             hScrollDir = 0
@@ -2379,12 +2441,8 @@ class EngineService : Service(), RootInput.Listener {
             }
         }
 
-        if (swipeHold != 0) {
-            // 连续滑动模式：按住期间按 swipeRepeatMs 节奏反复“滑—回位—再滑”，
-            // 手势 ms=220、周期 250ms → 间隔 ~30ms（远小于 150ms 空档上限）。
-            if (nowMs - lastSwipeHoldAt >= swipeRepeatMs()) {
-                swipeHoldStep(swipeHold)
-            }
+        if (dragActive) {
+            dragTick(nowMs)
         }
 
         if (wheelHold != 0) {

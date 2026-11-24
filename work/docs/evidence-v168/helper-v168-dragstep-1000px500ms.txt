@@ -1,0 +1,13 @@
+top=    topResumedActivity=ActivityRecord{264942750 u0 com.dennis.padtest/.ui.ScrollTestActivity t1482}
+touch_dev=/dev/input/event22
+helper DRAG:
+  DRAG down display=0 x=900,y=800 rect=20..2540/20..1580
+  DRAG move display=0 dx=1000 dy=0 ms=500 steps=50 step_ms=10 pending=1000,0
+  DRAG up display=0 x=1900,y=800 frames=50 emitted=50 dur=1544ms why=cmd-e
+padtest:
+  11-24 20:59:22.179 30123 30123 I PadProbe: MOUSE/click-down x=899 y=800 btn=0
+  11-24 20:59:23.722 30123 30123 I PadProbe: MOUSE/drag x=1899 y=800 dx=1000 dy=0 dist=1000
+  11-24 20:59:23.722 30123 30123 I PadProbe: TOUCH/swipe dx=1000 dy=0 dist=1000
+posY=50
+restored helper=30322 engine=30326
+DONE
