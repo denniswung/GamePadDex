@@ -1,0 +1,17 @@
+== tap raw capture ==
+raw events:
+  EV_KEY       BTN_TOUCH            DOWN                
+  EV_ABS       ABS_MT_TRACKING_ID   00000001            
+  EV_ABS       ABS_MT_POSITION_X    00003fd9            
+  EV_SYN       SYN_REPORT           00000000            
+  EV_ABS       ABS_MT_TRACKING_ID   ffffffff            
+  EV_SYN       SYN_REPORT           00000000            
+  EV_KEY       BTN_TOUCH            UP                  
+  EV_SYN       SYN_REPORT           00000000            
+  EV_KEY       BTN_TOUCH            DOWN                
+  EV_ABS       ABS_MT_TRACKING_ID   00000001            
+  EV_ABS       ABS_MT_POSITION_X    0000640c            
+  EV_ABS       ABS_MT_POSITION_Y    000009ff            
+  EV_SYN       SYN_REPORT           00000000            
+  EV_ABS       ABS_MT_TRACKING_ID   ffffffff            
+helper TOUCH: TOUCH down 1280,802 TOUCH up TOUCH down 200,200 TOUCH up 

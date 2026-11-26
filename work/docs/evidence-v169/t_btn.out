@@ -1,0 +1,26 @@
+GamePadDex v1.69 suite | run=20261126-234937 mode=BTN | device=SM-F9360 | date=Thu Nov 26 23:49:37 CST 2026
+
+===== BTN 按键详情 =====
+  ButtonDetail texts: 滚动 / 滑动测试|推右摇杆或按 LB/RB：看哪一块在动、怎么动|纵向 offset=0 项  速度=0 px/s  持续=否|横向 scrollX=0  页≈1|混合 -|焦点 -|固定区域 -|纵向：200 项列表|列表项 #001|列表项 #002|列表项 #003|列表项 #004|列表项 #005|列表项 #006|横向：5 页|第 1 页|第 2 页|第 3 页|第 4 页|第 5 
+BTN-001 FAIL | 阈值: 400ms 文本 | 实测: 滚动 / 滑动测试|推右摇杆或按 LB/RB：看哪一块在动、怎么动|纵向 offset=0 项  速度=0 px/s  持续=否|横向 scrollX=0  页≈1|混合 -|焦点 -|固定区域 -|纵向：200 项列表|列表项 #001| | 证据: /data/local/tmp/v169_evidence/20261126-234937/ui_btn1.lines
+  双击阈值: 200ms→com.sec.android.app.launcher/com.android.quickstep.RecentsActivity ; 450ms→com.dennis.padtest/com.dennis.padtest.ui.ScrollTestActivity
+BTN-002 PASS | 阈值: 200ms 间隔（<400ms）触发多任务，450ms 不触发 | 实测: 200ms=com.sec.android.app.launcher/com.android.quickstep.RecentsActivity 450ms=com.dennis.padtest/com.dennis.padtest.ui.ScrollTestActivity | 证据: /data/local/tmp/v169_20261126-234937.log
+BTN-003 BLOCKED | 阈值: 单击/长按竞争需长按 600ms 与单击对比 | 实测: 不可自动化：单击/长按竞争需长按 600ms 与单击对比 | 证据: n/a
+BTN-004 BLOCKED | 阈值: 动作选择器下拉 | 实测: 不可自动化：动作选择器下拉 | 证据: n/a
+BTN-005 BLOCKED | 阈值: 应用选择器 | 实测: 不可自动化：应用选择器 | 证据: n/a
+BTN-006 BLOCKED | 阈值: 包名输入框与输入法遮挡 | 实测: 不可自动化：包名输入框与输入法遮挡 | 证据: n/a
+BTN-007 BLOCKED | 阈值: 组合键多选 | 实测: 不可自动化：组合键多选 | 证据: n/a
+BTN-008 BLOCKED | 阈值: 长按菜单 | 实测: 不可自动化：长按菜单 | 证据: n/a
+BTN-009 BLOCKED | 阈值: 双列布局（横屏） | 实测: 不可自动化：双列布局（横屏） | 证据: n/a
+BTN-010 BLOCKED | 阈值: 按键列表滚动 | 实测: 不可自动化：按键列表滚动 | 证据: n/a
+BTN-011 BLOCKED | 阈值: 映射保存持久化 | 实测: 不可自动化：映射保存持久化 | 证据: n/a
+BTN-012 BLOCKED | 阈值: 对话框内滚动 | 实测: 不可自动化：对话框内滚动 | 证据: n/a
+BTN-013 BLOCKED | 阈值: 返回键行为 | 实测: 不可自动化：返回键行为 | 证据: n/a
+BTN-014 BLOCKED | 阈值: 输入法收起后布局 | 实测: 不可自动化：输入法收起后布局 | 证据: n/a
+
+===== SUMMARY =====
+PASS=1 FAIL=1 BLOCKED=12 NOTRUN=0
+FAILED: BTN-001
+BLOCKED: BTN-003 BTN-004 BTN-005 BTN-006 BTN-007 BTN-008 BTN-009 BTN-010 BTN-011 BTN-012 BTN-013 BTN-014
+LOG=/data/local/tmp/v169_20261126-234937.log EVID=/data/local/tmp/v169_evidence/20261126-234937
+RESULT: /data/local/tmp/v169_20261126-234937.log

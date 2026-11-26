@@ -1,0 +1,15 @@
+init: 横向 scrollX=0 | 纵向 offset=0
+== A3) P(1280,1507)+right stick horizontal ==
+  c: CURSOR -1 -1 display=-1 took=25us
+  after H 8 (control): 横向 scrollX=512
+  after stick (vgpad): 横向 scrollX=512
+== C) vertical wheel S 8 ==
+  before: 纵向 offset=0
+  after S 8: 纵向 offset=0
+  helper: 
+== B) d/m/e detached ==
+  before: 纵向 offset=0
+  after: 纵向 offset=0
+  d/m/e: DRAG up display=0 x=1280,y=600 frames=20 emitted=20 dur=1050ms why=cmd-e
+  pid: 14719 -> 14719
+DONE

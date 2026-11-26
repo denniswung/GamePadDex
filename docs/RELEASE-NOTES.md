@@ -1,112 +1,103 @@
-# v1.68 发布说明（2026-11-25）
+# v1.69 发布说明（2026-11-27）
 
-包名：`com.dennis.dexpad`　versionCode **70** / versionName **1.68**
-配套：KernelSU 模块 `gpm_dex` v1.68 · 助手 `gpminput` v1.68（新增连续拖拽原语）· 测试台 `com.dennis.padtest` v1.1
+包名：`com.dennis.dexpad`　versionCode **71** / versionName **1.69**
+配套：KernelSU 模块 `gpm_dex` v1.69 · 助手 `gpminput` v1.69（`b806f39b`，含 P 闭环与 root 诊断通道）· 测试台 `com.dennis.padtest` **v1.4**（`0f4a9191`）
 
 | 资产 | 文件 | sha256 | 大小 |
 |---|---|---|---|
-| 应用 | `dexpad-v1.68.apk` | `c8b002880c70dedc1fc6ddbc047bcf87503a6539b8d72693ae32b7e925bbc998` | 2684731 B |
-| 模块 | `gpm_dex-v1.68.zip` | `51044ce21322f23fc09f1a52ace0cd229fcc2ae2f430023911a33aea7f14049f` | 365632 B |
-| 助手 | `gpminput-v1.68` | `a1d06e2e9ee03f282cdacb119c5bbad1bc4e5adaaa573a500aacbeb2263bd06d` | 852328 B |
-| 测试台 | `padtest-v1.1.apk` | `27478cef1c51acddc88c7ef662980ead4720bc95ce38635b0aa816f67de32e50` | 949222 B |
+| 应用 | `dexpad-v1.69.apk` | `d31e51285a0a3baa71a75ed2b7dca1a7f88697685ae982c35e2f807bfc92c7fb` | 2687735 B |
+| 模块 | `gpm_dex-v1.69.zip` | `b9785087b35f3e6e341d09bf7950334d18be384d6804e3f8481e51c1ee504097` | 368072 B |
+| 助手 | `gpminput-v1.69` | `b806f39ba51278a73aad121be4019820b7961dcb0935971b64d3a02373cd2a4d` | 852960 B |
+| 测试台 | `padtest-v1.4.apk` | `0f4a91911360cb4051fff9b54711508e4dc90de797be6ec0e55e83e9a967056d` | 956738 B |
 
-模块 zip 内 `gpminput` 与 `gpminput-v1.68` **同哈希**；APK 内 `assets/gpminput` 解包后亦为同一哈希（三处一致）。
+模块 zip 内 `gpminput` 与 `gpminput-v1.69` 同哈希；APK 内 `assets/gpminput` 解包后亦为同一哈希（三处一致）。
 
-## 1 LB/RB 触屏模式：从离散滑动改成**连续拖拽**
+## 0 覆盖率与门槛（先读这一段）
 
-### 之前（v1.67）的问题
+- **`product FAIL = 0`**：142 条用例里 **37 PASS / 5 FAIL / 100 BLOCKED**，5 条 FAIL 全部不是产品缺陷
+  （3 条经维护者批准降级：MIX-009 / LOG-001 / RPT-002；1 条 padtest TXT 导出未实现：RPT-003；1 条启动时序：BTN-001 已在应用侧修 a11y，复测可见）。
+- **发布门槛：未达**（P0 41.1%、P1 16.7%）；**经维护者（captain，2026-11-27）批准按偏差发布**，
+  依据：`product FAIL = 0` + 100 条 BLOCKED 全部来自测试通道/自动化能力 + 关键行为已真机抽样覆盖。
+- **可自动化上限 40–45/142**，其余以已知限制 + 真机抽样覆盖，**不虚报 PASS**。
+- 明细：`work/docs/V169-FINAL.md`、`work/docs/V169-FINAL-VERIFY.md`（含 §5 用词约束），
+  原始证据 `work/docs/evidence-v169/`（final_all.out、scr_final.out、report_s22*.json、ui_*.lines、截图）。
 
-触屏模式下 LB/RB 是"离散 560px 滑动 ×N"：每次手势是独立的一段，段间有 30–39ms 空档，
-大屏快速滚动时看起来是"一顿一顿地跳"（每次 560px 的段落感、边界处还有 up/down 断点）。
+## 1 本轮修复（对应用户测试计划里的 FAIL 项）
 
-### 现在（v1.68）
+### 1.1 `P` 绝对定位：开环增益偏差 34% → 闭环修正（t47）
 
-助手新增**连续拖拽原语**（小写命令，未与既有命令冲突）：
+- **问题**：`pointer_goto()` 用固定增益 `3.25`，本机 `pointer_speed=-1` 实测 ~2.14 → 落点偏小 34%
+  （例：`P 400,1200` 落到 `264,796`；`P 2000,300` 落到 `1329,197`）。
+- **改法**：读真实光标（`c`/`dumpsys input`）→ 朝屏幕内部 REL 80px 实测增益 → 每步用实际位移重估 → 最多 4 次修正
+  （≤8px 提前退出）→ 落点回写悬停锚点（`g_ptr_x/g_ptr_y`，mmap 共享页对 fork 子进程可见）；
+  日志 `POSPTR x,y closed gain=… final=… err=… iters=… anchor=…`（保留旧 `POSPTR x,y` 行）。
+- **发布字节实测（六点，root 控制通道）**：`402,1202` / `2000,300` / `99,102` / `2445,1496` / `1280,802` / `694,999`，
+  **最大误差 6px**（判据 ≤8px），`c` 回包与 `final` 一致（`CURSOR 402 1202` … `CURSOR 694 999`）。
 
-| 命令 | 语义 |
+### 1.2 SCR-022：右摇杆横向不驱动横向容器（t53）
+
+- **根因**：横向与竖向共用 `swipeCooldownUntil` 被吞 + 外部 `P`/真实光标移动后引擎 `ptrX/ptrY` 估算未同步，锚点落在纵向列表。
+- **改法**：横向独立冷却 `hSwipeCooldownUntil` + `doSwipe(ignoreCooldown=true)`；横向按住期间每 400ms 发 `c` 被动同步真实光标；
+  新增 `hswipe dir/nx/anchor/hidden` 日志。
+- **实测**：分页区锚点 `1282,1599` → `horizontal_scroll_x` **0→512→0**；纵向列表锚点 `1282,804` → scrollX 保持 0、不越界。
+
+### 1.3 padtest v1.3 / v1.4（t55 / t60）
+
+- **v1.3**：删除整页 `PassThroughScrollView`（它在 v1.2 引入分页回归），恢复普通 `ScrollView`；左右列表在 ACTION_DOWN 时
+  `requestDisallowInterceptTouchEvent(true)` 保留独立滚动。注入式横向 swipe 回到 **0→512→0**。
+- **v1.4**：`vList` 在 ACTION_DOWN 时也 `requestDisallowInterceptTouchEvent(true)`，内层列表手势不再被外层抢
+  （内层 `vertical_offset 0→2`、外层标题 603 不动；外层锚点则外层滚动 603→42）。
+- **padtest 里程碑说明**：v1.2 的 `PassThroughScrollView` 引入了分页回归与 vList 手势被抢，已分别由 t55（删除整页 PassThrough）
+  与 t60（vList `requestDisallowInterceptTouchEvent`）修复；**v1.3/v1.4 行为以 t55/t60 为准**，不要再引用 v1.2 的分页结论。
+
+### 1.4 助手 root 诊断通道（t48 / t54）
+
+- 新增 `/data/adb/gpm/gpmctl.sock`（目录 0700、socket 0600、`SO_PEERCRED` uid==0），与 App 通道并存、复用同一套命令语义；
+  断开不影响 App 会话；`gpmctl.disabled` 存在时不创建。
+- 用途：release 包（无调试广播）也能脚本化 `P` / `c` / `?` 等诊断；本次发布字节的六点与自检就是走这条通道。
+- 客户端：`/data/local/tmp/gpmctl <sock> <cmd...>`（`work/docs/HELPER-v169.md` §6）。
+
+## 2 发布字节验证（装机 + reboot 之后）
+
+| 项目 | 结果 |
 |---|---|
-| `d <display> <x> <y>` | 按下（MT 单指，逻辑像素，自动夹到 task 内） |
-| `m <display> <dx> <dy> <ms>` | 分步移动：只登记算术，主循环每 **8–16ms** 发一帧 `ABS_MT_SLOT + POSITION_X/Y + SYN`（非阻塞状态机） |
-| `e [display]` | 抬起（任何时刻可结束；停发 1.8s 自动 `auto-up idle`） |
+| 装机/自启/横屏 | base.apk == 本地 `d31e5128…`；`/data/adb/gpm` == 模块 == `b806f39b…`；module.prop v1.69/71；helper + EngineService 自启；`user_rotation=1`、`accel=0`、app 2560×1600、display rotation 1 |
+| `P` 六点 | 6/6，最大误差 6px（≤8px） |
+| `?` 自检 | CAP **13/13 = 1**、ERR=0；`INFO pointer device=off` 等 5 条 INFO 正常 |
+| LB/RB 连续拖拽 | 100ms **74px**（≤150）、300ms **251px**（≤450）、1500ms **1636px**（1200–2200）；期间 `SWIPE=0 / WHEEL=0` |
+| 滚轮模式 | RB 1.5s → **WHEEL=9 / SWIPE=0** |
+| X+LB / X+RB | dx **+1260** / **−1260**（方向正确） |
+| 回归冒烟 23 项 | 21 项直接 PASS；RS3-V / RS4-HIDDEN 的"外层 PY"判据因 padtest v1.4 手势归属改变失效，改用 v1.4 权威字段复测：`vertical_offset 0→14`、`touch.path_px 486`、helper `Z=4` → **判 PASS**（`verify_v169_recheck2.result.txt`） |
+| 其它回归 | L3 `1281,804`、满推 `2559,801`、Y+上 PiliPlus / Y+下 抖音、d-pad+DPAD_CENTER、X 双击 Recents、I5 0px、SELECT `rc=0 dur=402ms`、横屏守护 ≈3250ms、60s 空闲 CPU **0.97%**、CURSORQ=0 |
 
-应用侧一次按压 = **一次 down → 多帧 move → up**（松手前两帧零位移再抬起），速度模型：
+证据：`work/docs/evidence-v169/`（`verify_v169_extra.result.txt` 16/16、`verify_v169_smoke.result.txt`、`verify_v169_recheck2.result.txt` 2/2、`selftest-cap.txt`）。
 
-- **<400ms ≈900px/s** → **400–1400ms 线性升到 1500px/s** → 封顶（有加速度、无突跳；每帧加速度限制 0.8%、dt≤20ms）
-- **可调**：`scroll_speed` 1–10 → 拖拽倍率 `0.6 + (scroll_speed-1)×1.2/9`（**0.6×–1.8×**，默认 4 = **1.0×**），按压开始时快照、按住中不切换
-- 累计上限 `maxTotal = 2200px × 倍率`，到顶 `drag stop cap` 或松手即停
-- **边界续拖**：距 task 上/下边 80px 时先 `up`、在新锚点 `down` 继续（内容偏移连续，无可见断点）
-- **本机触摸面板 90° 映射**：直接注入会让纵向拖拽在应用侧变成横向（实测 down 1280,1200 → app 1919,800），
-  已用三点标定 + `touch_panel_xy()` 反解；面板改为启动时创建避免首帧丢失；非 2560×1600 退化为恒等映射
+## 3 升级注意（重要）
 
-「触摸滚动」**关**时仍是**纯滚轮**（每 186ms 一步、1.5s 9 步、不发 swipe），机制在按下瞬间定死、按压期间不切换。
+- **助手必须与 APK 一起换**：v1.69 助手 `b806f39b` 含 P 闭环与 `gpmctl` 通道。升级顺序：装 APK → 刷 `gpm_dex-v1.69.zip` → **重启**。
+- **padtest 直接装 v1.4**（同签名覆盖）；v1.2/v1.3 有已知回归，不要回退使用。
+- 回退 v1.68：`adb install -r -d dexpad-v1.68.apk` + 刷 v1.68 模块 zip（助手回 `a1d06e2e`）+ 重启。
 
-## 2 发布字节实测（release `c8b00288`，装机 + reboot 之后）
+## 4 已知限制与盲区
 
-| 项目 | 阈值 | 实测 | 判定 |
-|---|---|---|---|
-| **短按 100ms 位移** | ≤150px | **71px**（dur=100ms） | PASS |
-| 300ms 位移 | ≤450px 且单调 | **248px**（100ms=71） | PASS |
-| **按住 1.5s 位移** | **1200–2200px** | **1623px**（dur=1499ms） | PASS |
-| 拖拽期间手势计数 | SWIPE=0 且 WHEEL=0（纯 `d/m/e`） | 0 / 0 | PASS |
-| 默认倍率 | `scroll_speed=4` → 1.0× | `mult=1.0 maxTotal=2200` | PASS |
-| 内容实际位移 | ≥600px（uiautomator 页顶起手） | **PY 1415→0（d=1415）** | PASS |
-| **滚轮模式 RB/LB** | WHEEL≥6 且 SWIPE=0 | **WHEEL=9 / SWIPE=0**（两侧） | PASS |
-| **PiliPlus 1.5s 截图差异** | ≤40% | **RMSE 31.33%**（MAE 18.95%；逐像素变化占比 58.34%，见下） | PASS |
-| PiliPlus 1.5s 总位移 | ∈[1200,2200]px | **1643px** | PASS |
+- **100 条 BLOCKED 的分组**：`ctl-channel-drag-not-delivered` 32 条（helper 已发 `d/m/e`、测试台侧收不到，属测试通道）、
+  `evidence-incomplete`（垂直滚轮 `S 8` 无 offset 字段）、`release-no-debug-channel`（v1.69 起有 `gpmctl` 可补）、
+  UI 二级交互 40 条（CFG/BTN/LOG/RPT）、长压测 8、DeX/多屏 6、真手柄 1。
+- **测试台盲区**：`uiautomator` 在指针 overlay 下会失败；`screencap` 在拖拽中是陈旧帧；padtest v1.4 内层列表会接住竖推（外层 PY 不动）。
+  这些都必须用参数化/权威字段（`vertical_offset`、`horizontal_scroll_x`、`touch.path_px`）判定，不能用单一的"文本/标题位移"判据。
+- 滚轮仍受指针悬停窗口限制（`ensureWheelAnchor` 已缓解）；`display_size_forced=1600,2560` 清不掉（v1.66 起 caveat）；
+  DeX 外接屏未完整回归；触摸点击依赖估算坐标。
 
-PiliPlus 三图渐进（三次 500ms，段间新鲜截图）：RMSE **34.86% / 38.37% / 40.24%**，逐段推进、无跳页。
-**口径说明**：t31 的 57.01%（旧离散 83.77%）是"逐像素变化占比"——滚过一屏必然 50%+，t33/t37 已不把它当过头的判据；
-本轮按验收写「截图差异 ≤40%」采用 **RMSE（ImageMagick 同义）31.33%**，同时把 MAE 与逐像素占比一并列出，避免口径混淆。
-
-回归（发布字节 23 项冒烟）：L3 1281,799、满推 2559,799、竖推 dPY=1415（仅 Z）、横推 dHS=512（仅 V）、
-空闲隐藏首推 1415、Y+上 PiliPlus / Y+下 抖音、d-pad+DPAD_CENTER、X 双击 Recents、X+LB +655 / X+RB −1536、
-I5 0px、SELECT `rc=0 dur=391ms`、横屏守护 ≈1000ms、60s 空闲 CPU **0.82%**、CURSORQ=0。
-
-## 3 助手（gpminput v1.68）改动
-
-- 新增 `d` / `m` / `e` 连续拖拽原语（MT 单指、非阻塞、越界夹取、auto-up 安全兜底、拖拽中单击/双指会 abort）。
-- 触摸面板 90° 映射反解（`touch_panel_xy`）+ 启动时创建面板。
-- **注释清理**：清掉 t13 遗留乱码注释 153 行 / 109 处（改为正确中文），仅注释改动，**编译产物哈希不变**（仍是 `a1d06e2e`）。
-- 其余命令（`?` 自检、`u` 唤醒、`g`/`O` 增益、`c` 光标、`P` 绝对定位、`S` 滚轮、`V`/`Z` 手势）与串行队列未改。
-
-## 4 验证（可复跑）
-
-| 项目 | 结果 | 证据 |
-|---|---|---|
-| **发布字节** LB/RB 17 项 | **17/17 PASS** | `work/docs/evidence-v168/verify_v168_lbrb.result.txt` |
-| **发布字节** 回归冒烟 23 项 | **23/23 PASS** | `work/docs/evidence-v168/verify_v168_smoke.result.txt` |
-| t37 复验（debug 字节 991c0510，22 项） | 22/22（含 speed 映射、续拖、无弹回、滚轮、回归） | `work/docs/VERIFY-drag-v168-t37.md` |
-| 装机哈希校验 | 全部一致（APK / 助手三处 / zip 内 / APK assets / 重启后） | `work/docs/INSTALL-v168.md` |
+## 5 安装
 
 ```bash
-adb shell "su -c 'sh /data/local/tmp/verify_v168_lbrb.sh'"    # 17 项
-adb shell "su -c 'sh /data/local/tmp/verify_v168_smoke.sh'"   # 23 项
-```
-
-## 5 已知限制 / 注意事项
-
-- **padtest 页底 LB 的锚点**会落进内层 ListView（外层 `PY` 不动、内层滚动）——测试台结构导致，真实 App 两个方向都验证过。
-- **拖拽中的 `screencap` 是陈旧帧**（t37 §5：1.1/1.15s 与 before 差 0.01%），所以"mid"用分次累计 + 段间截图，不能用"按住中截图"证明中间态。
-- 累计上限实测 **2218 vs 2200**（0.5% 容差），发布口径写 **≈2200px × 倍率（±1%）**。
-- **滚轮仍受指针悬停窗口限制**（`REL_WHEEL` 只作用于悬停窗口）：`ensureWheelAnchor` 已把指针放到 task 中心，但目标列表不在该位置时仍可能滚不动，此时用连续拖拽更可靠。
-- **发布包不响应调试广播**（`DEBUG`/`HCMD` 只在 debuggable 构建生效）；本轮滚轮开关在发布字节上用「改 prefs + 强制重启引擎」验证。
-- 其余 v1.66/v1.67 的已知限制（`display_size_forced` 清不掉、DeX 外接屏未完整回归、触摸点击依赖估算坐标等）不变。
-
-## 6 安装
-
-```bash
-# 1) 安装 APK
-adb install -r dexpad-v1.68.apk
-# 2) 安装 KernelSU 模块（或用 KernelSU/Magisk App 刷 gpm_dex-v1.68.zip）
-adb push gpm_dex-v1.68.zip /data/local/tmp/
-adb shell "su -c '/data/adb/ksu/bin/ksud module install /data/local/tmp/gpm_dex-v1.68.zip'"
-# 3) 重启，确认模块生效
+adb install -r dexpad-v1.69.apk
+adb install -r padtest-v1.4.apk
+adb push gpm_dex-v1.69.zip /data/local/tmp/
+adb shell "su -c '/data/adb/ksu/bin/ksud module install /data/local/tmp/gpm_dex-v1.69.zip'"
 adb reboot
 adb shell "su -c 'grep version /data/adb/modules/gpm_dex/module.prop; sha256sum /data/adb/gpm/gpminput'"
-# 预期：version=v1.68 / versionCode=70；助手 sha256 = a1d06e2e…bd06d
+# 预期：version=v1.69 / versionCode=71；助手 sha256 = b806f39b…cd2a4d
 ```
 
-**从 v1.67 升级必须换助手**：`d/m/e` 是 v1.68 助手的能力，旧助手配新 APK 会导致触屏 LB/RB 退化为无动作（日志会报 `ERR d args`/未知命令）。
-所以 `gpm_dex-v1.68.zip` 与 APK 要一起装、然后重启。
-
-校验和一览见同目录 `SHA256SUMS.txt`；装机校验表见 `work/docs/INSTALL-v168.md`。
+校验和见同目录 `SHA256SUMS.txt`；装机校验表见 `work/docs/INSTALL-v169.md`。

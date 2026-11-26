@@ -1,0 +1,47 @@
+
+===== A 基线（v1.69 release 字节 d31e5128） =====
+  apk=d31e51285a0a3baa71a75ed2b7dca1a7f88697685ae982c35e2f807bfc92c7fb
+  helper=b806f39ba51278a73aad121be4019820b7961dcb0935971b64d3a02373cd2a4d module=b806f39ba51278a73aad121be4019820b7961dcb0935971b64d3a02373cd2a4d
+  version=1.69/71 module.prop=version=v1.69 versionCode=71 
+  padtest=1.4/5 sha=0f4a91911360cb4051fff9b54711508e4dc90de797be6ec0e55e83e9a967056d
+[V169-APK] PASS | 阈值: 设备 base.apk == 发布 dexpad-v1.69.apk | 实测: d31e51285a0a3baa71a75ed2b7dca1a7f88697685ae982c35e2f807bfc92c7fb
+[V169-HELPER] PASS | 阈值: 助手 gpm==模块==b806f39b | 实测: b806f39ba51278a73aad121be4019820b7961dcb0935971b64d3a02373cd2a4d / b806f39ba51278a73aad121be4019820b7961dcb0935971b64d3a02373cd2a4d
+[V169-VER] PASS | 阈值: versionName=1.69 / versionCode=71（module.prop v1.69/71） | 实测: 1.69/71 | version=v1.69 versionCode=71 
+[V169-PADTEST] PASS | 阈值: padtest v1.4/5 且 sha==0f4a9191（t60 最终） | 实测: 1.4/5 0f4a91911360cb4051fff9b54711508e4dc90de797be6ec0e55e83e9a967056d
+[V169-LAND] PASS | 阈值: 默认横屏 user_rotation=1 accel=0 app=2560x1600 | 实测: rot=1 accel=0 app=2560x1600
+
+===== B P 绝对定位六点（root 控制通道 gpmctl.sock + c 复核，阈值 ≤8px） =====
+  P 400,1200 → final=[402,1202] err=[-2,-2] | CURSOR 402 1202 display=0 space=logical frame=0,2176 raw=564.4,341.8 took=34us
+  P 2000,300 → final=[1997,300] err=[3,0] | CURSOR 1997 300 display=0 space=logical frame=0,2176 raw=1330.6,1697.8 took=29us
+  P 102,102 → final=[104,104] err=[-2,-2] | CURSOR 104 104 display=0 space=logical frame=0,2176 raw=1497.8,88.2 took=27us
+  P 2447,1498 → final=[2445,1496] err=[2,2] | CURSOR 2445 1496 display=0 space=logical frame=0,2176 raw=314.5,2078.1 took=30us
+  P 1282,802 → final=[1284,804] err=[-2,-2] | CURSOR 1284 804 display=0 space=logical frame=0,2176 raw=902.5,1091.4 took=26us
+  P 700,1000 → final=[700,999] err=[0,1] | CURSOR 700 999 display=0 space=logical frame=0,2176 raw=737.1,595.3 took=29us
+[V169-P6] PASS | 阈值: P 六点落点误差 ≤8px（六点全过） | 实测: 6/6 通过
+
+===== C 自检 CAP 13 项 / ERR=0 =====
+  CAP lines=13 all1=13 ERR lines=0
+[V169-CAP] PASS | 阈值: 问号自检：CAP ≥13 且全部=1、ERR=0 | 实测: CAP=13 all1=13 ERR=0
+
+===== D LB/RB 连续拖拽三档（100/300/1500ms） =====
+  100ms=74 (99ms) 300ms=251 (300ms) 1500ms=1636 (1499ms) SWIPE=0 WHEEL=0
+[V169-DRAG100] PASS | 阈值: 100ms 位移 0<t≤150px | 实测: 74px
+[V169-DRAG300] PASS | 阈值: 300ms 位移 ≤450px 且单调 | 实测: 251px
+[V169-DRAG1500] PASS | 阈值: 1500ms 位移 ∈[1200,2200]px | 实测: 1636px
+[V169-DRAGPURE] PASS | 阈值: 拖拽期间 SWIPE=0 WHEEL=0（纯 d/m/e） | 实测: SWIPE=0 WHEEL=0
+
+===== E 滚轮模式（v_touch_scroll=false）：9 WHEEL / 0 SWIPE =====
+[V169-VTOFF] PASS | 阈值: release 包 v_touch_scroll=false 生效（sed prefs + 强制重启引擎） | 实测: vtouch=false engine=7318
+  wheel RB 1.5s: WHEEL=9 SWIPE=0 sum_h=0
+[V169-WHEEL] PASS | 阈值: 滚轮 RB 1.5s：WHEEL≥6 且 SWIPE=0 | 实测: WHEEL=9 SWIPE=0 sum_h=0
+[V169-RESTORE] PASS | 阈值: 恢复 v_touch_scroll=true | 实测: vtouch=true engine=7703
+
+===== F X+LB / X+RB 横向翻页方向（helper SWIPE dx 符号） =====
+[V169-XLB] PASS | 阈值: X+LB → dx>0（上一页方向） | 实测: dx=+1260
+[V169-XRB] PASS | 阈值: X+RB → dx<0（下一页方向） | 实测: dx=-1260
+
+===== RESTORE =====
+  helper=7737 engine=7703 vtouch=true rot=1 accel=0 app=2560x1600
+
+PASS=16 FAIL=0 FAILED=[]
+PASS=16 FAIL=0

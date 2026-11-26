@@ -1,0 +1,24 @@
+== sock verify Fri Nov 27 00:15:44 CST 2026 helper=16715 engine=16605 ==
+SCR-017 before: 纵向 offset=0 | 固定区域收到滚动 0 次（wheel=0 touch=0）" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,513][2493,555]" drawing-order="6" hint="" /> | 后端统计：手势滑动 0 次（已应用到列表 开） · 滚轮 0 次" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,457][2493,499]" drawing-order="5" hint="" />
+  pointer: CURSOR -1 -1 display=-1 took=36us
+SCR-017 after:  纵向 offset=0 | 固定区域收到滚动 0 次（wheel=0 touch=0）" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,513][2493,555]" drawing-order="6" hint="" /> | 后端统计：手势滑动 0 次（已应用到列表 开） · 滚轮 0 次" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,457][2493,499]" drawing-order="5" hint="" />
+  WHEEL lines: WHEEL -3 h=0 WHEEL 2 h=1 WHEEL -2 h=1 
+SCR-016 hide->wheel: elapsed=1045ms (含广播)；helper log:
+  TOP com.dennis.padtest
+  TOP com.dennis.padtest
+  TOP com.dennis.padtest
+  TOP com.dennis.padtest
+  TOP com.dennis.padtest
+  TOP com.dennis.padtest
+  WHEEL count after hide: 1
+SCR-020 before: 纵向 offset=0
+  swipe#1: 纵向 offset=0
+  swipe#2: 纵向 offset=0
+  swipe#3: 纵向 offset=0
+  swipe#4: 纵向 offset=0
+  last SWIPE: SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=2 pid=10057 queued=0 async prep=342us
+  drag re-anchor (engine): 
+E2E-010 drag active: 
+  after screen off, DRAG lines:
+  after wake tap: TOUCH down 1200,700 TOUCH up 
+DONE

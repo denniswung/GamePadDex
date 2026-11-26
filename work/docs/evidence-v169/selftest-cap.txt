@@ -1,0 +1,20 @@
+SELFTEST begin
+CAP mouse 1
+CAP kbd 1
+CAP wheel 1
+CAP swipe 1
+CAP notif 1
+CAP power 1
+CAP force 1
+INFO apex 0
+CAP screen 1
+CAP wake 1
+CAP cursor 1
+CAP gamepad 1
+CAP devices 1
+CAP gesture 1
+INFO pointer device=off
+INFO kbd device=on
+INFO gesture busy=0 queued=0
+INFO devices_grabbed=1
+SELFTEST end

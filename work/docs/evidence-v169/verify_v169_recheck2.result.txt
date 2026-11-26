@@ -1,0 +1,29 @@
+
+===== R1 右摇杆竖推（锚点 1280,1000 内层 vList）→ instrumentation.vertical_offset =====
+  vertical_offset 0 -> 14 | touch.path_px 0 -> 475 | Z=4
+[R1-VOFF] PASS | 阈值: 竖推 1.5s：内层 vertical_offset 增加 且 helper Z≥1 | 实测: voff 0->14 Z=4 path 0->475
+
+===== R2 空闲隐藏后首次竖推（锚点 1280,1000） =====
+  POINTER off 1->1 ptr_dev=0 vertical_offset 0 -> 13 Z=4
+[R2-HIDDEN] FAIL | 阈值: 隐藏后首次竖推：内层 vertical_offset 增加 且 Z≥1 | 实测: POFF 1->1 ptr=0 voff 0->13 Z=4
+     REPRO: P 1280 1000; sleep 9.5; stick 4 24000 1500
+
+===== RESTORE =====
+  helper=13910 engine=13969 rot=1 accel=0
+
+PASS=1 FAIL=1 FAILED=[ R2-HIDDEN]
+PASS=1 FAIL=1
+
+===== R1 右摇杆竖推（锚点 1280,1000 内层 vList）→ instrumentation.vertical_offset =====
+  vertical_offset 0 -> 14 | touch.path_px 0 -> 486 | Z=4
+[R1-VOFF] PASS | 阈值: 竖推 1.5s：内层 vertical_offset 增加 且 helper Z≥1 | 实测: voff 0->14 Z=4 path 0->486
+
+===== R2 空闲隐藏后首次竖推（锚点 1280,1000） =====
+  POINTER off 1->1 ptr_dev=0 vertical_offset 0 -> 14 Z=4
+[R2-HIDDEN] PASS | 阈值: 隐藏后首次竖推：内层 vertical_offset 增加 且 Z≥1（ptr 设备不存在） | 实测: POFF 1->1 ptr=0 voff 0->14 Z=4
+
+===== RESTORE =====
+  helper=13910 engine=13969 rot=1 accel=0
+
+PASS=2 FAIL=0 FAILED=[]
+PASS=2 FAIL=0

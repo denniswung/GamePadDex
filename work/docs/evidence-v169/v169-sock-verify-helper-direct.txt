@@ -1,0 +1,22 @@
+== sv2 Fri Nov 27 00:16:57 CST 2026 helper=22431 ready=1 ==
+SCR-017 before: 纵向 offset=0 | 固定区域收到滚动 0 次（wheel=0 touch=0）" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,513][2493,555]" drawing-order="6" hint="" /> | 后端统计：手势滑动 0 次（已应用到列表 开） · 滚轮 0 次" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,457][2493,499]" drawing-order="5" hint="" />
+  pointer: CURSOR 1282 251 display=0 space=logical frame=0,2176 raw=1372.9,1089.6 took=24us
+SCR-017 after:  纵向 offset=0 | 固定区域收到滚动 0 次（wheel=0 touch=0）" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,513][2493,555]" drawing-order="6" hint="" /> | 后端统计：手势滑动 0 次（已应用到列表 开） · 滚轮 6 次" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,457][2493,499]" drawing-order="5" hint="" />
+  WHEEL: WHEEL 3 h=1 WHEEL 3 h=1 WHEEL 3 h=1 
+SCR-016 hide->WHEEL latency=16ms (轮询 20ms)；log:
+  WHEEL 3 h=1
+  WHEEL 3 h=1
+  POINTER off
+SCR-020 before: 纵向 offset=0
+  swipe#1:   SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=1 pid=22668 queued=0 async prep=207us
+  swipe#2:   SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=2 pid=22805 queued=0 async prep=137us
+  swipe#3:   SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=3 pid=22873 queued=0 async prep=206us
+  swipe#4:   SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=4 pid=22942 queued=0 async prep=140us
+E2E-010 drag active: DRAG move display=0 dx=0 dy=-150 ms=300 steps=30 step_ms=10 pending=0,-150
+  after power off:
+    DRAG down display=0 x=1280,y=900 rect=20..2540/20..1580
+    DRAG up display=0 x=1280,y=750 frames=30 emitted=30 dur=1809ms why=auto-up idle
+  after wake tap: TOUCH down 1000,900 TOUCH up 
+  ERR=0
+restored helper=23336 engine=23340
+DONE

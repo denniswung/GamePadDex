@@ -1,0 +1,5 @@
+A) real input swipe at y=802: before=[第 1 页 第 2 页 第 3 页 ]
+   after=[第 1 页 第 2 页 第 3 页 ]
+B) helper P(1280,802)+V swipe: before=[第 1 页 第 2 页 第 3 页 ]
+   after=[第 1 页 第 2 页 第 3 页 ]
+helper: POSPTR 1280,802 SWIPE 0 1282,804 -> 1582,804 (task 0..2560 / 0..1600) axis=V n=8 pid=6082 queued=0 async prep=277us 

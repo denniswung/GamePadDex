@@ -1,0 +1,47 @@
+GamePadDex v1.69 suite | run=20261127-032752 mode=SCR | device=SM-F9360 | date=Fri Nov 27 03:27:52 CST 2026
+
+===== SCR 滚动与滑动专项 =====
+  RB100 x3: 74/75/72
+SCR-001 PASS | 阈值: 每次 0<位移≤150px，三次独立 | 实测: 100ms=74/75/72 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-002 PASS | 阈值: 300ms 位移 100–450 且大于 100ms | 实测: 300ms=250 (100ms=74) | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-003 PASS | 阈值: 1.5s 位移 1200–2200；SWIPE=0；WHEEL=0 | 实测: total=1617 SWIPE=0 WHEEL=0 frames=64 dur=1059ms | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-004 PASS | 阈值: LB 1.5s 位移 1200–2200（与 RB 同机制） | 实测: total=1627 | 证据: /data/local/tmp/v169_20261127-032752.log
+  方向 dy: RB=-711 LB=711
+SCR-005 PASS | 阈值: RB 手指向上（dy<0）、LB 手指向下（dy>0），方向相反 | 实测: RB dy=-711 LB dy=711 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-006 PASS | 阈值: 松手 500ms 内无新拖拽/滑动事件（不滑行） | 实测: events 6->6 | 证据: /data/local/tmp/v169_20261127-032752.log
+  六段: 100:74 300:254 500:417 800:710 1100:1060 1500:1617
+SCR-007 PASS | 阈值: 六段位移单调递增 | 实测:  100:74 300:254 500:417 800:710 1100:1060 1500:1617 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-008 PASS | 阈值: 初段慢、中段升速、后段继续增长 | 实测: 400=324 900=822 1400=1457 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-009 BLOCKED | 阈值: release APK 无 DebugReceiver，prefs XML 改动在引擎运行时不生效（实测 1/2/4/7/10 档 1.5s 位移均 ≈1600px）；速度可调性需调试版或 UI SeekBar 复验 | 实测: 不可自动化：release APK 无 DebugReceiver，prefs XML 改动在引擎运行时不生效（实测 1/2/4/7/10 档 1.5s 位移均 ≈1600px）；速度可调性需调试版或 UI SeekBar 复验 | 证据: n/a
+SCR-010 PASS | 阈值: 起手 mult=1.0（speed=4 快照），按压内无倍率变化 | 实测: total=1621 mult=1.0 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-011 PASS | 阈值: RB、LB 连续按压各自独立（各有 drag end） | 实测: RB=1614 LB=1614 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-012 BLOCKED | 阈值: release APK 无调试注入通道（DebugReceiver 已移除），无法在按压过程中修改 prefs；改 prefs 必须重启引擎，按压必然中断 | 实测: 不可自动化：release APK 无调试注入通道（DebugReceiver 已移除），无法在按压过程中修改 prefs；改 prefs 必须重启引擎，按压必然中断 | 证据: n/a
+SCR-013 BLOCKED | 阈值: 同 SCR-012：无法按压中切换模式 | 实测: 不可自动化：同 SCR-012：无法按压中切换模式 | 证据: n/a
+SCR-014 PASS | 阈值: 滚轮模式 RB 1.5s：WHEEL≥6、SWIPE=0 | 实测: WHEEL=9 SWIPE=0 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-015 PASS | 阈值: 滚轮模式 LB 1.5s：WHEEL≥6、SWIPE=0 | 实测: WHEEL=9 SWIPE=0 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-016 PASS | 阈值: 指针隐藏后 RB 仍建立锚点并滚动 | 实测: WHEEL=9 anchor_log=1 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-017 BLOCKED | 阈值: 需要多窗口/空白区样本才能区分悬停归属，当前无稳定三类窗口 | 实测: 不可自动化：需要多窗口/空白区样本才能区分悬停归属，当前无稳定三类窗口 | 证据: n/a
+SCR-018 BLOCKED | 阈值: 按压中切 App 的前台时序不稳定，属人工/真手柄抽样项 | 实测: 不可自动化：按压中切 App 的前台时序不稳定，属人工/真手柄抽样项 | 证据: n/a
+SCR-019 BLOCKED | 阈值: 多窗口/DeX 外接屏环境缺失 | 实测: 不可自动化：多窗口/DeX 外接屏环境缺失 | 证据: n/a
+SCR-020 PASS | 阈值: 到边界 re-anchor 后继续，累计约 2200（±7%） | 实测: total=2201 re-anchor=2 | 证据: /data/local/tmp/v169_20261127-032752.log
+  stick: 上推 swipes=8 dy=560 ; 下推 swipes=5 dy=-480
+SCR-021 PASS | 阈值: 右摇杆上/下各 2s 均产生滑动且方向相反 | 实测: up=8/dy560 down=5/dy-480 | 证据: /data/local/tmp/v169_20261127-032752.log
+  SCR-022 report: hx base=0 xrb=512 xlb=0 stick@pager=512 stick@list=512 helper=22591
+SCR-022 PASS | 阈值: horizontal_scroll_x：X+RB 512、X+LB 0、右摇杆@pager 512、@list 不变 | 实测: hx: 0->512->0->512->512 | 证据: /data/local/tmp/v169_evidence/20261127-032752/report_s22*.json
+  斜推 base idx1/HS2912 ; (-24000,-24000)->idx1/HS2912 (-24000,24000)->idx1/HS2912 (24000,-24000)->idx1/HS2912 (24000,24000)->idx1/HS2912
+SCR-023 PASS | 阈值: 斜推四组合逐段记录（无同时双轴大幅位移的迹象） | 实测: base idx1/HS2912 (-24000,-24000)->idx1/HS2912 (-24000,24000)->idx1/HS2912 (24000,-24000)->idx1/HS2912 (24000,24000)->idx1/HS2912 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-024 PASS | 阈值: 死区内不产生滚动事件 | 实测: events=0 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-025 PASS | 阈值: 摇杆松手 1s 内无残余滑动 | 实测: events 12->12 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-026 PASS | 阈值: 20 轮快速交替后引擎仍存活 | 实测: engine=26853 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-027 BLOCKED | 阈值: 灵敏度 X/Y 隔离需 UI 设置两轴数值并对比，prefs 键未文档化 | 实测: 不可自动化：灵敏度 X/Y 隔离需 UI 设置两轴数值并对比，prefs 键未文档化 | 证据: n/a
+SCR-028 BLOCKED | 阈值: 反向滚动开关需 UI 开启后复测（后续 CFG 组） | 实测: 不可自动化：反向滚动开关需 UI 开启后复测（后续 CFG 组） | 证据: n/a
+SCR-029 PASS | 阈值: 右摇杆与 RB 同时操作各自动作独立 | 实测: drag_up=1 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-030 PASS | 阈值: d-pad 焦点 + A 注入 DPAD_CENTER | 实测: enter=1 mouse_click=0 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-031 PASS | 阈值: X+LB dx>0、X+RB dx<0 | 实测: dxLB=+1260 dxRB=-1260 | 证据: /data/local/tmp/v169_20261127-032752.log
+SCR-032 BLOCKED | 阈值: 死区三档需 UI 设置并对比抖动 | 实测: 不可自动化：死区三档需 UI 设置并对比抖动 | 证据: n/a
+
+===== SUMMARY =====
+PASS=23 FAIL=0 BLOCKED=9 NOTRUN=0
+BLOCKED: SCR-009 SCR-012 SCR-013 SCR-017 SCR-018 SCR-019 SCR-027 SCR-028 SCR-032
+LOG=/data/local/tmp/v169_20261127-032752.log EVID=/data/local/tmp/v169_evidence/20261127-032752
+RESULT: /data/local/tmp/v169_20261127-032752.log

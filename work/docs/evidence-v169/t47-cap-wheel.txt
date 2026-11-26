@@ -1,0 +1,19 @@
+CAP lines:
+  CAP mouse 1
+  CAP kbd 1
+  CAP wheel 1
+  CAP swipe 1
+  CAP notif 1
+  CAP power 1
+  CAP force 1
+  CAP screen 1
+  CAP wake 1
+  CAP cursor 1
+  CAP gamepad 1
+  CAP devices 1
+  CAP gesture 1
+CAP all1=0/13 (0 = 全部为 1)
+ERR=0
+wheel: WHEEL 9 h=1
+restored helper=9467 engine=9471
+DONE

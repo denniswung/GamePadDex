@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.dennis.padtest.core.CheckRegistry
+import com.dennis.padtest.core.PadMetrics
 import com.dennis.padtest.core.ProbeBus
 import com.dennis.padtest.core.ProbeEvent
 import com.dennis.padtest.core.Src
@@ -40,12 +41,22 @@ abstract class ProbeActivity : Activity() {
     private var downX = 0f
     private var downY = 0f
 
+    // v1.2：ACTION_MOVE 连续性埋点（每次 DOWN→UP 手势）
+    private var moveFrames = 0
+    private var moveMaxGap = 0L
+    private var moveLastAt = 0L
+    private var moveLastX = 0f
+    private var moveLastY = 0f
+    private var movePath = 0f
+    private var gestureDownAt = 0L
+
     protected val pageName: String get() = title?.toString() ?: javaClass.simpleName
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CheckRegistry.define("UI.OPEN.$pageName", pageName, "页面可打开")
         CheckRegistry.pass("UI.OPEN.$pageName")
+        CheckRegistry.define("TOUCH.MOVE", "触摸", "ACTION_MOVE 连续帧（帧数/最大间隔）")
         val content = buildContent()
         val root = FrameLayout(this)
         root.addView(
@@ -80,6 +91,11 @@ abstract class ProbeActivity : Activity() {
 
     /** 收到任意事件（已在总线上登记过） */
     protected open fun onProbeEvent(e: ProbeEvent) {}
+
+    // v1.2：让子类在 Activity 级观察触摸/滚轮落点（子 View 可能被外层 ScrollView 拦截）
+    protected open fun onTouchDownAt(x: Float, y: Float) {}
+    protected open fun onTouchEndAt(x: Float, y: Float, frames: Int, path: Float) {}
+    protected open fun onWheelAt(x: Float, y: Float) {}
 
     // ------------------------------------------------------------ 事件捕获
 
@@ -132,6 +148,7 @@ abstract class ProbeActivity : Activity() {
                 MotionEvent.ACTION_SCROLL -> {
                     val v = ev.getAxisValue(MotionEvent.AXIS_VSCROLL)
                     val h = ev.getAxisValue(MotionEvent.AXIS_HSCROLL)
+                    onWheelAt(ev.x, ev.y)
                     emit(
                         ProbeEvent(
                             src = Src.WHEEL,
@@ -157,6 +174,22 @@ abstract class ProbeActivity : Activity() {
             MotionEvent.ACTION_DOWN -> {
                 downX = ev.x
                 downY = ev.y
+                // v1.2: 手势开始，重置 MOVE 统计
+                moveFrames = 0
+                moveMaxGap = 0L
+                movePath = 0f
+                moveLastAt = 0L
+                moveLastX = ev.x
+                moveLastY = ev.y
+                gestureDownAt = SystemClock.elapsedRealtime()
+                PadMetrics.touchFrames = 0
+                PadMetrics.touchMaxGapMs = 0
+                PadMetrics.touchPathPx = 0
+                PadMetrics.touchDurMs = 0
+                PadMetrics.touchDownX = ev.x.toInt()
+                PadMetrics.touchDownY = ev.y.toInt()
+                PadMetrics.touchSource = if (fromMouse) "mouse" else "touch"
+                onTouchDownAt(ev.x, ev.y)
                 emit(
                     ProbeEvent(
                         src = if (fromMouse) Src.MOUSE else Src.TOUCH,
@@ -165,11 +198,68 @@ abstract class ProbeActivity : Activity() {
                     ),
                 )
             }
+            MotionEvent.ACTION_MOVE -> {
+                // v1.2: 逐帧记录 MOVE（只累计，不逐帧刷总线，避免高频日志淹没）
+                val now = SystemClock.elapsedRealtime()
+                moveFrames++
+                if (moveLastAt > 0L) {
+                    val gap = now - moveLastAt
+                    if (gap > moveMaxGap) moveMaxGap = gap
+                }
+                movePath += kotlin.math.hypot((ev.x - moveLastX).toDouble(), (ev.y - moveLastY).toDouble()).toFloat()
+                moveLastAt = now
+                moveLastX = ev.x
+                moveLastY = ev.y
+                PadMetrics.touchFrames = moveFrames
+                PadMetrics.touchMaxGapMs = moveMaxGap
+                PadMetrics.touchPathPx = movePath.toInt()
+                PadMetrics.touchDurMs = now - gestureDownAt
+                if (moveFrames % 40 == 0) {
+                    emit(
+                        ProbeEvent(
+                            src = if (fromMouse) Src.MOUSE else Src.TOUCH,
+                            kind = "move-heartbeat",
+                            detail = "frames=$moveFrames maxGap=${moveMaxGap}ms path=${movePath.toInt()}px",
+                            extra = mapOf("frames" to moveFrames.toString(), "maxGap" to moveMaxGap.toString()),
+                        ),
+                    )
+                }
+            }
             MotionEvent.ACTION_UP -> {
                 val dx = ev.x - downX
                 val dy = ev.y - downY
                 val dist = kotlin.math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
                 val moved = dist > 40f
+                val dur = SystemClock.elapsedRealtime() - gestureDownAt
+                // v1.2: 手势结束写摘要 + 判定（帧数 ≥2 且最大间隔 ≤40ms 才算连续）
+                PadMetrics.touchFrames = moveFrames
+                PadMetrics.touchMaxGapMs = moveMaxGap
+                PadMetrics.touchPathPx = movePath.toInt()
+                PadMetrics.touchDurMs = dur
+                PadMetrics.touchUpX = ev.x.toInt()
+                PadMetrics.touchUpY = ev.y.toInt()
+                onTouchEndAt(ev.x, ev.y, moveFrames, movePath)
+                emit(
+                    ProbeEvent(
+                        src = if (fromMouse) Src.MOUSE else Src.TOUCH,
+                        kind = "touch-move-summary",
+                        detail = "frames=$moveFrames maxGap=${moveMaxGap}ms path=${movePath.toInt()}px dur=${dur}ms",
+                        extra = mapOf(
+                            "frames" to moveFrames.toString(),
+                            "maxGap" to moveMaxGap.toString(),
+                            "path" to movePath.toInt().toString(),
+                            "dur" to dur.toString(),
+                        ),
+                    ),
+                )
+                when {
+                    moveFrames >= 2 && moveMaxGap in 1..40 ->
+                        CheckRegistry.pass("TOUCH.MOVE", "frames=$moveFrames maxGap=${moveMaxGap}ms")
+                    moveFrames >= 2 ->
+                        CheckRegistry.fail("TOUCH.MOVE", "frames=$moveFrames maxGap=${moveMaxGap}ms >40ms")
+                    else ->
+                        CheckRegistry.unknown("TOUCH.MOVE", "frames=$moveFrames（单击/无 MOVE）")
+                }
                 emit(
                     ProbeEvent(
                         src = if (fromMouse) Src.MOUSE else Src.TOUCH,

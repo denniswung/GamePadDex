@@ -64,6 +64,7 @@
 #include <time.h>
 #include <math.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/stat.h>
@@ -102,6 +103,22 @@ static int g_disp_w = 0, g_disp_h = 0;
 static char g_top_pkg[192];
 /* 虚拟触摸屏：给「点击=触摸」和「双指缩放」用（真实触摸事件，带多点协议 B） */
 static int g_touch_panel = -1;
+/* 拖拽共享状态：控制通道（root）与 App 通道共用；d/m/e 只更新这里，帧由主循环发 */
+struct gpm_drag_sh {
+    volatile int active;      /* 1 = 已按下 */
+    volatile int disp;
+    volatile int ox, oy;      /* 按下点 */
+    volatile int dx, dy;      /* 待处理位移（m 累加） */
+    volatile int ms;
+    volatile int release;     /* e 请求 */
+    volatile long long stamp;
+};
+static struct gpm_drag_sh *g_dsh = NULL;
+static long long now_ms(void);
+static int g_ptr_fallback[2] = {-1, -1};
+static int *g_ptr_shared = g_ptr_fallback;   /* [0]=x [1]=y；main 里换成 mmap 共享页，P 子进程落点父进程可见 */
+#define g_ptr_x (g_ptr_shared[0])
+#define g_ptr_y (g_ptr_shared[1])
 static int g_touch_w = 1600, g_touch_h = 2560;
 static int g_touch_slot0 = -1, g_touch_slot1 = -1;
 static int g_pinch_dir = 0;          /* +1 放大 / -1 缩小 / 0 停止 */
@@ -113,6 +130,7 @@ static int g_dpad_native = 0;
 static volatile sig_atomic_t g_quit = 0;
 static int g_grab_mode = 0;
 static int g_listen = -1;
+static int g_ctl_listen = -1;   /* 仅 root 的诊断控制通道 */
 
 /* 说明见代码与文档 */
 static int g_logfd = -2;
@@ -144,6 +162,8 @@ static void logonly(const char *fmt, ...) {
     }
 }
 
+static int g_out_fd = STDOUT_FILENO;   /* out() 输出去向（控制通道临时切到它的 fd） */
+
 void out(const char *fmt, ...) {
     char buf[512];
     va_list ap;
@@ -154,9 +174,13 @@ void out(const char *fmt, ...) {
     if (n > (int)sizeof(buf) - 2) n = sizeof(buf) - 2;
     buf[n++] = '\n';
     // write() directly, ignore partial writes for these tiny lines
-    ssize_t r = write(STDOUT_FILENO, buf, n);
+    int wfd = g_out_fd;
+    ssize_t r = write(wfd, buf, n);
 /* 说明见代码与文档 */
-    if (r < 0 && (errno == EPIPE || errno == ECONNRESET)) g_quit = 1;
+    if (r < 0 && (errno == EPIPE || errno == ECONNRESET)) {
+        /* 只有 App 通道断开才退出；控制通道断开不影响守护进程 */
+        if (wfd == STDOUT_FILENO) g_quit = 1;
+    }
     int fd = log_fd();
     if (fd >= 0) {
         ssize_t w = write(fd, buf, n);
@@ -1547,6 +1571,23 @@ static void move_display(double dx, double dy, int rot) {
 /* move the pointer to the centre of the display: O <maxX> <maxY> [park] [rot] */
 /* 居中：先用多个「有界小步」把指针推到左上角（一步 -30000 会把指针甩出屏幕），再按增益一步走到屏幕中心 */
 /* 用法：O <w> <h> <park> <rot> [gain] */
+/* 读一次真实光标逻辑坐标（cursor_logical 内部跑 dumpsys input，约 25ms） */
+static int pointer_read(int *x, int *y) {
+    int d = -1, sp = 0, fx = 0, fw = 0;
+    double rx = -1, ry = -1;
+    int lx = -1, ly = -1;
+    if (!cursor_logical(&lx, &ly, &d, &sp, &rx, &ry, &fx, &fw)) return 0;
+    if (lx < 0 || ly < 0) return 0;
+    *x = lx;
+    *y = ly;
+    return 1;
+}
+
+/* 绝对定位：闭环（v1.69）。旧实现开环用固定 effective_gain()=3.25，本机
+ * pointer_speed=-1 实测 ~2.14，落点偏小 34%（P 400,1200 -> 264,796）。
+ * 现在：c 读真实光标 -> 朝屏幕内部 REL 80px 实测增益 -> 最多 4 次修正到 <=8px，
+ * 每步用实际位移更新增益（边缘被夹时也能自适应）；落点写回 mmap 共享锚点，
+ * fork 出的 P 子进程结果对父进程 SWIPE/drag 起手可见。 */
 static void pointer_goto(int tx, int ty, int maxX, int maxY) {
     if (maxX <= 0) maxX = 2560;
     if (maxY <= 0) maxY = 1600;
@@ -1562,15 +1603,73 @@ static void pointer_goto(int tx, int ty, int maxX, int maxY) {
         usleep(120 * 1000);
         out("POINTER on (goto)");
     }
-    double totalX = -(double)maxX * 1.2 / gain;
-    double totalY = -(double)maxY * 1.2 / gain;
-    const int STEPS = 40;
-    for (int i = 0; i < STEPS; i++) {
-        cmd_mouse_move(totalX / STEPS, totalY / STEPS);
-        usleep(6 * 1000);
+    int cx = -1, cy = -1;
+    int have = pointer_read(&cx, &cy);
+    if (!have) {
+        /* 光标不可见（刚重建/隐藏）：有界回到左上角，再读一次 */
+        double totalX = -(double)maxX * 1.2 / gain;
+        double totalY = -(double)maxY * 1.2 / gain;
+        const int STEPS = 40;
+        for (int i = 0; i < STEPS; i++) {
+            cmd_mouse_move(totalX / STEPS, totalY / STEPS);
+            usleep(4 * 1000);
+        }
+        usleep(40 * 1000);
+        have = pointer_read(&cx, &cy);
     }
-    usleep(40 * 1000);
-    cmd_mouse_move((double)tx / gain, (double)ty / gain);
+    if (!have) {
+        cmd_mouse_move((double)tx / gain, (double)ty / gain);
+        g_ptr_x = tx;
+        g_ptr_y = ty;
+        out("POSPTR %d,%d openloop gain=%.2f iters=0", tx, ty, gain);
+        return;
+    }
+    /* 朝屏幕内部方向走 80px 测实际增益（贴边时向外走会被夹住，测出假增益） */
+    double gx = gain, gy = gain;
+    int bx = cx, by = cy, nx = cx, ny = cy;
+    double mx0 = (cx < maxX / 2) ? 80.0 : -80.0;
+    double my0 = (cy < maxY / 2) ? 80.0 : -80.0;
+    cmd_mouse_move(mx0, my0);
+    usleep(35 * 1000);
+    if (pointer_read(&nx, &ny)) {
+        double mx = (double)(nx - bx);
+        double my = (double)(ny - by);
+        if (fabs(mx) >= 8.0) gx = mx / mx0;
+        if (fabs(my) >= 8.0) gy = my / my0;
+    }
+    if (!(gx > 0.3 && gx < 12.0)) gx = gain;
+    if (!(gy > 0.3 && gy < 12.0)) gy = gain;
+    int iters = 0;
+    int ex = 0, ey = 0;
+    for (int it = 0; it < 4; it++) {
+        ex = tx - nx;
+        ey = ty - ny;
+        if (abs(ex) <= 8 && abs(ey) <= 8) break;
+        double rx = (double)ex / gx;
+        double ry = (double)ey / gy;
+        cmd_mouse_move(rx, ry);
+        usleep(35 * 1000);
+        int nx2 = nx, ny2 = ny;
+        if (!pointer_read(&nx2, &ny2)) break;
+        /* 用本步实际位移更新增益（贴边被夹时也能自适应） */
+        if (fabs(rx) >= 8.0) {
+            double g2 = (double)(nx2 - nx) / rx;
+            if (g2 > 0.3 && g2 < 12.0) gx = g2;
+        }
+        if (fabs(ry) >= 8.0) {
+            double g2 = (double)(ny2 - ny) / ry;
+            if (g2 > 0.3 && g2 < 12.0) gy = g2;
+        }
+        nx = nx2;
+        ny = ny2;
+        iters++;
+    }
+    ex = tx - nx;
+    ey = ty - ny;
+    g_ptr_x = nx;
+    g_ptr_y = ny;
+    out("POSPTR %d,%d closed gain=%.2f,%.2f final=%d,%d err=%d,%d iters=%d anchor=%d,%d",
+        tx, ty, gx, gy, nx, ny, ex, ey, iters, g_ptr_x, g_ptr_y);
 }
 
 static void cmd_center(int maxX, int maxY, int park, int rot) {
@@ -1744,7 +1843,7 @@ static int g_bounds_last_display = -1;
 static int g_bounds_last_w = 0, g_bounds_last_h = 0;
 
 /* 滑动前用一次 dumpsys input 校验边界缓存（失败退全屏） */
-static int g_ptr_x = -1, g_ptr_y = -1;
+
 
 static void bounds_cache_path(int display, char *out, size_t n) {
     snprintf(out, n, "/data/adb/gpm/taskbounds-%d.txt", display);
@@ -3061,22 +3160,48 @@ static void handle_line(char *line) {
         case 'd': {
             /* d <display> <x> <y> : 连续拖拽按下（MT 单指，复用触摸面板） */
             int dd = 0, dx = 0, dy = 0;
-            if (sscanf(line, "%d %d %d", &dd, &dx, &dy) == 3) drag_down(dd, dx, dy);
-            else out("ERR d args");
+            if (sscanf(line, "%d %d %d", &dd, &dx, &dy) == 3) {
+                if (g_dsh) {
+                    g_dsh->disp = dd;
+                    g_dsh->ox = dx;
+                    g_dsh->oy = dy;
+                    g_dsh->dx = g_dsh->dy = 0;
+                    g_dsh->ms = 0;
+                    g_dsh->release = 0;
+                    g_dsh->stamp = now_ms();
+                    g_dsh->active = 1;
+                } else {
+                    drag_down(dd, dx, dy);
+                }
+            } else out("ERR d args");
             break;
         }
         case 'm': {
             /* m <display> <dx> <dy> <ms> : 登记本段位移，主循环 8~16ms 一步发 EV_ABS */
             int dd = 0, dx = 0, dy = 0, ms = 0;
-            if (sscanf(line, "%d %d %d %d", &dd, &dx, &dy, &ms) == 4) drag_move(dd, dx, dy, ms);
-            else out("ERR m args");
+            if (sscanf(line, "%d %d %d %d", &dd, &dx, &dy, &ms) == 4) {
+                if (g_dsh) {
+                    g_dsh->dx += dx;
+                    g_dsh->dy += dy;
+                    g_dsh->ms = ms;
+                    g_dsh->stamp = now_ms();
+                    g_dsh->release = 0;
+                } else {
+                    drag_move(dd, dx, dy, ms);
+                }
+            } else out("ERR m args");
             break;
         }
         case 'e': {
             /* e [display] : 抬起（任何时刻都能结束；掉线 1.5s 也会自动抬起） */
             int dd = 0;
             sscanf(line, "%d", &dd);
-            drag_release("cmd-e");
+            if (g_dsh && g_dsh->active) {
+                g_dsh->release = 1;
+                g_dsh->stamp = now_ms();
+            } else {
+                drag_release("cmd-e");
+            }
             break;
         }
         case 'P': {
@@ -3133,6 +3258,151 @@ static void setup_socket(const char *path) {
     g_listen = sfd;
     fprintf(stderr, "listening on %s\n", path);
 }
+/* ---------------------------------------------------------- root 控制通道
+ * 额外监听 /data/adb/gpm/gpmctl.sock：仅 root（socket 0600 + SO_PEERCRED uid==0），
+ * 与 App 的 gpm.sock 并存；命令复用同一个 handle_line，语义完全一致。
+ * 控制连接在父进程内处理（不 fork），鼠标/拖拽/手势状态与 App 通道共享；
+ * 输出通过 g_out_fd 临时切到控制连接。flock 单实例仍只由父进程持有。
+ * /data/adb/gpm/gpmctl.disabled 存在时不创建（禁用方式）。
+ */
+#define CTL_SOCK_PATH "/data/adb/gpm/gpmctl.sock"
+#define CTL_DISABLED_PATH "/data/adb/gpm/gpmctl.disabled"
+
+static int g_ctl_client = -1;
+static char g_ctl_linebuf[256];
+static size_t g_ctl_linelen = 0;
+
+static int peer_is_root(int fd) {
+    struct ucred cr;
+    socklen_t len = sizeof(cr);
+    memset(&cr, 0, sizeof(cr));
+    if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cr, &len) != 0) return 0;
+    return cr.uid == 0;
+}
+
+static void setup_control_socket(void) {
+    if (access(CTL_DISABLED_PATH, F_OK) == 0) {
+        out("CTL disabled (%s)", CTL_DISABLED_PATH);
+        return;
+    }
+    int sfd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+    if (sfd < 0) return;
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", CTL_SOCK_PATH);
+    unlink(CTL_SOCK_PATH);
+    if (bind(sfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        close(sfd);
+        return;
+    }
+    chmod(CTL_SOCK_PATH, 0600);
+    chown(CTL_SOCK_PATH, 0, 0);
+    chmod("/data/adb/gpm", 0700);
+    if (listen(sfd, 4) < 0) {
+        close(sfd);
+        unlink(CTL_SOCK_PATH);
+        return;
+    }
+    g_ctl_listen = sfd;
+    out("CTL listening %s", CTL_SOCK_PATH);
+}
+
+static void control_client_close(void) {
+    if (g_ctl_client >= 0) close(g_ctl_client);
+    g_ctl_client = -1;
+    g_out_fd = STDOUT_FILENO;
+    g_ctl_linelen = 0;
+}
+
+static void accept_control_client(void) {
+    if (g_ctl_listen < 0) return;
+    if (g_ctl_client >= 0) {
+        int extra = accept(g_ctl_listen, NULL, NULL);
+        if (extra >= 0) close(extra);
+        return;
+    }
+    int c = accept(g_ctl_listen, NULL, NULL);
+    if (c < 0) return;
+    if (!peer_is_root(c)) {
+        close(c);
+        out("CTL reject uid!=0");
+        return;
+    }
+    fcntl(c, F_SETFD, FD_CLOEXEC);
+    g_ctl_client = c;
+    g_ctl_linelen = 0;
+    out("CTL connected uid=0");
+}
+
+static void control_client_readable(void) {
+    if (g_ctl_client < 0) return;
+    char tmp[512];
+    ssize_t rd = read(g_ctl_client, tmp, sizeof(tmp));
+    if (rd <= 0) {
+        if (rd == 0 && g_ctl_linelen > 0) {
+            g_ctl_linebuf[g_ctl_linelen] = '\0';
+            g_out_fd = g_ctl_client;
+            handle_line(g_ctl_linebuf);
+            g_out_fd = STDOUT_FILENO;
+            g_ctl_linelen = 0;
+        }
+        control_client_close();
+        return;
+    }
+    for (ssize_t i = 0; i < rd; i++) {
+        char c = tmp[i];
+        if (c == '\n' || c == '\r') {
+            g_ctl_linebuf[g_ctl_linelen] = '\0';
+            if (g_ctl_linelen > 0) {
+                g_out_fd = g_ctl_client;
+                handle_line(g_ctl_linebuf);
+                g_out_fd = STDOUT_FILENO;
+            }
+            g_ctl_linelen = 0;
+        } else if (g_ctl_linelen < sizeof(g_ctl_linebuf) - 1) {
+            g_ctl_linebuf[g_ctl_linelen++] = c;
+        }
+    }
+    /* 一次性客户端（sockcmd）发完就等 EOF：处理完本批命令后关闭连接 */
+    control_client_close();
+}
+
+/* 共享拖拽状态 -> 实际 drag 状态机；帧仍由主循环的 drag_tick() 发 */
+static void shared_drag_poll(void) {
+    if (!g_dsh || !g_dsh->active) return;
+    long long now = now_ms();
+    if (g_dsh->release) {
+        if (!g_drag.active) drag_down(g_dsh->disp, g_dsh->ox, g_dsh->oy);
+        /* 把剩余帧发完再抬起 */
+        for (int i = 0; i < 400 && g_drag.active && g_drag.steps_left > 0; i++) {
+            drag_tick();
+            if (g_drag.steps_left > 0) usleep((useconds_t)(g_drag.step_ms * 1000));
+        }
+        drag_release("cmd-e");
+        g_dsh->release = 0;
+        g_dsh->active = 0;
+        g_dsh->dx = g_dsh->dy = 0;
+        g_dsh->ms = 0;
+        return;
+    }
+    if (g_dsh->dx != 0 || g_dsh->dy != 0) {
+        /* 分块推进：每轮最多 20px，保证 m 的位移能被逐帧发完（≥20 帧且总位移足额） */
+        int maxc = 20;
+        int stepx = g_dsh->dx > maxc ? maxc : (g_dsh->dx < -maxc ? -maxc : g_dsh->dx);
+        int stepy = g_dsh->dy > maxc ? maxc : (g_dsh->dy < -maxc ? -maxc : g_dsh->dy);
+        if (stepx == 0 && stepy == 0) { stepx = g_dsh->dx; stepy = g_dsh->dy; }
+        g_dsh->dx -= stepx;
+        g_dsh->dy -= stepy;
+        if (!g_drag.active) drag_down(g_dsh->disp, g_dsh->ox, g_dsh->oy);
+        drag_move(g_dsh->disp, stepx, stepy, 16);
+        g_dsh->stamp = now;
+    }
+    if (!g_drag.active && now - g_dsh->stamp > 1500) {
+        g_dsh->active = 0;   /* 1.5s 无 m：auto-up 由 drag_tick 完成 */
+    }
+}
+
 int main(int argc, char **argv) {
     signal(SIGTERM, on_signal);
     signal(SIGINT, on_signal);
@@ -3146,6 +3416,7 @@ int main(int argc, char **argv) {
             return 0;
         }
         setup_socket(argv[2]);
+        setup_control_socket();
     }
 
     g_mouse = make_mouse();
@@ -3154,6 +3425,15 @@ int main(int argc, char **argv) {
 /* 说明见代码与文档 */
     g_touch_panel = make_touchscreen();
     if (g_mouse >= 0 || g_kbd >= 0 || g_touch_panel >= 0) usleep(250 * 1000);
+    size_t sh_size = 2 * sizeof(int) + sizeof(struct gpm_drag_sh);
+    void *ptr_sh = mmap(NULL, sh_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (ptr_sh != MAP_FAILED) {
+        g_ptr_shared = (int *)ptr_sh;
+        g_ptr_shared[0] = -1;
+        g_ptr_shared[1] = -1;
+        g_dsh = (struct gpm_drag_sh *)((char *)ptr_sh + 2 * sizeof(int));
+        memset((void *)g_dsh, 0, sizeof(struct gpm_drag_sh));
+    }
     g_ino_fd = inotify_init1(IN_NONBLOCK);
     if (g_ino_fd >= 0) {
         inotify_add_watch(g_ino_fd, "/dev/input", IN_CREATE | IN_ATTRIB | IN_MOVED_TO);
@@ -3163,6 +3443,27 @@ int main(int argc, char **argv) {
     /* one session per connected client; the daemon outlives app restarts */
     while (!g_quit) {
         if (g_listen >= 0) {
+            shared_drag_poll();
+            long long o_next_drag = drag_tick();
+            int o_timeout = (g_dsh && g_dsh->active) ? 8 : 200;
+            if (o_next_drag >= 0 && o_next_drag < o_timeout) o_timeout = o_next_drag <= 0 ? 1 : (int)o_next_drag;
+            struct pollfd lp[2];
+            int ln = 0;
+            lp[ln].fd = g_listen; lp[ln].events = POLLIN; lp[ln].revents = 0; ln++;
+            if (g_ctl_listen >= 0) {
+                lp[ln].fd = g_ctl_listen; lp[ln].events = POLLIN; lp[ln].revents = 0; ln++;
+            }
+            int lrc = poll(lp, ln, o_timeout);
+            if (lrc < 0) {
+                if (errno == EINTR) { if (g_quit) break; continue; }
+                break;
+            }
+            if (lrc == 0) continue;
+            if (ln > 1 && (lp[1].revents & POLLIN)) {
+                accept_control_client();
+                if (!(lp[0].revents & POLLIN)) continue;
+            }
+            if (!(lp[0].revents & POLLIN)) continue;
             int c = accept(g_listen, NULL, NULL);
             if (c < 0) {
                 if (errno == EINTR) {
@@ -3184,7 +3485,7 @@ int main(int argc, char **argv) {
         open_devices(1);
         out("READY");
     size_t linelen = 0;
-    struct pollfd pfd[1 + MAX_DEVS + 2];
+    struct pollfd pfd[1 + MAX_DEVS + 3];
     unsigned char rdbuf[MAX_DEVS][128];
 
     time_t last_scan = time(NULL);
@@ -3203,7 +3504,9 @@ int main(int argc, char **argv) {
         gesture_poll();
         bounds_refresh_poll();
         wake_refresh_async();
+        shared_drag_poll();
         long long next_drag = drag_tick();
+        if (g_dsh && g_dsh->active) next_drag = next_drag < 0 ? 8 : (next_drag > 8 ? 8 : next_drag);
         int n = 0;
         pfd[n].fd = STDIN_FILENO; pfd[n].events = POLLIN; n++;
         for (int i = 0; i < g_ndev; i++) {
@@ -3216,6 +3519,14 @@ int main(int argc, char **argv) {
             ino_idx = n;
             pfd[n].fd = g_ino_fd;
             pfd[n].events = POLLIN;
+            n++;
+        }
+        int ctl_idx = -1;
+        if (g_ctl_listen >= 0) {
+            ctl_idx = n;
+            pfd[n].fd = g_ctl_listen;
+            pfd[n].events = POLLIN;
+            pfd[n].revents = 0;
             n++;
         }
         int timeout = g_pinch_dir != 0 ? 8 : gesture_poll_timeout();
@@ -3233,6 +3544,15 @@ int main(int argc, char **argv) {
         }
         if (rc == 0) { pinch_tick(); continue; }
 
+        if (ctl_idx >= 0 && (pfd[ctl_idx].revents & POLLIN)) {
+            accept_control_client();
+        }
+        if (g_ctl_client >= 0) {
+            struct pollfd cp;
+            cp.fd = g_ctl_client; cp.events = POLLIN; cp.revents = 0;
+            if (poll(&cp, 1, 0) > 0 && (cp.revents & (POLLIN | POLLHUP))) control_client_readable();
+        }
+
         if (ino_idx >= 0 && (pfd[ino_idx].revents & POLLIN)) {
             char ib[512];
             while (read(g_ino_fd, ib, sizeof(ib)) > 0) { }
@@ -3242,7 +3562,14 @@ int main(int argc, char **argv) {
         if (pfd[0].revents & (POLLIN | POLLHUP)) {
             char tmp[512];
             ssize_t rd = read(STDIN_FILENO, tmp, sizeof(tmp));
-            if (rd <= 0) break;
+            if (rd <= 0) {
+                if (rd == 0 && linelen > 0) {
+                    linebuf[linelen] = '\0';
+                    handle_line(linebuf);
+                    linelen = 0;
+                }
+                break;
+            }
             for (ssize_t i = 0; i < rd; i++) {
                 char c = tmp[i];
                 if (c == '\n' || c == '\r') {
@@ -3318,7 +3645,9 @@ int main(int argc, char **argv) {
         }
     }
 
+    control_client_close();
     if (g_listen >= 0) close(g_listen);
+    if (g_ctl_listen >= 0) close(g_ctl_listen);   /* 不 unlink：避免旧实例退出时把新实例的 socket 删掉 */
     if (g_mouse >= 0) { ioctl(g_mouse, UI_DEV_DESTROY); close(g_mouse); }
     if (g_kbd >= 0) { ioctl(g_kbd, UI_DEV_DESTROY); close(g_kbd); }
     return 0;

@@ -1,0 +1,201 @@
+GamePadDex v1.69 suite | run=20261127-012053 mode=all | device=SM-F9360 | date=Fri Nov 27 01:20:53 CST 2026
+
+===== ENV 环境与链路 =====
+Failed to write while dumping service package: Broken pipe
+  版本=1.68/70 APK=da1e52d3c73ff8c8156ce89568385dd9f03f0b90fad7c68b5e0c7167531fdb44
+  helper=b806f39ba51278a73aad121be4019820b7961dcb0935971b64d3a02373cd2a4d module=b806f39ba51278a73aad121be4019820b7961dcb0935971b64d3a02373cd2a4d
+ENV-001 PASS | 阈值: versionName=1.68 / versionCode=70 | 实测: 1.68/70 | 证据: /data/local/tmp/v169_20261127-012053.log
+ENV-002 PASS | 阈值: gpm helper == module helper == 发布哈希 | 实测: b806f39ba51278a73aad121be4019820b7961dcb0935971b64d3a02373cd2a4d | 证据: /data/local/tmp/v169_20261127-012053.log
+  helper pids=[10535] n=1 sock=1 heartbeat=4 module_prop=1
+ENV-003 PASS | 阈值: helper 单实例 + socket + 引擎心跳 | 实测: n=1 sock=1 hb=4 | 证据: /data/local/tmp/v169_20261127-012053.log
+ENV-004 BLOCKED | 阈值: 需要真实 USB/蓝牙 XInput 手柄拔插与 dumpsys input 对比，本轮无真手柄接入 | 实测: 不可自动化：需要真实 USB/蓝牙 XInput 手柄拔插与 dumpsys input 对比，本轮无真手柄接入 | 证据: n/a
+  SHARE 前后两次 A 的 MOUSE 事件: 1 -> 0
+ENV-005 PASS | 阈值: SHARE 可在两种模式间切换（一种模式产生 MOUSE 事件、另一种不产生） | 实测: mouse=1->0 state=1 | 证据: /data/local/tmp/v169_20261127-012053.log
+  padtest 页面打开: 5/5（文档写 7 页，实际构建 5 页；见 HARNESS §3）
+ENV-006 PASS | 阈值: padtest 测试页均可打开（实际 5 页） | 实测: 5/5 focus=com.dennis.padtest/com.dennis.padtest.ui.ReportActivity | 证据: /data/local/tmp/v169_20261127-012053.log
+
+===== SCR 滚动与滑动专项 =====
+  RB100 x3: 74/72/74
+SCR-001 PASS | 阈值: 每次 0<位移≤150px，三次独立 | 实测: 100ms=74/72/74 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-002 PASS | 阈值: 300ms 位移 100–450 且大于 100ms | 实测: 300ms=237 (100ms=74) | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-003 PASS | 阈值: 1.5s 位移 1200–2200；SWIPE=0；WHEEL=0 | 实测: total=1608 SWIPE=0 WHEEL=0 frames=62 dur=1019ms | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-004 PASS | 阈值: LB 1.5s 位移 1200–2200（与 RB 同机制） | 实测: total=1618 | 证据: /data/local/tmp/v169_20261127-012053.log
+  方向 dy: RB=-718 LB=714
+SCR-005 PASS | 阈值: RB 手指向上（dy<0）、LB 手指向下（dy>0），方向相反 | 实测: RB dy=-718 LB dy=714 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-006 PASS | 阈值: 松手 500ms 内无新拖拽/滑动事件（不滑行） | 实测: events 6->6 | 证据: /data/local/tmp/v169_20261127-012053.log
+  六段: 100:74 300:237 500:424 800:718 1100:1049 1500:1599
+SCR-007 PASS | 阈值: 六段位移单调递增 | 实测:  100:74 300:237 500:424 800:718 1100:1049 1500:1599 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-008 PASS | 阈值: 初段慢、中段升速、后段继续增长 | 实测: 400=332 900=812 1400=1479 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-009 BLOCKED | 阈值: release APK 无 DebugReceiver，prefs XML 改动在引擎运行时不生效（实测 1/2/4/7/10 档 1.5s 位移均 ≈1600px）；速度可调性需调试版或 UI SeekBar 复验 | 实测: 不可自动化：release APK 无 DebugReceiver，prefs XML 改动在引擎运行时不生效（实测 1/2/4/7/10 档 1.5s 位移均 ≈1600px）；速度可调性需调试版或 UI SeekBar 复验 | 证据: n/a
+SCR-010 PASS | 阈值: 起手 mult=1.0（speed=4 快照），按压内无倍率变化 | 实测: total=1619 mult=1.0 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-011 PASS | 阈值: RB、LB 连续按压各自独立（各有 drag end） | 实测: RB=1613 LB=1606 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-012 BLOCKED | 阈值: release APK 无调试注入通道（DebugReceiver 已移除），无法在按压过程中修改 prefs；改 prefs 必须重启引擎，按压必然中断 | 实测: 不可自动化：release APK 无调试注入通道（DebugReceiver 已移除），无法在按压过程中修改 prefs；改 prefs 必须重启引擎，按压必然中断 | 证据: n/a
+SCR-013 BLOCKED | 阈值: 同 SCR-012：无法按压中切换模式 | 实测: 不可自动化：同 SCR-012：无法按压中切换模式 | 证据: n/a
+SCR-014 PASS | 阈值: 滚轮模式 RB 1.5s：WHEEL≥6、SWIPE=0 | 实测: WHEEL=9 SWIPE=0 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-015 PASS | 阈值: 滚轮模式 LB 1.5s：WHEEL≥6、SWIPE=0 | 实测: WHEEL=9 SWIPE=0 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-016 PASS | 阈值: 指针隐藏后 RB 仍建立锚点并滚动 | 实测: WHEEL=9 anchor_log=1 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-017 BLOCKED | 阈值: 需要多窗口/空白区样本才能区分悬停归属，当前无稳定三类窗口 | 实测: 不可自动化：需要多窗口/空白区样本才能区分悬停归属，当前无稳定三类窗口 | 证据: n/a
+SCR-018 BLOCKED | 阈值: 按压中切 App 的前台时序不稳定，属人工/真手柄抽样项 | 实测: 不可自动化：按压中切 App 的前台时序不稳定，属人工/真手柄抽样项 | 证据: n/a
+SCR-019 BLOCKED | 阈值: 多窗口/DeX 外接屏环境缺失 | 实测: 不可自动化：多窗口/DeX 外接屏环境缺失 | 证据: n/a
+SCR-020 PASS | 阈值: 到边界 re-anchor 后继续，累计约 2200（±7%） | 实测: total=2216 re-anchor=2 | 证据: /data/local/tmp/v169_20261127-012053.log
+  stick: 上推 swipes=8 dy=560 ; 下推 swipes=5 dy=-480
+SCR-021 PASS | 阈值: 右摇杆上/下各 2s 均产生滑动且方向相反 | 实测: up=8/dy560 down=5/dy-480 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-022 FAIL | 阈值: 右摇杆横向能否驱动 5 页 HorizontalScrollView（待 t53 修复后复测：P(1282,1511)+stick 2s→scrollX≥400；P(1282,800)+stick→scrollX 不变；X+RB 0→512 为基准） | 实测: base scrollX=0；P(1282,1511) 后 X+RB→512、X+LB→0；stick 3±30000→0（PadProbe 有 TOUCH/swipe dx=1152）；pager=android.widget.HorizontalScrollView/com.dennis.padtest | 证据: work/docs/V169-HARNESS4.md#2
+  斜推 base idx1/HS2912 ; (-24000,-24000)->idx1/HS2912 (-24000,24000)->idx1/HS2912 (24000,-24000)->idx1/HS2912 (24000,24000)->idx1/HS2912
+SCR-023 PASS | 阈值: 斜推四组合逐段记录（无同时双轴大幅位移的迹象） | 实测: base idx1/HS2912 (-24000,-24000)->idx1/HS2912 (-24000,24000)->idx1/HS2912 (24000,-24000)->idx1/HS2912 (24000,24000)->idx1/HS2912 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-024 PASS | 阈值: 死区内不产生滚动事件 | 实测: events=0 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-025 PASS | 阈值: 摇杆松手 1s 内无残余滑动 | 实测: events 12->12 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-026 PASS | 阈值: 20 轮快速交替后引擎仍存活 | 实测: engine=24793 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-027 BLOCKED | 阈值: 灵敏度 X/Y 隔离需 UI 设置两轴数值并对比，prefs 键未文档化 | 实测: 不可自动化：灵敏度 X/Y 隔离需 UI 设置两轴数值并对比，prefs 键未文档化 | 证据: n/a
+SCR-028 BLOCKED | 阈值: 反向滚动开关需 UI 开启后复测（后续 CFG 组） | 实测: 不可自动化：反向滚动开关需 UI 开启后复测（后续 CFG 组） | 证据: n/a
+SCR-029 PASS | 阈值: 右摇杆与 RB 同时操作各自动作独立 | 实测: drag_up=1 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-030 PASS | 阈值: d-pad 焦点 + A 注入 DPAD_CENTER | 实测: enter=1 mouse_click=0 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-031 PASS | 阈值: X+LB dx>0、X+RB dx<0 | 实测: dxLB=+1260 dxRB=-1260 | 证据: /data/local/tmp/v169_20261127-012053.log
+SCR-032 BLOCKED | 阈值: 死区三档需 UI 设置并对比抖动 | 实测: 不可自动化：死区三档需 UI 设置并对比抖动 | 证据: n/a
+
+===== MIX 混合界面 =====
+MIX-001 BLOCKED | 阈值: 需要按坐标把指针精确放到 200 项 ListView 内再滚轮；当前 pointer+wheel 通道可用但列表项命中区域需逐像素标定，留待人工标定后启用 | 实测: 不可自动化：需要按坐标把指针精确放到 200 项 ListView 内再滚轮；当前 pointer+wheel 通道可用但列表项命中区域需逐像素标定，留待人工标定后启用 | 证据: n/a
+MIX-002 BLOCKED | 阈值: 同上：标题区/说明区坐标需人工标定 | 实测: 不可自动化：同上：标题区/说明区坐标需人工标定 | 证据: n/a
+MIX-003 BLOCKED | 阈值: 内层连续 5 次滚动的归属需坐标级指针，未标定 | 实测: 不可自动化：内层连续 5 次滚动的归属需坐标级指针，未标定 | 证据: n/a
+MIX-004 BLOCKED | 阈值: 内层到顶后父容器接管策略无明确产品定义，且需坐标级注入 | 实测: 不可自动化：内层到顶后父容器接管策略无明确产品定义，且需坐标级注入 | 证据: n/a
+MIX-005 BLOCKED | 阈值: 内层到底越界检测需坐标级注入 | 实测: 不可自动化：内层到底越界检测需坐标级注入 | 证据: n/a
+MIX-006 BLOCKED | 阈值: 边缘 1–2cm 起手的命中区域需坐标级触摸，vgpad 无 touch 通道 | 实测: 不可自动化：边缘 1–2cm 起手的命中区域需坐标级触摸，vgpad 无 touch 通道 | 证据: n/a
+MIX-007 BLOCKED | 阈值: 两层切换位置保留需坐标级注入 | 实测: 不可自动化：两层切换位置保留需坐标级注入 | 证据: n/a
+MIX-008 BLOCKED | 阈值: 外层到底边界的组合序列需坐标级注入 | 实测: 不可自动化：外层到底边界的组合序列需坐标级注入 | 证据: n/a
+  pager: P=[1280,1509|CURSOR 1282 1511 display=0 space=logical frame=0,2176 raw=301.6,1089.6 took=30us|helper=29024] scrollX 0->0 PY 1415->1415
+MIX-009 FAIL | 阈值: 横向分页 scrollX | 实测: P=[1280,1509|CURSOR 1282 1511 display=0 space=logical frame=0,2176 raw=301.6,1089.6 took=30us|helper=29024] scrollX=0->0 | 证据: /data/local/tmp/v169_20261127-012053.log
+MIX-010 PASS | 阈值: 垂直滚轮不改变横向 scrollX | 实测: P=[1280,1509|CURSOR 1282 1511 display=0 space=logical frame=0,2176 raw=301.6,1089.6 took=32us|helper=29550] scrollX=0 | 证据: /data/local/tmp/v169_20261127-012053.log
+MIX-011 BLOCKED | 阈值: 从第 1 页连续滑到第 5 页需长距离手势序列，当前用摇杆只能逐页，留待脚本化逐页断言 | 实测: 不可自动化：从第 1 页连续滑到第 5 页需长距离手势序列，当前用摇杆只能逐页，留待脚本化逐页断言 | 证据: n/a
+MIX-012 BLOCKED | 阈值: 边界页继续滑动 | 实测: 不可自动化：边界页继续滑动 | 证据: n/a
+MIX-013 BLOCKED | 阈值: 分页可视区上下边缘的水平手势 | 实测: 不可自动化：分页可视区上下边缘的水平手势 | 证据: n/a
+MIX-014 BLOCKED | 阈值: 横向滑动中加垂直抖动 | 实测: 不可自动化：横向滑动中加垂直抖动 | 证据: n/a
+MIX-015 BLOCKED | 阈值: AxisLockView 8px 阈值需坐标级触摸（vgpad 无 touch） | 实测: 不可自动化：AxisLockView 8px 阈值需坐标级触摸（vgpad 无 touch） | 证据: n/a
+MIX-016 BLOCKED | 阈值: 同上 | 实测: 不可自动化：同上 | 证据: n/a
+MIX-017 BLOCKED | 阈值: 45° 轴锁需坐标级触摸 | 实测: 不可自动化：45° 轴锁需坐标级触摸 | 证据: n/a
+MIX-018 BLOCKED | 阈值: 轴锁保持需坐标级触摸 | 实测: 不可自动化：轴锁保持需坐标级触摸 | 证据: n/a
+MIX-019 BLOCKED | 阈值: 点击不动需坐标级触摸 | 实测: 不可自动化：点击不动需坐标级触摸 | 证据: n/a
+MIX-020 BLOCKED | 阈值: ACTION_CANCEL 需系统弹窗/切后台时序 | 实测: 不可自动化：ACTION_CANCEL 需系统弹窗/切后台时序 | 证据: n/a
+MIX-021 BLOCKED | 阈值: AxisLockView 四向边界需坐标级触摸 | 实测: 不可自动化：AxisLockView 四向边界需坐标级触摸 | 证据: n/a
+MIX-022 BLOCKED | 阈值: AxisLockView 滚轮锁轴需把指针标定到该控件 | 实测: 不可自动化：AxisLockView 滚轮锁轴需把指针标定到该控件 | 证据: n/a
+MIX-023 BLOCKED | 阈值: 滚轮水平/垂直分量仲裁需该控件坐标 | 实测: 不可自动化：滚轮水平/垂直分量仲裁需该控件坐标 | 证据: n/a
+MIX-024 BLOCKED | 阈值: 滚轮/拖拽 20 次切换需控件坐标 | 实测: 不可自动化：滚轮/拖拽 20 次切换需控件坐标 | 证据: n/a
+MIX-025 BLOCKED | 阈值: 左右列表独立偏移需坐标级滚轮定位 | 实测: 不可自动化：左右列表独立偏移需坐标级滚轮定位 | 证据: n/a
+MIX-026 BLOCKED | 阈值: 固定区与滚动区边界 | 实测: 不可自动化：固定区与滚动区边界 | 证据: n/a
+MIX-027 BLOCKED | 阈值: 固定区回退 | 实测: 不可自动化：固定区回退 | 证据: n/a
+MIX-028 BLOCKED | 阈值: 左右列表同时滚动 | 实测: 不可自动化：左右列表同时滚动 | 证据: n/a
+MIX-029 BLOCKED | 阈值: 横向列表 offset 独立 | 实测: 不可自动化：横向列表 offset 独立 | 证据: n/a
+MIX-030 BLOCKED | 阈值: 浮层命中（日志/报告入口） | 实测: 不可自动化：浮层命中（日志/报告入口） | 证据: n/a
+MIX-031 BLOCKED | 阈值: 浮层边缘滚动 | 实测: 不可自动化：浮层边缘滚动 | 证据: n/a
+MIX-032 BLOCKED | 阈值: 底层内容误触 | 实测: 不可自动化：底层内容误触 | 证据: n/a
+MIX-033 BLOCKED | 阈值: 页面切换后滚动位置保留 | 实测: 不可自动化：页面切换后滚动位置保留 | 证据: n/a
+MIX-034 BLOCKED | 阈值: 报告页长页面滚动+按钮交互 | 实测: 不可自动化：报告页长页面滚动+按钮交互 | 证据: n/a
+
+===== LOG 日志页 =====
+  LogActivity texts=0 (前几个: 事件日志 时间 / 来源 / 类型 / 参数 全部 )
+LOG-001 FAIL | 阈值: 日志页可打开并展示事件行 | 实测: rows=0 | 证据: /data/local/tmp/v169_evidence/20261127-012053/ui_log1.lines
+  事件生成: PadProbe=4 UI行=0
+LOG-002 PASS | 阈值: 手柄事件可在 PadProbe 与日志页看到 | 实测: PadProbe=4 UI=0 | 证据: /data/local/tmp/v169_evidence/20261127-012053/ui_log2.lines
+  清空后 UI 行=0
+LOG-003 PASS | 阈值: 清空后日志列表为空（≤1 行占位） | 实测: rows=0 | 证据: /data/local/tmp/v169_evidence/20261127-012053/ui_log3.lines
+LOG-004 BLOCKED | 阈值: 筛选条件组合（来源/类型）需逐项点选并核对筛选结果，留待 UI 脚本二期 | 实测: 不可自动化：筛选条件组合（来源/类型）需逐项点选并核对筛选结果，留待 UI 脚本二期 | 证据: n/a
+LOG-005 BLOCKED | 阈值: 暂停/继续滚动跟随需长列表高频事件，当前未生成 >400 条 | 实测: 不可自动化：暂停/继续滚动跟随需长列表高频事件，当前未生成 >400 条 | 证据: n/a
+LOG-006 BLOCKED | 阈值: 日志自动跟随与手动滚动冲突需人工拖动判定 | 实测: 不可自动化：日志自动跟随与手动滚动冲突需人工拖动判定 | 证据: n/a
+LOG-007 BLOCKED | 阈值: 400 条上限溢出需稳定注入 400+ 高频事件 | 实测: 不可自动化：400 条上限溢出需稳定注入 400+ 高频事件 | 证据: n/a
+LOG-008 BLOCKED | 阈值: 浮层入口命中和返回状态保留属 UI 细节 | 实测: 不可自动化：浮层入口命中和返回状态保留属 UI 细节 | 证据: n/a
+LOG-009 BLOCKED | 阈值: 日志搜索/大小写匹配（若 UI 无搜索则 N/A） | 实测: 不可自动化：日志搜索/大小写匹配（若 UI 无搜索则 N/A） | 证据: n/a
+LOG-010 BLOCKED | 阈值: 日志导出（若存在） | 实测: 不可自动化：日志导出（若存在） | 证据: n/a
+
+===== RPT 报告页 =====
+  ReportActivity texts: 测试报告|开始测试 → 逐页验证 → 结束测试 → 导出|开始测试|结束测试|导出报告 TXT|导出报告 JSON|清零结果|日志 9|
+RPT-001 PASS | 阈值: 报告页含开始/结束/导出控件 | 实测: start=1 end=1 | 证据: /data/local/tmp/v169_evidence/20261127-012053/ui_rpt1.lines
+  会话结束后结果行=0
+RPT-002 FAIL | 阈值: 报告 session | 实测: result_rows=0 | 证据: /data/local/tmp/v169_evidence/20261127-012053/ui_rpt2.lines
+  TXT 导出: before=0 after=0 file=
+RPT-003 FAIL | 阈值: TXT 导出 | 实测: file= | 证据: /data/local/tmp/v169_20261127-012053.log
+RPT-004 PASS | 阈值: JSON 导出文件存在且非空 | 实测: file=auto-report-latest.json size=409 | 证据: /sdcard/Android/data/com.dennis.padtest/files/auto-report-latest.json
+RPT-005 BLOCKED | 阈值: 清零后重新开始需两次会话边界对比，留待二期 | 实测: 不可自动化：清零后重新开始需两次会话边界对比，留待二期 | 证据: n/a
+RPT-006 BLOCKED | 阈值: 摘要卡片与详细结果一致性需逐项对照 40+ 条 | 实测: 不可自动化：摘要卡片与详细结果一致性需逐项对照 40+ 条 | 证据: n/a
+RPT-007 BLOCKED | 阈值: 长页面滚动与按钮交互属 UI 细节 | 实测: 不可自动化：长页面滚动与按钮交互属 UI 细节 | 证据: n/a
+RPT-008 BLOCKED | 阈值: 导出文件内容 schema 校验（字段完整性）留待解析器 | 实测: 不可自动化：导出文件内容 schema 校验（字段完整性）留待解析器 | 证据: n/a
+
+===== CFG 设置页 =====
+  竖屏/当前: ScrollView=2 text节点=42
+CFG-001 PASS | 阈值: 设置页可打开并有可交互控件 | 实测: scrollviews=2 texts=42 | 证据: /data/local/tmp/v169_evidence/20261127-012053/ui_cfg1.lines
+CFG-002 BLOCKED | 阈值: 横屏双列两个独立 ScrollView 的隔离滚动需要分别拖动两列并比对偏移，留待 UI 拖动脚本 | 实测: 不可自动化：横屏双列两个独立 ScrollView 的隔离滚动需要分别拖动两列并比对偏移，留待 UI 拖动脚本 | 证据: n/a
+CFG-003 BLOCKED | 阈值: SeekBar 拖动需 input swipe（仅控件自检，不计入手柄链路），留待二期 | 实测: 不可自动化：SeekBar 拖动需 input swipe（仅控件自检，不计入手柄链路），留待二期 | 证据: n/a
+CFG-004 BLOCKED | 阈值: 映射行长按菜单 | 实测: 不可自动化：映射行长按菜单 | 证据: n/a
+CFG-005 BLOCKED | 阈值: 动作选择器对话框 | 实测: 不可自动化：动作选择器对话框 | 证据: n/a
+CFG-006 BLOCKED | 阈值: 组合键多选对话框滚动 | 实测: 不可自动化：组合键多选对话框滚动 | 证据: n/a
+CFG-007 BLOCKED | 阈值: 导入/导出配置 | 实测: 不可自动化：导入/导出配置 | 证据: n/a
+CFG-008 BLOCKED | 阈值: 窄屏单列布局 | 实测: 不可自动化：窄屏单列布局 | 证据: n/a
+CFG-009 BLOCKED | 阈值: 双列宽度切换（折叠） | 实测: 不可自动化：双列宽度切换（折叠） | 证据: n/a
+CFG-010 BLOCKED | 阈值: 状态卡片实时刷新 | 实测: 不可自动化：状态卡片实时刷新 | 证据: n/a
+CFG-011 BLOCKED | 阈值: 指针预览区 | 实测: 不可自动化：指针预览区 | 证据: n/a
+CFG-012 BLOCKED | 阈值: 滚动速度 SeekBar 值持久化 | 实测: 不可自动化：滚动速度 SeekBar 值持久化 | 证据: n/a
+CFG-013 BLOCKED | 阈值: 触摸拖动开关持久化 | 实测: 不可自动化：触摸拖动开关持久化 | 证据: n/a
+CFG-014 BLOCKED | 阈值: 映射列表滚动与点击竞争 | 实测: 不可自动化：映射列表滚动与点击竞争 | 证据: n/a
+CFG-015 BLOCKED | 阈值: 按键详情页入口 | 实测: 不可自动化：按键详情页入口 | 证据: n/a
+CFG-016 BLOCKED | 阈值: 语言/主题切换（若存在） | 实测: 不可自动化：语言/主题切换（若存在） | 证据: n/a
+CFG-017 BLOCKED | 阈值: 配置页横竖屏切换后滚动位置保留 | 实测: 不可自动化：配置页横竖屏切换后滚动位置保留 | 证据: n/a
+CFG-018 BLOCKED | 阈值: 配置页浮层/对话框遮挡 | 实测: 不可自动化：配置页浮层/对话框遮挡 | 证据: n/a
+
+===== BTN 按键详情 =====
+  ButtonDetail texts: 测试报告|开始测试 → 逐页验证 → 结束测试 → 导出|开始测试|结束测试|导出报告 TXT|导出报告 JSON|清零结果|日志 29|
+BTN-001 FAIL | 阈值: 400ms 文本 | 实测: 测试报告|开始测试 → 逐页验证 → 结束测试 → 导出|开始测试|结束测试|导出报告 TXT|导出报告 JSON|清零结果|日志 29| | 证据: /data/local/tmp/v169_evidence/20261127-012053/ui_btn1.lines
+  双击阈值: 200ms→com.sec.android.app.launcher/com.android.quickstep.RecentsActivity ; 450ms→com.dennis.padtest/com.dennis.padtest.ui.ScrollTestActivity
+BTN-002 PASS | 阈值: 200ms 间隔（<400ms）触发多任务，450ms 不触发 | 实测: 200ms=com.sec.android.app.launcher/com.android.quickstep.RecentsActivity 450ms=com.dennis.padtest/com.dennis.padtest.ui.ScrollTestActivity | 证据: /data/local/tmp/v169_20261127-012053.log
+BTN-003 BLOCKED | 阈值: 单击/长按竞争需长按 600ms 与单击对比 | 实测: 不可自动化：单击/长按竞争需长按 600ms 与单击对比 | 证据: n/a
+BTN-004 BLOCKED | 阈值: 动作选择器下拉 | 实测: 不可自动化：动作选择器下拉 | 证据: n/a
+BTN-005 BLOCKED | 阈值: 应用选择器 | 实测: 不可自动化：应用选择器 | 证据: n/a
+BTN-006 BLOCKED | 阈值: 包名输入框与输入法遮挡 | 实测: 不可自动化：包名输入框与输入法遮挡 | 证据: n/a
+BTN-007 BLOCKED | 阈值: 组合键多选 | 实测: 不可自动化：组合键多选 | 证据: n/a
+BTN-008 BLOCKED | 阈值: 长按菜单 | 实测: 不可自动化：长按菜单 | 证据: n/a
+BTN-009 BLOCKED | 阈值: 双列布局（横屏） | 实测: 不可自动化：双列布局（横屏） | 证据: n/a
+BTN-010 BLOCKED | 阈值: 按键列表滚动 | 实测: 不可自动化：按键列表滚动 | 证据: n/a
+BTN-011 BLOCKED | 阈值: 映射保存持久化 | 实测: 不可自动化：映射保存持久化 | 证据: n/a
+BTN-012 BLOCKED | 阈值: 对话框内滚动 | 实测: 不可自动化：对话框内滚动 | 证据: n/a
+BTN-013 BLOCKED | 阈值: 返回键行为 | 实测: 不可自动化：返回键行为 | 证据: n/a
+BTN-014 BLOCKED | 阈值: 输入法收起后布局 | 实测: 不可自动化：输入法收起后布局 | 证据: n/a
+
+===== E2E 真实应用 =====
+E2E-001 PASS | 阈值: PiliPlus RB 1.5s：位移 ≥1200 且前后截图不同 | 实测: total=1591 | 证据: /data/local/tmp/v169_evidence/20261127-012053/e2e1_after.png
+E2E-002 PASS | 阈值: PiliPlus LB 1.5s：位移 ≥1200 且前后截图不同 | 实测: total=1592 | 证据: /data/local/tmp/v169_evidence/20261127-012053/e2e2_after.png
+E2E-003 PASS | 阈值: 抖音 RB 1.5s：位移 ≥800 且前后截图不同 | 实测: total=1606 | 证据: /data/local/tmp/v169_evidence/20261127-012053/e2e3_after.png
+E2E-004 PASS | 阈值: 设置列表滚轮 RB：WHEEL≥6、SWIPE=0 | 实测: WHEEL=9 SWIPE=0 | 证据: /data/local/tmp/v169_evidence/20261127-012053/e2e4_after.png
+E2E-005 PASS | 阈值: 设置列表滚轮 LB：WHEEL≥6、SWIPE=0 | 实测: WHEEL=9 SWIPE=0 | 证据: /data/local/tmp/v169_evidence/20261127-012053/e2e4_after.png
+E2E-006 PASS | 阈值: PiliPlus 右摇杆滚动：前后截图不同 | 实测: stick 1.8s | 证据: /data/local/tmp/v169_evidence/20261127-012053/e2e6_after.png
+E2E-007 BLOCKED | 阈值: 抖音完整登录态/首屏视频需网络与账号，当前仅验证 RB 位移 | 实测: 不可自动化：抖音完整登录态/首屏视频需网络与账号，当前仅验证 RB 位移 | 证据: n/a
+E2E-008 BLOCKED | 阈值: 多 App 连续切换后的锚点正确性需要多任务环境 | 实测: 不可自动化：多 App 连续切换后的锚点正确性需要多任务环境 | 证据: n/a
+
+===== DSP 显示/旋转 =====
+  旋转: 2560x1600 -> 2560x1600
+DSP-001 BLOCKED | 阈值: force_landscape=true 时旋转不改变 task 尺寸（实测 2560x1600→2560x1600），旋转守护需关闭强制横屏后复测 | 实测: 不可自动化：force_landscape=true 时旋转不改变 task 尺寸（实测 2560x1600→2560x1600），旋转守护需关闭强制横屏后复测 | 证据: n/a
+DSP-002 BLOCKED | 阈值: 需要真实折叠/展开（物理动作），虚拟机无法触发 | 实测: 不可自动化：需要真实折叠/展开（物理动作），虚拟机无法触发 | 证据: n/a
+DSP-003 BLOCKED | 阈值: 需要 wm size 改变分辨率并恢复，风险高，留待专项 | 实测: 不可自动化：需要 wm size 改变分辨率并恢复，风险高，留待专项 | 证据: n/a
+DSP-004 BLOCKED | 阈值: DeX 外接屏 | 实测: 不可自动化：DeX 外接屏 | 证据: n/a
+DSP-005 BLOCKED | 阈值: 多窗口分屏尺寸变化 | 实测: 不可自动化：多窗口分屏尺寸变化 | 证据: n/a
+DSP-006 BLOCKED | 阈值: 旋转期间按压保持 | 实测: 不可自动化：旋转期间按压保持 | 证据: n/a
+DSP-007 BLOCKED | 阈值: 旋转后滚轮锚点 | 实测: 不可自动化：旋转后滚轮锚点 | 证据: n/a
+DSP-008 BLOCKED | 阈值: 旋转后拖拽锚点 | 实测: 不可自动化：旋转后拖拽锚点 | 证据: n/a
+DSP-009 BLOCKED | 阈值: 外接屏拔插 | 实测: 不可自动化：外接屏拔插 | 证据: n/a
+DSP-010 BLOCKED | 阈值: 折叠状态下的指针坐标 | 实测: 不可自动化：折叠状态下的指针坐标 | 证据: n/a
+
+===== PERF 压测（短版） =====
+  20 轮 1.5s 拖拽: 成功 20/20, 错误行=0, 引擎pid=5960, CPU=3.5->3.5, 01:34:27->01:35:39
+PERF-001 PASS | 阈值: 20 轮连续 1.5s 拖拽全部产生 drag end 且无 ERR | 实测: ok=20/20 err=0 | 证据: /data/local/tmp/v169_20261127-012053.log
+PERF-002 PASS | 阈值: 记录短版压测 CPU 采样与耗时 | 实测: cpu=3.5->3.5 window=01:34:27-01:35:39 | 证据: /data/local/tmp/v169_20261127-012053.log
+PERF-003 BLOCKED | 阈值: 10 分钟长压测（默认关闭，可用 LONG=1 单独跑） | 实测: 不可自动化：10 分钟长压测（默认关闭，可用 LONG=1 单独跑） | 证据: n/a
+PERF-004 BLOCKED | 阈值: 快速反向 500 次 | 实测: 不可自动化：快速反向 500 次 | 证据: n/a
+PERF-005 BLOCKED | 阈值: 内存增长采样（需 dumpsys meminfo 周期采样） | 实测: 不可自动化：内存增长采样（需 dumpsys meminfo 周期采样） | 证据: n/a
+PERF-006 BLOCKED | 阈值: ANR 监控（需 long run） | 实测: 不可自动化：ANR 监控（需 long run） | 证据: n/a
+PERF-007 BLOCKED | 阈值: 多 App 切换压力 | 实测: 不可自动化：多 App 切换压力 | 证据: n/a
+PERF-008 BLOCKED | 阈值: 断连重连压力 | 实测: 不可自动化：断连重连压力 | 证据: n/a
+PERF-009 BLOCKED | 阈值: 日志高频溢出 | 实测: 不可自动化：日志高频溢出 | 证据: n/a
+PERF-010 BLOCKED | 阈值: 10 分钟续航/发热 | 实测: 不可自动化：10 分钟续航/发热 | 证据: n/a
+
+===== SUMMARY =====
+PASS=42 FAIL=6 BLOCKED=102 NOTRUN=0
+FAILED: SCR-022 MIX-009 LOG-001 RPT-002 RPT-003 BTN-001
+BLOCKED: ENV-004 SCR-009 SCR-012 SCR-013 SCR-017 SCR-018 SCR-019 SCR-027 SCR-028 SCR-032 MIX-001 MIX-002 MIX-003 MIX-004 MIX-005 MIX-006 MIX-007 MIX-008 MIX-011 MIX-012 MIX-013 MIX-014 MIX-015 MIX-016 MIX-017 MIX-018 MIX-019 MIX-020 MIX-021 MIX-022 MIX-023 MIX-024 MIX-025 MIX-026 MIX-027 MIX-028 MIX-029 MIX-030 MIX-031 MIX-032 MIX-033 MIX-034 LOG-004 LOG-005 LOG-006 LOG-007 LOG-008 LOG-009 LOG-010 RPT-005 RPT-006 RPT-007 RPT-008 CFG-002 CFG-003 CFG-004 CFG-005 CFG-006 CFG-007 CFG-008 CFG-009 CFG-010 CFG-011 CFG-012 CFG-013 CFG-014 CFG-015 CFG-016 CFG-017 CFG-018 BTN-003 BTN-004 BTN-005 BTN-006 BTN-007 BTN-008 BTN-009 BTN-010 BTN-011 BTN-012 BTN-013 BTN-014 E2E-007 E2E-008 DSP-001 DSP-002 DSP-003 DSP-004 DSP-005 DSP-006 DSP-007 DSP-008 DSP-009 DSP-010 PERF-003 PERF-004 PERF-005 PERF-006 PERF-007 PERF-008 PERF-009 PERF-010
+LOG=/data/local/tmp/v169_20261127-012053.log EVID=/data/local/tmp/v169_evidence/20261127-012053
+RESULT: /data/local/tmp/v169_20261127-012053.log

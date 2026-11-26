@@ -1,0 +1,28 @@
+GamePadDex v1.69 suite | run=20261126-235013 mode=CFG | device=SM-F9360 | date=Thu Nov 26 23:50:13 CST 2026
+
+===== CFG 设置页 =====
+  竖屏/当前: ScrollView=2 text节点=42
+CFG-001 PASS | 阈值: 设置页可打开并有可交互控件 | 实测: scrollviews=2 texts=42 | 证据: /data/local/tmp/v169_evidence/20261126-235013/ui_cfg1.lines
+CFG-002 BLOCKED | 阈值: 横屏双列两个独立 ScrollView 的隔离滚动需要分别拖动两列并比对偏移，留待 UI 拖动脚本 | 实测: 不可自动化：横屏双列两个独立 ScrollView 的隔离滚动需要分别拖动两列并比对偏移，留待 UI 拖动脚本 | 证据: n/a
+CFG-003 BLOCKED | 阈值: SeekBar 拖动需 input swipe（仅控件自检，不计入手柄链路），留待二期 | 实测: 不可自动化：SeekBar 拖动需 input swipe（仅控件自检，不计入手柄链路），留待二期 | 证据: n/a
+CFG-004 BLOCKED | 阈值: 映射行长按菜单 | 实测: 不可自动化：映射行长按菜单 | 证据: n/a
+CFG-005 BLOCKED | 阈值: 动作选择器对话框 | 实测: 不可自动化：动作选择器对话框 | 证据: n/a
+CFG-006 BLOCKED | 阈值: 组合键多选对话框滚动 | 实测: 不可自动化：组合键多选对话框滚动 | 证据: n/a
+CFG-007 BLOCKED | 阈值: 导入/导出配置 | 实测: 不可自动化：导入/导出配置 | 证据: n/a
+CFG-008 BLOCKED | 阈值: 窄屏单列布局 | 实测: 不可自动化：窄屏单列布局 | 证据: n/a
+CFG-009 BLOCKED | 阈值: 双列宽度切换（折叠） | 实测: 不可自动化：双列宽度切换（折叠） | 证据: n/a
+CFG-010 BLOCKED | 阈值: 状态卡片实时刷新 | 实测: 不可自动化：状态卡片实时刷新 | 证据: n/a
+CFG-011 BLOCKED | 阈值: 指针预览区 | 实测: 不可自动化：指针预览区 | 证据: n/a
+CFG-012 BLOCKED | 阈值: 滚动速度 SeekBar 值持久化 | 实测: 不可自动化：滚动速度 SeekBar 值持久化 | 证据: n/a
+CFG-013 BLOCKED | 阈值: 触摸拖动开关持久化 | 实测: 不可自动化：触摸拖动开关持久化 | 证据: n/a
+CFG-014 BLOCKED | 阈值: 映射列表滚动与点击竞争 | 实测: 不可自动化：映射列表滚动与点击竞争 | 证据: n/a
+CFG-015 BLOCKED | 阈值: 按键详情页入口 | 实测: 不可自动化：按键详情页入口 | 证据: n/a
+CFG-016 BLOCKED | 阈值: 语言/主题切换（若存在） | 实测: 不可自动化：语言/主题切换（若存在） | 证据: n/a
+CFG-017 BLOCKED | 阈值: 配置页横竖屏切换后滚动位置保留 | 实测: 不可自动化：配置页横竖屏切换后滚动位置保留 | 证据: n/a
+CFG-018 BLOCKED | 阈值: 配置页浮层/对话框遮挡 | 实测: 不可自动化：配置页浮层/对话框遮挡 | 证据: n/a
+
+===== SUMMARY =====
+PASS=1 FAIL=0 BLOCKED=17 NOTRUN=0
+BLOCKED: CFG-002 CFG-003 CFG-004 CFG-005 CFG-006 CFG-007 CFG-008 CFG-009 CFG-010 CFG-011 CFG-012 CFG-013 CFG-014 CFG-015 CFG-016 CFG-017 CFG-018
+LOG=/data/local/tmp/v169_20261126-235013.log EVID=/data/local/tmp/v169_evidence/20261126-235013
+RESULT: /data/local/tmp/v169_20261126-235013.log

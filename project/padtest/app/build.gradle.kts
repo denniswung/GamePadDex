@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     id("com.android.application")
 }
 
@@ -10,8 +10,8 @@ android {
         applicationId = "com.dennis.padtest"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 5
+        versionName = "1.4"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -42,6 +42,6 @@ kotlin {
     }
 }
 
-// 只用 Android 框架 API：不依赖 AndroidX / Compose，保证离线可编译
+// 鍙敤 Android 妗嗘灦 API锛氫笉渚濊禆 AndroidX / Compose锛屼繚璇佺绾垮彲缂栬瘧
 dependencies {
 }

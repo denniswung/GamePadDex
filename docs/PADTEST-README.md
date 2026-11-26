@@ -3,7 +3,7 @@
 一个**独立**的 Android 测试 App，用来验证「手柄 → 映射守护进程 → uinput 注入 → 系统分发 → 应用接收」整条链路。
 它不依赖被测程序的任何代码，只依赖 Android 标准事件分发与系统 API。
 
-- 包名：`com.dennis.padtest`　版本：1.0（versionCode 1）
+- 包名：`com.dennis.padtest`　版本：**1.3**（versionCode 4）
 - 构建：Kotlin，`minSdk 26` / `targetSdk 36` / `compileSdk 36`，AGP 9.3.1（内建 Kotlin）
 - 依赖：**零第三方依赖**（不用 AndroidX / Compose，只用框架 View），可离线编译
 - 产物：`project/padtest/app/build/outputs/apk/debug/app-debug.apk`
@@ -197,3 +197,24 @@ project/padtest/
 2. **`display=0` 的组合键被助手拒绝**：`C 0 113 69` 触发 `ERR C display`（校验写成 `cd <= 0`）→ 已改为 `cd < 0`。
 3. **组合键注入方式不可用**：助手用 `input keycombination` 在 root 域返回 `rc=512`（权限不足）→ 改为**进程内 uinput 组合键**（按下→保持→逆序释放），现在 LT/RT 的 `Ctrl+Plus/Minus` 能真正到达应用。
 4. **A 键语义切换过慢**：原来要等左摇杆离开死区才从「激活焦点」切回「左键」→ 改为 1.2 秒时间窗（可在设置里调），d-pad 后 2 秒再按 A 立即是左键。
+
+---
+
+## 附：v1.2 埋点（2026-11-27）
+
+- 新增 `core/PadMetrics.kt`、`core/ExportReceiver.kt`、`view/PassThroughScrollView.kt`。
+- `ProbeActivity`：记录 ACTION_MOVE 帧数/最大间隔/路径（UP 时汇总），暴露 `TOUCH.MOVE` 与 `instrumentation.touch`。
+- `ScrollTestActivity`：左/右列表分别读 `scrollY`（`left_offset`/`right_offset`）、固定区域 `fixed_area_scrolls` 真实递增（`fixed_area_wheel`/`fixed_area_touch` 分项）。
+- Report JSON 顶层新增 `instrumentation`；logcat 新增 `METRICS`/`EXPORT`。
+- 导出：`adb shell am broadcast -a com.dennis.padtest.EXPORT -n com.dennis.padtest/.core.ExportReceiver --es what report --es fmt json`。
+- 判定口径与实测见 `work/docs/PADTEST-v169.md`。
+
+
+## 附：v1.3 回归修复（2026-11-27）
+
+- 移除 v1.2 引入的整页 `PassThroughScrollView`（它会改变外层手势拦截链，存在吃掉注入式横向 swipe 的风险）。
+- 改为普通 `ScrollView` + 左右列表在 `ACTION_DOWN` 时 `requestDisallowInterceptTouchEvent(true)`：
+  pager 的横向手势正常到达 `HorizontalScrollView`，列錶纵向拖动也不被外层抢走。
+- 回归用例：`V 0 -640 120 …`（pager 中心 1280,1507）/ X+RB → `scrollX 0→512`；反向 → 0。
+
+

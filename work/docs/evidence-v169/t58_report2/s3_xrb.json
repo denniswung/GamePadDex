@@ -1,0 +1,174 @@
+{
+  "generated_at": "03:05:28.872",
+  "session_start": 1795718960320,
+  "session_stop": 0,
+  "pass": 4,
+  "fail": 0,
+  "unknown": 6,
+  "instrumentation": {
+    "touch": {
+      "frames": 18,
+      "max_gap_ms": 17,
+      "path_px": 1304,
+      "duration_ms": 230,
+      "down_x": 1280,
+      "down_y": 1507,
+      "up_x": 20,
+      "up_y": 1507,
+      "source": "mouse",
+      "continuous": true
+    },
+    "scroll": {
+      "left_offset": 0,
+      "right_offset": 0,
+      "fixed_area_scrolls": 0,
+      "fixed_area_wheel": 0,
+      "fixed_area_touch": 0,
+      "vertical_offset": 0,
+      "horizontal_scroll_x": 512,
+      "sides_independent": false
+    }
+  },
+  "checks": [
+    {
+      "id": "SCROLL.VERTICAL",
+      "page": "滚动",
+      "title": "纵向列表可滚动",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    },
+    {
+      "id": "SCROLL.HORIZONTAL",
+      "page": "滚动",
+      "title": "横向可滑动",
+      "status": "PASS",
+      "reason": "scrollX=512",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    },
+    {
+      "id": "SCROLL.AXISLOCK",
+      "page": "滚动",
+      "title": "混合容器轴向锁定",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    },
+    {
+      "id": "SCROLL.FOCUS",
+      "page": "滚动",
+      "title": "焦点锚定：只滚指针所在列表",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    },
+    {
+      "id": "SCROLL.BACKEND",
+      "page": "滚动",
+      "title": "手势\/滚轮两种后端可区分",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    },
+    {
+      "id": "SCROLL.GESTURE",
+      "page": "滚动",
+      "title": "手势后端产生滑动",
+      "status": "PASS",
+      "reason": "手势滑动 11 次",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    },
+    {
+      "id": "SCROLL.WHEEL",
+      "page": "滚动",
+      "title": "滚轮后端产生滚动",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    },
+    {
+      "id": "SCROLL.FIXED",
+      "page": "滚动",
+      "title": "固定区域收到滚动尝试（可观测）",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    },
+    {
+      "id": "UI.OPEN.手柄映射测试台",
+      "page": "手柄映射测试台",
+      "title": "页面可打开",
+      "status": "PASS",
+      "reason": "",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    },
+    {
+      "id": "TOUCH.MOVE",
+      "page": "触摸",
+      "title": "ACTION_MOVE 连续帧（帧数\/最大间隔）",
+      "status": "PASS",
+      "reason": "frames=18 maxGap=17ms",
+      "recent_logs": [
+        "03:05:20.735 触摸 swipe dx=1152 dy=0 dist=1152",
+        "03:05:27.056 鼠标 click-down x=1280 y=1507 btn=0",
+        "03:05:27.286 鼠标 touch-move-summary frames=18 maxGap=17ms path=1304px dur=230ms",
+        "03:05:27.286 鼠标 drag x=20 y=1507 dx=-1260 dy=0 dist=1260",
+        "03:05:27.286 触摸 swipe dx=-1260 dy=0 dist=1260"
+      ]
+    }
+  ]
+}

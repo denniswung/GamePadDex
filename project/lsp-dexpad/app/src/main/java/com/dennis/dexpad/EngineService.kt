@@ -151,6 +151,10 @@ class EngineService : Service(), RootInput.Listener {
     private var lastHScrollBtnAt = 0L
     /** one horizontal gesture is in flight until this timestamp */
     private var swipeCooldownUntil = 0L
+    /** v1.69: 横向摇杆独立冷却——避免刚做过竖滑时把横向输入吞掉（SCR-022） */
+    private var hSwipeCooldownUntil = 0L
+    /** v1.69: 横向摇杆期间的被动光标同步（外部 P/真实指针位置可能与引擎估算不同） */
+    private var hCursorSyncAt = 0L
     /** 垂直触摸滚动：一次手势在飞期间不再发第二条 */
     private var vSwipeCooldownUntil = 0L
     /** LT/RT zoom: -1 out, +1 in, 0 idle; repeated while held */
@@ -1993,6 +1997,7 @@ class EngineService : Service(), RootInput.Listener {
         hScrollDir = 0
         wheelButtons.clear()
         vSwipeCooldownUntil = 0L
+        hSwipeCooldownUntil = 0L
     }
 
     private fun setMode(on: Boolean, force: Boolean = false) {
@@ -2430,9 +2435,20 @@ class EngineService : Service(), RootInput.Listener {
         // anchored at the mouse pointer (helper command V). v1.66: 横滑节奏与
         // 竖滑按同一"像素/秒"标定（横 0.45 屏宽/次，节奏受水平滑动速度控制），
         // 既不再"一次推杆翻十页"，也不再明显比竖向慢。
-        if (hCan && nowMs >= swipeCooldownUntil) {
-            swipeStep(if (nx > 0) -1 else 1)
-            swipeCooldownUntil = nowMs + hSwipeRepeatMs()
+        if (hCan && nowMs >= hSwipeCooldownUntil) {
+            // 横向用独立冷却 + 强制发送：刚做过竖滑（swipeCooldownUntil 未到）时
+            // 也要能横向翻页；锚点始终用当前指针位置（helper 侧在任务内时以其为起手点）。
+            // 指针可能被外部 P/c 移动而引擎估算仍是旧值：按住横向期间每 400ms 被动同步一次
+            // 真实光标（`c` → CURSOR），下一次 swipe 就用真实锚点（t53/SCR-022）。
+            if (nowMs - hCursorSyncAt >= 400L) {
+                hCursorSyncAt = nowMs
+                sendCursorQuery(nowMs, false, allowGain = false)
+            }
+            val hdir = if (nx > 0) -1 else 1
+            val (hx, hy) = pointerPos()
+            Log.i(TAG, "hswipe dir=$hdir nx=$nx anchor=${hx.toInt()},${hy.toInt()} hidden=$pointerHidden")
+            doSwipe(false, hdir, slow = false, ignoreCooldown = true)
+            hSwipeCooldownUntil = nowMs + hSwipeRepeatMs()
         }
         if (hScrollDir != 0) {
             if (nowMs - lastHScrollBtnAt >= wheelIntervalMs() * 3 / 2) {
@@ -2476,10 +2492,10 @@ class EngineService : Service(), RootInput.Listener {
             p == "android" || p.contains("systemui")
     }
 
-    private fun doSwipe(vertical: Boolean, dir: Int, slow: Boolean = false, widthPct: Int = 0) {
+    private fun doSwipe(vertical: Boolean, dir: Int, slow: Boolean = false, widthPct: Int = 0, ignoreCooldown: Boolean = false) {
         if (dir == 0) return
         val now = SystemClock.elapsedRealtime()
-        if (now < swipeCooldownUntil) return
+        if (!ignoreCooldown && now < swipeCooldownUntil) return
         // 桌面：没有可滚内容，滑动只会触发系统手势（下滑拉出状态栏）。
         // 交回上层虚拟控制器：发方向键，让系统自己做焦点导航。
         if (launcherForeground()) {

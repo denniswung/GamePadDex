@@ -1,0 +1,45 @@
+GamePadDex v1.69 suite | run=20261127-005031 mode=MIX | device=SM-F9360 | date=Fri Nov 27 00:50:31 CST 2026
+
+===== MIX 混合界面 =====
+MIX-001 BLOCKED | 阈值: 需要按坐标把指针精确放到 200 项 ListView 内再滚轮；当前 pointer+wheel 通道可用但列表项命中区域需逐像素标定，留待人工标定后启用 | 实测: 不可自动化：需要按坐标把指针精确放到 200 项 ListView 内再滚轮；当前 pointer+wheel 通道可用但列表项命中区域需逐像素标定，留待人工标定后启用 | 证据: n/a
+MIX-002 BLOCKED | 阈值: 同上：标题区/说明区坐标需人工标定 | 实测: 不可自动化：同上：标题区/说明区坐标需人工标定 | 证据: n/a
+MIX-003 BLOCKED | 阈值: 内层连续 5 次滚动的归属需坐标级指针，未标定 | 实测: 不可自动化：内层连续 5 次滚动的归属需坐标级指针，未标定 | 证据: n/a
+MIX-004 BLOCKED | 阈值: 内层到顶后父容器接管策略无明确产品定义，且需坐标级注入 | 实测: 不可自动化：内层到顶后父容器接管策略无明确产品定义，且需坐标级注入 | 证据: n/a
+MIX-005 BLOCKED | 阈值: 内层到底越界检测需坐标级注入 | 实测: 不可自动化：内层到底越界检测需坐标级注入 | 证据: n/a
+MIX-006 BLOCKED | 阈值: 边缘 1–2cm 起手的命中区域需坐标级触摸，vgpad 无 touch 通道 | 实测: 不可自动化：边缘 1–2cm 起手的命中区域需坐标级触摸，vgpad 无 touch 通道 | 证据: n/a
+MIX-007 BLOCKED | 阈值: 两层切换位置保留需坐标级注入 | 实测: 不可自动化：两层切换位置保留需坐标级注入 | 证据: n/a
+MIX-008 BLOCKED | 阈值: 外层到底边界的组合序列需坐标级注入 | 实测: 不可自动化：外层到底边界的组合序列需坐标级注入 | 证据: n/a
+  pager: P=[1280,1509|CURSOR 1282 1511 display=0 space=logical frame=0,2176 raw=301.6,1089.6 took=28us] scrollX 0->0 PY 1415->1415
+MIX-009 FAIL | 阈值: 横向分页 scrollX | 实测: P=[1280,1509|CURSOR 1282 1511 display=0 space=logical frame=0,2176 raw=301.6,1089.6 took=28us] scrollX=0->0 | 证据: /data/local/tmp/v169_20261127-005031.log
+MIX-010 PASS | 阈值: 垂直滚轮不改变横向 scrollX | 实测: P=[1280,1509|CURSOR 1282 1511 display=0 space=logical frame=0,2176 raw=301.6,1089.6 took=30us] scrollX=0 | 证据: /data/local/tmp/v169_20261127-005031.log
+MIX-011 BLOCKED | 阈值: 从第 1 页连续滑到第 5 页需长距离手势序列，当前用摇杆只能逐页，留待脚本化逐页断言 | 实测: 不可自动化：从第 1 页连续滑到第 5 页需长距离手势序列，当前用摇杆只能逐页，留待脚本化逐页断言 | 证据: n/a
+MIX-012 BLOCKED | 阈值: 边界页继续滑动 | 实测: 不可自动化：边界页继续滑动 | 证据: n/a
+MIX-013 BLOCKED | 阈值: 分页可视区上下边缘的水平手势 | 实测: 不可自动化：分页可视区上下边缘的水平手势 | 证据: n/a
+MIX-014 BLOCKED | 阈值: 横向滑动中加垂直抖动 | 实测: 不可自动化：横向滑动中加垂直抖动 | 证据: n/a
+MIX-015 BLOCKED | 阈值: AxisLockView 8px 阈值需坐标级触摸（vgpad 无 touch） | 实测: 不可自动化：AxisLockView 8px 阈值需坐标级触摸（vgpad 无 touch） | 证据: n/a
+MIX-016 BLOCKED | 阈值: 同上 | 实测: 不可自动化：同上 | 证据: n/a
+MIX-017 BLOCKED | 阈值: 45° 轴锁需坐标级触摸 | 实测: 不可自动化：45° 轴锁需坐标级触摸 | 证据: n/a
+MIX-018 BLOCKED | 阈值: 轴锁保持需坐标级触摸 | 实测: 不可自动化：轴锁保持需坐标级触摸 | 证据: n/a
+MIX-019 BLOCKED | 阈值: 点击不动需坐标级触摸 | 实测: 不可自动化：点击不动需坐标级触摸 | 证据: n/a
+MIX-020 BLOCKED | 阈值: ACTION_CANCEL 需系统弹窗/切后台时序 | 实测: 不可自动化：ACTION_CANCEL 需系统弹窗/切后台时序 | 证据: n/a
+MIX-021 BLOCKED | 阈值: AxisLockView 四向边界需坐标级触摸 | 实测: 不可自动化：AxisLockView 四向边界需坐标级触摸 | 证据: n/a
+MIX-022 BLOCKED | 阈值: AxisLockView 滚轮锁轴需把指针标定到该控件 | 实测: 不可自动化：AxisLockView 滚轮锁轴需把指针标定到该控件 | 证据: n/a
+MIX-023 BLOCKED | 阈值: 滚轮水平/垂直分量仲裁需该控件坐标 | 实测: 不可自动化：滚轮水平/垂直分量仲裁需该控件坐标 | 证据: n/a
+MIX-024 BLOCKED | 阈值: 滚轮/拖拽 20 次切换需控件坐标 | 实测: 不可自动化：滚轮/拖拽 20 次切换需控件坐标 | 证据: n/a
+MIX-025 BLOCKED | 阈值: 左右列表独立偏移需坐标级滚轮定位 | 实测: 不可自动化：左右列表独立偏移需坐标级滚轮定位 | 证据: n/a
+MIX-026 BLOCKED | 阈值: 固定区与滚动区边界 | 实测: 不可自动化：固定区与滚动区边界 | 证据: n/a
+MIX-027 BLOCKED | 阈值: 固定区回退 | 实测: 不可自动化：固定区回退 | 证据: n/a
+MIX-028 BLOCKED | 阈值: 左右列表同时滚动 | 实测: 不可自动化：左右列表同时滚动 | 证据: n/a
+MIX-029 BLOCKED | 阈值: 横向列表 offset 独立 | 实测: 不可自动化：横向列表 offset 独立 | 证据: n/a
+MIX-030 BLOCKED | 阈值: 浮层命中（日志/报告入口） | 实测: 不可自动化：浮层命中（日志/报告入口） | 证据: n/a
+MIX-031 BLOCKED | 阈值: 浮层边缘滚动 | 实测: 不可自动化：浮层边缘滚动 | 证据: n/a
+MIX-032 BLOCKED | 阈值: 底层内容误触 | 实测: 不可自动化：底层内容误触 | 证据: n/a
+MIX-033 BLOCKED | 阈值: 页面切换后滚动位置保留 | 实测: 不可自动化：页面切换后滚动位置保留 | 证据: n/a
+MIX-034 BLOCKED | 阈值: 报告页长页面滚动+按钮交互 | 实测: 不可自动化：报告页长页面滚动+按钮交互 | 证据: n/a
+
+===== SUMMARY =====
+PASS=1 FAIL=1 BLOCKED=32 NOTRUN=0
+FAILED: MIX-009
+BLOCKED: MIX-001 MIX-002 MIX-003 MIX-004 MIX-005 MIX-006 MIX-007 MIX-008 MIX-011 MIX-012 MIX-013 MIX-014 MIX-015 MIX-016 MIX-017 MIX-018 MIX-019 MIX-020 MIX-021 MIX-022 MIX-023 MIX-024 MIX-025 MIX-026 MIX-027 MIX-028 MIX-029 MIX-030 MIX-031 MIX-032 MIX-033 MIX-034
+LOG=/data/local/tmp/v169_20261127-005031.log EVID=/data/local/tmp/v169_evidence/20261127-005031
+RESULT: /data/local/tmp/v169_20261127-005031.log

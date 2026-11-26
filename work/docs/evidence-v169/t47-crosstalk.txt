@@ -1,0 +1,37 @@
+﻿== probe_v166_helper_cmds mode=crosstalk Fri Nov 27 00:07:39 CST 2026 ==
+CHANNEL pid=8130 ready=1 err=
+== CROSSTALK (serialized gesture) ==
+-- case1 same-tick Z+V (expect 1 injection + 1 SWIPE_DROP) --
+  SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=1 pid=8155 queued=0 async prep=79us
+  SWIPE_DROP axis=V busy=Z n=1 x=20,y=800 reason=crosstalk
+  SWIPE_DONE 0 axis=Z n=1 rc=0 dur=281ms
+  starts=1 dones=1 overlaps=0 orphan_done=0 drops=1 queued=0 inflight_at_end=0
+-- case2 same-axis burst Z x2 (expect serial: 1 injection + QUEUED, then second) --
+  SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=2 pid=8189 queued=0 async prep=149us
+  SWIPE_QUEUED axis=Z depth=1 n=2 x=1280,y=480
+  SWIPE_DONE 0 axis=Z n=2 rc=0 dur=284ms
+  SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=3 pid=8213 queued=1 async prep=0us
+  SWIPE_DONE 0 axis=Z n=3 rc=0 dur=282ms
+  starts=2 dones=2 overlaps=0 orphan_done=0 drops=0 queued=1 inflight_at_end=0
+-- case3 alternating V/Z @100ms (expect never 2 in flight) --
+  SWIPE 0 20,800 -> 1044,800 (task 0..2560 / 0..1600) axis=V n=4 pid=8245 queued=0 async prep=129us
+  SWIPE_DROP axis=Z busy=V n=4 x=1280,y=480 reason=crosstalk
+  SWIPE_QUEUED axis=V depth=1 n=4 x=20,y=800
+  SWIPE_DONE 0 axis=V n=4 rc=0 dur=260ms
+  SWIPE 0 20,800 -> 1044,800 (task 0..2560 / 0..1600) axis=V n=5 pid=8271 queued=1 async prep=0us
+  SWIPE_DROP axis=Z busy=V n=5 x=1280,y=480 reason=crosstalk
+  SWIPE_DONE 0 axis=V n=5 rc=0 dur=250ms
+  starts=2 dones=2 overlaps=0 orphan_done=0 drops=2 queued=1 inflight_at_end=0
+-- case4 swipe + N in flight (expect serialized) --
+  SWIPE 0 1280,480 -> 1280,20 (task 0..2560 / 0..1600) axis=Z n=6 pid=8328 queued=0 async prep=150us
+  SWIPE_QUEUED axis=Z depth=1 n=6 x=1280,y=4
+  SWIPE_DONE 0 axis=Z n=6 rc=0 dur=260ms
+  NOTIF swipe async n=7 pid=8342 prep=0us
+  NOTIF swipe rc=0 dur=401ms n=7
+  starts=2 dones=2 overlaps=0 orphan_done=0 drops=0 queued=1 inflight_at_end=0
+-- case5 prep samples --
+  preps=[141 186 149 201 212 199 ]
+  max_prep=212
+CHANNEL closed
+STARTED helper=8620 engine=8624 sock=srw-rw-rw- 1 root root 0 2026-11-27 00:07 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==

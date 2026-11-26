@@ -523,6 +523,9 @@ class ButtonDetailActivity : Activity() {
             text = summary
             setTextColor(SUB)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            // t40: 说明文字同时暴露 contentDescription，避免 uiautomator/读屏在转场时序下只拿到空 text 节点
+            contentDescription = summary
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         })
         return box
     }

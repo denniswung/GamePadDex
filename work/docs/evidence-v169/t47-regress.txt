@@ -1,0 +1,17 @@
+﻿== probe_v166_helper_cmds mode=regress Fri Nov 27 00:08:03 CST 2026 ==
+CHANNEL pid=8785 ready=1 err=
+== REGRESSION: DPAD_CENTER / SELECT / WHEEL dir ==
+  evidence:
+    KEYUIN 0 23 lcode=28
+    ARROW 1
+    ARROW 2
+    NOTIF swipe async n=1 pid=8843 prep=0us
+    NOTIF swipe rc=0 dur=361ms n=1
+    KEYUIN 0 4 lcode=158
+    WHEEL 3 h=1
+    WHEEL -3 h=1
+    WHEEL 2 h=0
+    WHEEL -2 h=0
+CHANNEL closed
+STARTED helper=8967 engine=8971 sock=srw-rw-rw- 1 root root 0 2026-11-27 00:08 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==

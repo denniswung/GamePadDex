@@ -1,0 +1,20 @@
+GamePadDex v1.69 suite | run=20261126-234923 mode=RPT | device=SM-F9360 | date=Thu Nov 26 23:49:23 CST 2026
+
+===== RPT 报告页 =====
+  ReportActivity texts: 滚动 / 滑动测试|推右摇杆或按 LB/RB：看哪一块在动、怎么动|纵向 offset=0 项  速度=0 px/s  持续=否|横向 scrollX=0  页≈1|混合 -|焦点 -|固定区域 -|纵向：200 项列表|列表项 #001|列表项 #002|列表项 #003|列表项 #004|列表项 #005|列表项 #006|横向：5 页|第 1 页|第 2 页|第 3 页|第 4 页|第 5 
+RPT-001 FAIL | 阈值: 报告页控件 | 实测: start=0 end=0 | 证据: /data/local/tmp/v169_evidence/20261126-234923/ui_rpt1.lines
+RPT-002 FAIL | 阈值: 找不到“开始” | 实测: tap 开始 | 证据: /data/local/tmp/v169_evidence/20261126-234923/ui_rpt2.lines
+  TXT 导出: before=0 after=0 file=
+RPT-003 FAIL | 阈值: TXT 导出 | 实测: file= | 证据: /data/local/tmp/v169_20261126-234923.log
+RPT-004 PASS | 阈值: JSON 导出文件存在且非空 | 实测: file=auto-report-latest.json size=409 | 证据: /sdcard/Android/data/com.dennis.padtest/files/auto-report-latest.json
+RPT-005 BLOCKED | 阈值: 清零后重新开始需两次会话边界对比，留待二期 | 实测: 不可自动化：清零后重新开始需两次会话边界对比，留待二期 | 证据: n/a
+RPT-006 BLOCKED | 阈值: 摘要卡片与详细结果一致性需逐项对照 40+ 条 | 实测: 不可自动化：摘要卡片与详细结果一致性需逐项对照 40+ 条 | 证据: n/a
+RPT-007 BLOCKED | 阈值: 长页面滚动与按钮交互属 UI 细节 | 实测: 不可自动化：长页面滚动与按钮交互属 UI 细节 | 证据: n/a
+RPT-008 BLOCKED | 阈值: 导出文件内容 schema 校验（字段完整性）留待解析器 | 实测: 不可自动化：导出文件内容 schema 校验（字段完整性）留待解析器 | 证据: n/a
+
+===== SUMMARY =====
+PASS=1 FAIL=3 BLOCKED=4 NOTRUN=0
+FAILED: RPT-001 RPT-002 RPT-003
+BLOCKED: RPT-005 RPT-006 RPT-007 RPT-008
+LOG=/data/local/tmp/v169_20261126-234923.log EVID=/data/local/tmp/v169_evidence/20261126-234923
+RESULT: /data/local/tmp/v169_20261126-234923.log

@@ -1,0 +1,3 @@
+before: 列表项 #003 
+after:  列表项 #003 
+DRAG: DRAG down display=0 x=1280,y=1000 rect=20..2540/20..1580 DRAG up display=0 x=1280,y=600 frames=20 emitted=20 dur=1320ms why=cmd-e 

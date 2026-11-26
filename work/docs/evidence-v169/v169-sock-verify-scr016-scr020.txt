@@ -1,0 +1,14 @@
+== sv3 Fri Nov 27 00:18:09 CST 2026 ready=1 ==
+SCR-016 h->WHEEL latency=149ms (轮询 10ms) wheel_before=0 after=1
+  POINTER off
+  MOUSE_REOPEN (auto)
+  WHEEL 3 h=1
+SCR-020 before: 列表项 #001
+  swipe#1 first_item= swipe=SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=1 pid=24207 queued=0 async prep=192us
+  swipe#2 first_item= swipe=SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=2 pid=24280 queued=0 async prep=146us
+  swipe#3 first_item= swipe=SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=3 pid=24348 queued=0 async prep=125us
+  swipe#4 first_item= swipe=SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=4 pid=24422 queued=0 async prep=133us
+  swipe#5 first_item= swipe=SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=5 pid=24489 queued=0 async prep=150us
+  last SWIPE: SWIPE 0 1280,999 -> 1280,399 (task 0..2560 / 0..1600) axis=Z n=5 pid=24489 queued=0 async prep=150us
+restored helper=24632 engine=24636
+DONE

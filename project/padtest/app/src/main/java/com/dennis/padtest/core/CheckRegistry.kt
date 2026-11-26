@@ -90,6 +90,7 @@ object CheckRegistry {
         root.put("pass", p)
         root.put("fail", f)
         root.put("unknown", u)
+        root.put("instrumentation", PadMetrics.json())
         val arr = org.json.JSONArray()
         for (c in checks.values) {
             val o = JSONObject()
@@ -119,6 +120,12 @@ object CheckRegistry {
             ).append('\n')
         }
         sb.append("通过 ").append(p).append(" · 失败 ").append(f).append(" · 未测 ").append(u).append('\n')
+        sb.append("埋点: touch.frames=").append(PadMetrics.touchFrames)
+            .append(" maxGap=").append(PadMetrics.touchMaxGapMs).append("ms")
+            .append(" path=").append(PadMetrics.touchPathPx).append("px")
+            .append(" · left=").append(PadMetrics.leftOffset)
+            .append(" right=").append(PadMetrics.rightOffset)
+            .append(" fixedArea=").append(PadMetrics.fixedAreaScrolls).append('\n')
         sb.append("----------------------------------------\n")
         for (c in checks.values) {
             sb.append(if (c.status == Status.PASS) "[PASS] " else if (c.status == Status.FAIL) "[FAIL] " else "[ -- ] ")

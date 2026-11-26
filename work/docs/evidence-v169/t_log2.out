@@ -1,0 +1,23 @@
+GamePadDex v1.69 suite | run=20261127-005157 mode=LOG | device=SM-F9360 | date=Fri Nov 27 00:51:57 CST 2026
+
+===== LOG 日志页 =====
+  LogActivity texts=0 (前几个: 事件日志 时间 / 来源 / 类型 / 参数 全部 )
+LOG-001 FAIL | 阈值: 日志页可打开并展示事件行 | 实测: rows=0 | 证据: /data/local/tmp/v169_evidence/20261127-005157/ui_log1.lines
+  事件生成: PadProbe=19 UI行=0
+LOG-002 PASS | 阈值: 手柄事件可在 PadProbe 与日志页看到 | 实测: PadProbe=19 UI=0 | 证据: /data/local/tmp/v169_evidence/20261127-005157/ui_log2.lines
+  清空后 UI 行=0
+LOG-003 PASS | 阈值: 清空后日志列表为空（≤1 行占位） | 实测: rows=0 | 证据: /data/local/tmp/v169_evidence/20261127-005157/ui_log3.lines
+LOG-004 BLOCKED | 阈值: 筛选条件组合（来源/类型）需逐项点选并核对筛选结果，留待 UI 脚本二期 | 实测: 不可自动化：筛选条件组合（来源/类型）需逐项点选并核对筛选结果，留待 UI 脚本二期 | 证据: n/a
+LOG-005 BLOCKED | 阈值: 暂停/继续滚动跟随需长列表高频事件，当前未生成 >400 条 | 实测: 不可自动化：暂停/继续滚动跟随需长列表高频事件，当前未生成 >400 条 | 证据: n/a
+LOG-006 BLOCKED | 阈值: 日志自动跟随与手动滚动冲突需人工拖动判定 | 实测: 不可自动化：日志自动跟随与手动滚动冲突需人工拖动判定 | 证据: n/a
+LOG-007 BLOCKED | 阈值: 400 条上限溢出需稳定注入 400+ 高频事件 | 实测: 不可自动化：400 条上限溢出需稳定注入 400+ 高频事件 | 证据: n/a
+LOG-008 BLOCKED | 阈值: 浮层入口命中和返回状态保留属 UI 细节 | 实测: 不可自动化：浮层入口命中和返回状态保留属 UI 细节 | 证据: n/a
+LOG-009 BLOCKED | 阈值: 日志搜索/大小写匹配（若 UI 无搜索则 N/A） | 实测: 不可自动化：日志搜索/大小写匹配（若 UI 无搜索则 N/A） | 证据: n/a
+LOG-010 BLOCKED | 阈值: 日志导出（若存在） | 实测: 不可自动化：日志导出（若存在） | 证据: n/a
+
+===== SUMMARY =====
+PASS=2 FAIL=1 BLOCKED=7 NOTRUN=0
+FAILED: LOG-001
+BLOCKED: LOG-004 LOG-005 LOG-006 LOG-007 LOG-008 LOG-009 LOG-010
+LOG=/data/local/tmp/v169_20261127-005157.log EVID=/data/local/tmp/v169_evidence/20261127-005157
+RESULT: /data/local/tmp/v169_20261127-005157.log

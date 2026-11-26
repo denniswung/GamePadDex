@@ -1,0 +1,9 @@
+== t54 Fri Nov 27 01:13:04 CST 2026 helper=31265 engine=28704 ==
+A) 10 cmds: FAIL=0 pid 31265 -> 31265 (same=yes)
+B) before: 列表项 #001
+B) after:  
+  DRAG move display=0 dx=0 dy=-15 ms=16 steps=1 step_ms=16 pending=0,-15
+  DRAG move display=0 dx=0 dy=-15 ms=16 steps=1 step_ms=16 pending=0,-15
+  DRAG up display=0 x=1280,y=706 frames=17 emitted=17 dur=297ms why=cmd-e
+C) auto-up: DRAG up display=0 x=1280,y=706 frames=17 emitted=17 dur=297ms why=cmd-e
+DONE

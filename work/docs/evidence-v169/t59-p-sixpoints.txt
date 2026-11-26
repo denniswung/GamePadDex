@@ -1,0 +1,7 @@
+== P six points (current bytes) ==
+req=700,1000  POSPTR 700,1000 closed gain=2.17,2.16 final=703,1001 err=-3,-1 iters=2 anchor=703,1001  => CURSOR 703 1001 display=0 space=logical frame=0,2176 raw=735.3,597.2 took=33us
+req=100,100  POSPTR 100,100 closed gain=2.16,2.16 final=97,102 err=3,-2 iters=1 anchor=97,102  => CURSOR 97 102 display=0 space=logical frame=0,2176 raw=1499.6,82.7 took=32us
+req=2450,1500  POSPTR 2450,1500 closed gain=2.16,2.16 final=2449,1498 err=1,2 iters=1 anchor=2449,1498  => CURSOR 2449 1498 display=0 space=logical frame=0,2176 raw=312.7,2081.8 took=30us
+req=2000,300  POSPTR 2000,300 closed gain=2.15,2.16 final=2002,303 err=-2,-3 iters=1 anchor=2002,303  => CURSOR 2002 303 display=0 space=logical frame=0,2176 raw=1328.8,1701.5 took=30us
+req=1280,802  POSPTR 1280,802 closed gain=2.15,2.15 final=1282,800 err=-2,2 iters=1 anchor=1282,800  => CURSOR 1282 800 display=0 space=logical frame=0,2176 raw=906.1,1089.6 took=31us
+req=1280,800  POSPTR 1280,800 closed gain=2.16,2.16 final=1280,800 err=0,0 iters=1 anchor=1280,800  => CURSOR 1280 800 display=0 space=logical frame=0,2176 raw=906.1,1087.8 took=31us

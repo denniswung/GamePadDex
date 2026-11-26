@@ -1,0 +1,37 @@
+== drag Fri Nov 27 00:07:10 CST 2026 ==
+  top:     topResumedActivity=ActivityRecord{43546723 u0 com.dennis.padtest/.ui.ScrollTestActivity t2276}
+CHANNEL helper=7438 ready=1
+  touch_dev=/dev/input/event22
+  A helper DRAG lines:
+    DRAG down display=0 x=900,y=800 rect=20..2540/20..1580
+    DRAG move display=0 dx=400 dy=0 ms=200 steps=20 step_ms=10 pending=400,0
+    DRAG move display=0 dx=350 dy=0 ms=180 steps=18 step_ms=10 pending=350,0
+    DRAG move display=0 dx=250 dy=0 ms=150 steps=15 step_ms=10 pending=250,0
+    DRAG up display=0 x=1900,y=800 frames=53 emitted=53 dur=1599ms why=cmd-e
+  A padtest lines:
+    11-27 00:07:16.403  7306  7306 I PadProbe: MOUSE/click-down x=899 y=800 btn=0
+    11-27 00:07:18.000  7306  7306 I PadProbe: MOUSE/drag x=1899 y=800 dx=1000 dy=0 dist=1000
+    11-27 00:07:18.000  7306  7306 I PadProbe: TOUCH/swipe dx=1000 dy=0 dist=1000
+  A getevent posY=53 posX=0
+  B helper DRAG lines:
+    DRAG down display=0 x=1280,y=1200 rect=20..2540/20..1580
+    DRAG move display=0 dx=0 dy=-400 ms=200 steps=20 step_ms=10 pending=0,-400
+    DRAG move display=0 dx=0 dy=-350 ms=180 steps=18 step_ms=10 pending=0,-350
+    DRAG move display=0 dx=0 dy=-250 ms=150 steps=15 step_ms=10 pending=0,-250
+    DRAG up display=0 x=1280,y=200 frames=53 emitted=53 dur=1364ms why=cmd-e
+  B padtest lines:
+    11-27 00:07:20.156  7306  7306 I PadProbe: MOUSE/drag x=1279 y=199 dx=0 dy=-1000 dist=1000
+    11-27 00:07:20.156  7306  7306 I PadProbe: TOUCH/swipe dx=0 dy=-1000 dist=1000
+  C safety lines:
+    ERR drag move (no down)
+    ERR d args
+    DRAG down display=0 x=20,y=1580 rect=20..2540/20..1580
+    DRAG up display=0 x=20,y=1580 frames=0 emitted=0 dur=411ms why=cmd-e
+  D auto-up lines:
+    DRAG down display=0 x=1280,y=900 rect=20..2540/20..1580
+    DRAG move display=0 dx=0 dy=-100 ms=120 steps=12 step_ms=10 pending=0,-100
+    DRAG up display=0 x=1280,y=800 frames=12 emitted=12 dur=1810ms why=auto-up idle
+  D after auto-up tap: TOUCH down 1000,900 TOUCH up 
+  ERR count=2
+STARTED helper=7814 engine=7818
+== done ==

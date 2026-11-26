@@ -1,0 +1,18 @@
+﻿== probe_v166_helper_cmds mode=smoke Fri Nov 27 01:15:47 CST 2026 ==
+CHANNEL pid=4895 ready=1 err=
+== SMOKE ==
+  screen after p: mWakefulness=Awake
+  screen after u: mWakefulness=Awake
+  OUT lines=116
+  ERR lines in OUT:
+  ERR count=0
+  helper.log tail:
+    GONE_EVT /dev/input/event23 revents=24
+    GONE 1 Virtual Test Gamepad
+    WAKE was=Dozing now=pending uinput=1 req=1 age=2308ms
+    WAKE was=Dozing now=Awake uinput=1 done=1 src=uinput probe=0 took=428ms
+    DEV 1 Virtual Test Gamepad
+    WAKE skip awake Virtual Test Gamepad
+CHANNEL closed
+STARTED helper=6289 engine=6293 sock=srw-rw-rw- 1 root root 0 2026-11-27 01:16 /data/data/com.dennis.dexpad/files/gpm.sock
+== done ==
