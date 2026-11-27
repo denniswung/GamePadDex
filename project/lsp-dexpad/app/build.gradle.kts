@@ -10,8 +10,8 @@ android {
         applicationId = "com.dennis.dexpad"
         minSdk = 32
         targetSdk = 36
-        versionCode = 71
-        versionName = "1.69"
+        versionCode = 72
+        versionName = "1.70"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

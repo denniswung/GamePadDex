@@ -1,0 +1,134 @@
+{
+  "generated_at": "13:37:12.751",
+  "session_start": 1795756641304,
+  "session_stop": 0,
+  "pass": 1,
+  "fail": 0,
+  "unknown": 9,
+  "instrumentation": {
+    "touch": {
+      "frames": 0,
+      "max_gap_ms": 0,
+      "path_px": 0,
+      "duration_ms": 0,
+      "down_x": 0,
+      "down_y": 0,
+      "up_x": 0,
+      "up_y": 0,
+      "source": "",
+      "continuous": false
+    },
+    "scroll": {
+      "left_offset": 0,
+      "right_offset": 0,
+      "fixed_area_scrolls": 0,
+      "fixed_area_wheel": 0,
+      "fixed_area_touch": 0,
+      "vertical_offset": 0,
+      "horizontal_scroll_x": 0,
+      "sides_independent": false
+    }
+  },
+  "checks": [
+    {
+      "id": "SCROLL.VERTICAL",
+      "page": "滚动",
+      "title": "纵向列表可滚动",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    },
+    {
+      "id": "SCROLL.HORIZONTAL",
+      "page": "滚动",
+      "title": "横向可滑动",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    },
+    {
+      "id": "SCROLL.AXISLOCK",
+      "page": "滚动",
+      "title": "混合容器轴向锁定",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    },
+    {
+      "id": "SCROLL.FOCUS",
+      "page": "滚动",
+      "title": "焦点锚定：只滚指针所在列表",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    },
+    {
+      "id": "SCROLL.BACKEND",
+      "page": "滚动",
+      "title": "手势\/滚轮两种后端可区分",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    },
+    {
+      "id": "SCROLL.GESTURE",
+      "page": "滚动",
+      "title": "手势后端产生滑动",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    },
+    {
+      "id": "SCROLL.WHEEL",
+      "page": "滚动",
+      "title": "滚轮后端产生滚动",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    },
+    {
+      "id": "SCROLL.FIXED",
+      "page": "滚动",
+      "title": "固定区域收到滚动尝试（可观测）",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    },
+    {
+      "id": "UI.OPEN.手柄映射测试台",
+      "page": "手柄映射测试台",
+      "title": "页面可打开",
+      "status": "PASS",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    },
+    {
+      "id": "TOUCH.MOVE",
+      "page": "触摸",
+      "title": "ACTION_MOVE 连续帧（帧数\/最大间隔）",
+      "status": "UNKNOWN",
+      "reason": "",
+      "recent_logs": [
+        "13:37:09.986 系统 page resume 滚动 \/ 滑动测试"
+      ]
+    }
+  ]
+}

@@ -225,3 +225,56 @@ P 五点 ≤3px；L3 pointer_speed 0/3/7 各 3 次 1280,799–803；隐藏恢复
 
 发布字节 `b806f39b…`（852960 B）三处一致，不做任何改动；t43/t45 按此绑定发布。
 DeX/外接屏触摸路由如以后要做，单独开任务（属新功能/兼容性，不在本轮范围）。
+
+## 10. t66 控制通道拖拽产品级化（协议 + 回包 + 故障码）
+
+**根因（对比引擎路径与控制通道）**：控制通道的 `d` 只写共享状态、`drag_down` 被推迟到主循环；`m`/`e` 紧随其后到达时 `g_drag.active` 仍为 0（`ERR_STATE m no-down`），拖拽实际未按下 → 帧计数 0、应用端 `后端统计 手势滑动 0 次`。
+**修复**：控制通道 `d` 立即 `drag_down`（不再等主循环），`m`/`e` 只做状态推进；主循环继续按 8ms 发帧。
+
+### 10.1 协议与回包（控制通道 `gpmctl.sock`，仅 root）
+
+```
+d <disp> <x> <y>        → OK d <disp> <x> <y> | ERR_ARG d | ERR_STATE d busy（App 通道拖拽中）
+m <disp> <dx> <dy> <ms> → OK m <dx> <dy> <ms> | ERR_ARG m | ERR_STATE m no-down
+e [disp]                → OK e | ERR_STATE e no-drag
+```
+- 每条命令一行，响应一行；`OK` 开头为成功，`ERR_ARG` 为参数错误，`ERR_STATE` 为状态错误（未按下/忙）。
+- 掉线/无 `m` 1.5s 自动抬起：`DRAG up … why=auto-up idle`；显式 `e`：`DRAG up … why=cmd-e`。
+- 并发：App 通道拖拽进行中时，控制通道 `d` 返回 `ERR_STATE d busy`（不抢状态）。
+
+### 10.2 真机（`eb0b5dfc…`）
+
+```
+d: DRAG down display=0 x=1280,y=1000 … OK d 0 1280 1000
+m: OK m 0 -400 300
+e: OK e
+DRAG up display=0 x=1280,y=600 frames=20 emitted=20 dur=2113ms why=cmd-e
+```
+- helper pid 不变、无 SIGPIPE；padtest `后端统计：手势滑动 1 次（已应用到列表 开）`（修复前为 0 次，证明触摸投递恢复）。
+- 对照：真实 `input swipe 1280 1000→500` → `纵向 offset 0→3 项`（测量口径可用）。
+- 未完成：控制拖拽后的 `纵向 offset` 数值未能读到（拖拽后 offset 卡片离屏/`uiautomator dump` 失败、首项仍 #001），`offset ≥200px` 未证实。
+
+回归：smoke `OUT lines=103`/`ERR=0`；`?` CAP 13 项全 1/ERR=0；`H 9`→`WHEEL 9`。
+哈希 `eb0b5dfc6d5403b30d8200467f773e628729ea5290d1574aeb5651bf33c8c31c`（852976 B）三处一致。
+## 11. t71 复核：滚轮“事件发出但系统零位移”
+
+**结论：未能复现“系统层不接受虚拟滚轮”；设备配置与 v1.66 一致，且 App 端确实收到滚轮计数。内容位移因测量手段受限未证实（task failed），代码未改。**
+
+### 11.1 事件链路
+
+- `getevent -lt /dev/input/event19`：`EV_REL REL_WHEEL 00000008`（S 8）进内核 ✓。
+- `dumpsys input`：`Gamepad Mouse Pointer` → `Classes: CURSOR`、`Sources: MOUSE`、`KeyBitmask (256:70000)`（BTN_LEFT/RIGHT/MIDDLE）、`AssociatedDisplayPort: <none>`。
+- 与 v1.66（`638fe7a`）对比：`make_mouse()` **逐行相同**（同样的 REL_X/Y/WHEEL/HWHEEL、EV_KEY/EV_REL/EV_SYN、BUS_VIRTUAL、vendor 0x1234/product 0x5678、名称 "Gamepad Mouse Pointer"、无 INPUT_PROP 差异）→ **不是设备创建参数回归**。
+
+### 11.2 新证据：App 端收到滚轮
+
+padtest `后端统计`：`S 8` 后 `滚轮 0→2`，随后 `H 8` 后 `滚轮 4` —— 说明系统把 REL_WHEEL 投递成了应用的滚动事件，**“事件发出但系统不接收”不成立**。
+
+### 11.3 内容位移测量受限
+
+- `screencap -p -d 4630946474867211650`（2560×1600，display 0）前后 diff：`S 8` ≈0.003%，随后真实 `input swipe` 也只有 0.059% —— 说明该截图/前台状态不能反映内容滚动（Settings 未在前台或 dump 不可读），**无法据此判定“零位移”**。
+- 结论：需要可读的滚动 offset 探针（专用探针 App 或 padtest 的 `纵向 offset` 在正确前台状态下复测）才能验收 ≥200px。
+
+### 11.4 状态
+
+- helper 代码未改；工作区 assets 为 `eb0b5dfc…`，**设备当前实际为 `b806f39b…`**（与 captain “保留 eb0b5dfc”不一致，需确认部署）。

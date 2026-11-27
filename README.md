@@ -7,7 +7,7 @@
 > 原版用无障碍手势注入，本项目改成 **KernelSU root 助手 + LSPosed 模块**，不依赖无障碍，
 > 也不需要在系统里常驻一个假光标。目标机型 SM-F9360（Galaxy Z Fold4，Android 16）。
 
-**当前版本：v1.69** ｜ **[下载 APK / 模块](https://github.com/denniswung/GamePadDex/releases/latest)** ｜ [发布说明](release/RELEASE-NOTES.md) ｜ [架构说明](docs/ARCHITECTURE.md) ｜ [测试台说明](docs/PADTEST-README.md) ｜ [v1.69 用例表](docs/TEST-CASES-v1.69.md)
+**当前版本：v1.70** ｜ **[下载 APK / 模块](https://github.com/denniswung/GamePadDex/releases/latest)** ｜ [发布说明](release/RELEASE-NOTES.md) ｜ [架构说明](docs/ARCHITECTURE.md) ｜ [测试台说明](docs/PADTEST-README.md) ｜ [v1.70 用例表](docs/TEST-CASES-v1.70.md)
 
 ---
 
@@ -125,14 +125,14 @@
 - Android 12L 及以上（`minSdk 32`）
 
 ### 步骤
-1. 安装 `dexpad-v1.69.apk`；
+1. 安装 `dexpad-v1.70.apk`；
 2. LSPosed 里启用本模块，**作用域勾选「设置」**，重启；
-3. 把 `gpm_dex-v1.69.zip` 作为 **KernelSU 模块**安装（或解压到 `/data/adb/modules/gpm_dex/`），重启；
+3. 把 `gpm_dex-v1.70.zip` 作为 **KernelSU 模块**安装（或解压到 `/data/adb/modules/gpm_dex/`），重启；
 4. 打开 **设置 → 手柄鼠标**，打开开关（通知栏会出现"鼠标模式：开"）；
 5. 接上手柄，按 SHARE 切换鼠标模式。
 
 > 安装完可用 `release/SHA256SUMS.txt` 对一遍哈希：APK 内 `assets/gpminput`、`/data/adb/gpm/gpminput`、
-> 模块目录 `/data/adb/modules/gpm_dex/gpminput` 三处都应与 `gpminput-v1.69` 相同（v1.69 为 `b806f39b…cd2a4d`，含 P 闭环 + root 控制通道），
+> 模块目录 `/data/adb/modules/gpm_dex/gpminput` 三处都应与 `gpminput-v1.70` 相同（v1.70 为 `eb0b5dfc…c8c31c`，含控制通道拖拽产品级化），
 > 校验表见 `work/docs/INSTALL-v167.md`。
 
 > **late-load KernelSU 的机器注意**：部分机型（含 SM-F9360）的 KernelSU 是 late-load 模式，
@@ -211,7 +211,8 @@ cd project/padtest
 
 | 套件 | 内容 | 结果 |
 |---|---|---|
-| `work/docs/evidence-v169/verify_v169_extra.sh` | **v1.69 发布字节专项（16 项）**：P 六点闭环（root 控制通道）/ `?` 自检 CAP 13 / 拖拽三档 / 滚轮 9 步 / X+LB·X+RB 方向 | **16/16**（`verify_v169_extra.result.txt`） |
+| `work/docs/evidence-v170/verify_v170_extra.sh` | **v1.70 发布字节专项（19 项）**：基线 / 拖拽三档 / 滚轮 9 步 / **控制通道 d/m/e（竖向 voff、横向 hx、auto-up、ERR_ARG/ERR_STATE）** / P 六点 / X+LB·RB | **19/19**（`verify_v170_extra.result.txt`） |
+| `work/docs/evidence-v170/verify_v170_smoke.sh` | **v1.70 发布字节回归冒烟（23 项）** | 21 直接 PASS；RS3-V/RS4 改用 v1.4 字段复测（`verify_v170_recheck2.result.txt` 2/2）；SELECT 判据修正为焦点窗口=NotificationShade || `work/docs/evidence-v169/verify_v169_extra.sh` | **v1.69 发布字节专项（16 项）**：P 六点闭环（root 控制通道）/ `?` 自检 CAP 13 / 拖拽三档 / 滚轮 9 步 / X+LB·X+RB 方向 | **16/16**（`verify_v169_extra.result.txt`） |
 | `work/docs/evidence-v169/verify_v169_smoke.sh` | **v1.69 发布字节回归冒烟（23 项）**：光标/滑动/隐藏/打开应用/6 项不得回退/横屏守护/CPU | 21 直接 PASS；RS3-V/RS4 判据受 padtest v1.4 手势归属影响，另用 v1.4 字段复测（见下） |
 | `work/docs/evidence-v169/verify_v169_recheck2.sh` | **v1.69 竖推/隐藏首推（padtest v1.4 权威字段）**：`vertical_offset` + `touch.path_px` + helper Z | **2/2**（voff 0→14、Z=4、path 486px） || `work/docs/evidence-v168/verify_v168_lbrb.sh` | **v1.68 发布字节 LB/RB 实测**（哈希/版本/横屏 + 100ms/300ms/1.5s 拖拽位移 + 纯拖拽 SWIPE=0/WHEEL=0 + 内容位移 + 滚轮 9 WHEEL/0 SWIPE + PiliPlus 位移/截图采集） | **17/17**（`verify_v168_lbrb.result.txt`） |
 | `work/docs/evidence-v168/verify_v168_smoke.sh` | **v1.68 发布字节回归冒烟**（23 项：光标/滑动/隐藏首滑/打开应用/6 项回归/横屏守护/CPU） | 见 `verify_v168_smoke.result.txt` |
@@ -224,8 +225,8 @@ cd project/padtest
 | `work/scripts/v153_release_smoke.sh` | Release 冒烟：杀应用 / 电源键 / 居中 | 8/8 |
 | `work/scripts/padtest_smoke.sh` | 测试台 7 页 + 导出 | 17/17 |
 
-v1.69 用例表（用户原始测试计划 142 条 + 执行摘要/证据索引）：[docs/TEST-CASES-v1.69.md](docs/TEST-CASES-v1.69.md)；
-装机哈希校验表：[work/docs/INSTALL-v169.md](work/docs/INSTALL-v169.md)。
+v1.70 用例表（继承用户原始测试计划 142 条，附 v1.70 新增用例与执行摘要）：[docs/TEST-CASES-v1.70.md](docs/TEST-CASES-v1.70.md)；
+装机哈希校验表：[work/docs/INSTALL-v170.md](work/docs/INSTALL-v170.md)。
 
 Release v1.53 冒烟实测输出：
 
@@ -286,8 +287,16 @@ PASS  无崩溃                PASS=8 FAIL=0
   另：v1.2 的整页 `PassThroughScrollView` 引入了分页回归、v1.3 已删除；v1.4 修了内层手势被抢。引用旧结论必须带这条标注。
 - **`ctl-channel-drag-not-delivered`（32 条 BLOCKED）**：helper 已发 `d/m/e`（getevent 可见 BTN_TOUCH+ABS_MT），测试台侧收不到，
   导致嵌套/混合界面类用例无法自动判定；这是测试通道限制，不是拖拽失效（发布字节 LB/RB 拖拽 74/251/1636px 已真机实测）。
+- **v1.70 滚轮的两段结论（不得合并成一句）**：**投递 PASS**（`S 8`/`S -8`/`H 8`/`H -8` → helper `WHEEL ±8 h=0/1` 且 PadProbe `v=±8.0`/`h=±8.0`），
+  **内容位移 BLOCKED(`wheel-content-displacement-unmeasurable`)**——前台无可滚内容或 a11y 树退化为仅全屏根节点时读不到 offset，`input swipe` 对照同样不可读。
+  任何文档/发布说明都不得把这条写成“S 8 内容 PASS”。
+- **控制通道拖拽（v1.70 产品级）**：`gpmctl` 的 `d`/`m`/`e` 与 App 通道复用同一套语义，拖拽状态在 mmap 共享页、每 20px 分块下发、`e` 先 drain 再 release；
+  **1.5s 无 `m` 自动抬指**（helper `why=auto-up`）；故障码 `ERR_ARG`（缺参）/`ERR_STATE m no-down`。发布字节实测：竖向 `vertical_offset 0→3`、横向 `horizontal_scroll_x 0→500`、auto-up `3→5`。
+- **padtest 保持 v1.4（`0f4a9191`）**：v1.5 未交付，滚轮在测试台的可测性受限已回退；滚轮内容位移因此仍是 BLOCKED，不为了凑结论升级测试台。
+- **测试台 SELECT 判据**：通知栏展开后 `dumpsys window` 的 `mCurrentFocus` 会是 `null`，必须同时接受 `mFocusedWindow=NotificationShade`，
+  否则会把正常展开误判成未展开（v1.70 回归冒烟里就是这么修好的）。
 - **root 诊断通道**：v1.69 起助手额外监听 `/data/adb/gpm/gpmctl.sock`（目录 0700 / socket 0600 / `SO_PEERCRED` uid==0），
-  仅供 root 诊断（`P`/`c`/`?` 等，与 App 通道同一套语义）；不需要时 `touch /data/adb/gpm/gpmctl.disabled` 并重启助手即可禁用。
+  仅供 root 诊断（`P`/`c`/`?`/`d`/`m`/`e` 等，与 App 通道同一套语义）；不需要时 `touch /data/adb/gpm/gpmctl.disabled` 并重启助手即可禁用。
 - **默认横屏**：`force_landscape=true` 时每 1 s 复核并自动纠回 rotation 1（外部改竖屏 ≈2–3.5 s 恢复，判据 ≤5 s）。
   本机 `display_size_forced=1600,2560` **清不掉**（`wm size reset` / 置 null 均无效），横屏 = rotation 1 + 应用逻辑空间
   **2560×1600**，不是清除了竖屏 override；手动改分辨率/强制尺寸后需重新校验指针空间（按一次 L3 会重标定增益）。
@@ -298,6 +307,7 @@ PASS  无崩溃                PASS=8 FAIL=0
 
 | 版本 | 主要变化 |
 |---|---|
+| **v1.70** | **padtest 滚轮 + 控制通道拖拽产品级化**：助手 `gpmctl` 的 `d`/`m`/`e` 与 App 通道复用同一语义、拖拽状态放 mmap 共享页、每 20px 分块下发、`e` 先 drain 再 release、**1.5s 无 `m` 自动抬指**（`why=auto-up`）、故障码 `ERR_ARG`/`ERR_STATE`；padtest 接 `ACTION_SCROLL`/`AXIS_VSCROLL` 真实滚轮（t65/t71）。结论：**滚轮投递 PASS（4 向）、滚轮内容位移 BLOCKED(wheel-content-displacement-unmeasurable)**；**控制通道拖拽 PASS**（t72 voff 5→7 / auto-up 7→12；发布字节 竖向 0→3、横向 hx 0→500、auto-up 3→5）；MIX-001/003 PASS，MIX-002/004~008 BLOCKED(outer-measurement-inconclusive)；全量仍 **37 PASS / 5 FAIL / 100 BLOCKED**（P0 41.1%，门槛未达、按维护者批准偏差发布，`product FAIL = 0`）。助手 `eb0b5dfc`；padtest **保持 v1.4**（v1.5 未交付） |
 | **v1.69** | 按用户测试计划（142 条）做的修复轮：**`P` 绝对定位改闭环**（实测增益重估 + 最多 4 次修正、≤8px 提前退出、落点回写悬停锚点；六点误差 ≤6px）、**SCR-022 右摇杆横向不驱动横向容器**（横向独立冷却 + `ignoreCooldown` + 每 400ms 被动同步真实光标；`horizontal_scroll_x` 0→512→0）、**助手新增 root 诊断通道** `gpmctl.sock`（0600 + `SO_PEERCRED` uid==0，`P`/`c`/`?` 可脚本化）、**padtest v1.4**（删掉 v1.2 引入分页回归的整页 `PassThroughScrollView`、`vList` 手势归属修复、MOVE 连续性/双侧 offset/固定区埋点）；助手 `b806f39b`。**如实披露：自动化 37 PASS / 5 FAIL / 100 BLOCKED（P0 41.1%、P1 16.7%），发布门槛未达、经维护者批准偏差发布，`product FAIL = 0`** |
 | **v1.68** | **LB/RB 触屏模式改连续拖拽**：助手新增 `d/m/e`（down / 每 8–16ms 一帧 move / up）拖拽原语 + 本机 90° 触摸面板映射反解（`touch_panel_xy`），应用侧一次按压 = 一次 down→多帧 move→up；速度爬升 <400ms≈900px/s → 400–1400ms 线性到 1500px/s → 封顶，1.5s 实测 **≈1600px**（1200–2200）、短按 100ms **≈74px**（≤150）、300ms≈248px；`scroll_speed` 1–10 映射倍率 **0.6×–1.8×**（默认 4=1.0×），按压开始快照；距边 80px 自动 up+新锚点 down 续拖，累计 **≈2200px×倍率**（±1%）封顶；触屏模式 `SWIPE=0/WHEEL=0`（真连续拖拽），滚轮模式仍 **9 WHEEL/0 SWIPE**；PiliPlus 1.5s 总位移 1643px、截图 **RMSE 31.33%**（旧离散 83.77%）；助手 `a1d06e2e`（含注释清理，二进制与 t30 相同） |
 | **v1.67** | LB/RB 滚动统一：删除「先滑一下再变滚轮」的混合路径，同一次按压只走一种机制（触摸*=连续滑动 560px/250ms、触摸关=纯滚轮 186ms/步 9 步）；机制在按下瞬间定死；`ensureWheelAnchor` 解决空闲隐藏后滚轮失效；ButtonDetail 双击文案 320→400ms |

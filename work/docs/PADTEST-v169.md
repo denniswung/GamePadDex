@@ -154,3 +154,20 @@ am broadcast -a com.dennis.padtest.EXPORT -n com.dennis.padtest/.core.ExportRece
 
 读取：`am broadcast -a com.dennis.padtest.EXPORT -n com.dennis.padtest/.core.ExportReceiver --es what report --es fmt json` → `instrumentation.scroll.*` / `instrumentation.touch.*`。
 判定：P1–P4 全过 = pager 链正常；V1–V2 全过 = vList 链正常；任一失败即阻塞发布。
+
+## 8. t65 尝试与阻塞：纵向滚轮支持（未交付）
+
+- 需求：ScrollTestActivity 的 200 项列表与 LogActivity 日志列表支持 ACTION_SCROLL，`S 8` 后 `vertical_offset` 增加 ≥200px（或首项 ≥2），`S -8` 回滚；同时保持 t55/t60。
+- 已实现（未发布，已回退）：`ProbeActivity.onVerticalScroll` 钩子；ScrollTestActivity/LogActivity 处理 ACTION_SCROLL；`PadMetrics.verticalPx` 与 `vertical_offset` 上报；`gpmctl.sock 'S 8'` 实测 helper `WHEEL 8 h=0`、PadProbe `WHEEL/scroll v=8.0`。
+- **阻塞**：ScrollTest 的 200 项列表嵌在外层 `ScrollView` 里，`ListView.scrollListBy/smoothScrollBy/setSelection` 与把 vList 改为 `ScrollView.scrollBy` 均未能让 `scrollY`/首项稳定变化（实测多次 0；偶发一次 672 但随后 S-8 又回到 0，读数不可复现）。触摸 d/m/e 拖拽该 vList 也仍为 0（外层/嵌套测量问题）。
+- 为不破坏 t55（pager 0→512）与 t60（内层 y≈1000 offset 0→2、外层标题不动），本轮**已回退全部 t65 改动**，padtest 保持 v1.4（`0f4a9191…`）。
+- 建议 t66：把“纵向滚轮验收”放到 LogActivity（整屏 ListView，非嵌套）或新增独立 WheelTestActivity（整屏 ScrollView + 固定高度内容），避免嵌套 ScrollView 的测量歧义；或在 ScrollTest 用 `requestDisallowIntercept` + 外层固定高度窗口化列表。
+
+
+## 9. t70 尝试与阻塞：WheelTestActivity（未交付）
+
+- 新增 `WheelTestActivity`（整屏 ScrollView + 200 固定高度行；顶部 `scrollY=…` 文本；ACTION_SCROLL → scrollBy；触摸走原生 ScrollView；`PadMetrics.verticalOffset = scrollY`）；已临时注册 manifest 并升到 v1.5 构建。
+- 实测：`gpmctl.sock 'P 1280 800'` 后 `S 8`，helper `WHEEL 8 h=0`、PadProbe `WHEEL/scroll-axis v=8.0` 均出现；但页面 `scrollY=0`（dump 与 report 均 0），`S -8`、`d/m/e` 触摸拖拽同样为 0。
+- 现象与 t65 一致：**padtest 窗口收到滚轮/触摸事件，但 ScrollView 不产生滚动**（WheelTest 已完全脱离嵌套，仍复现）。怀疑点：多显示/窗口 hover 归属（screencap 一直提示多 display）或测试台 window 未真正获得 scroll 焦点；不是布局嵌套。
+- 为不破坏既有回归，已**回退全部 t70 改动**（删除 WheelTestActivity、manifest/build.gradle 还原），padtest 保持 v1.4 `0f4a9191…`。
+- 建议 t66：先用 `input mouse scroll`/真鼠标在 padtest 上确认任意 ScrollView 能否滚动；若系统层面不派发滚动，改为在通道侧记录 `WHEEL` 并用 **padtest 自绘滚动量**（收到 ACTION_SCROLL 就 scrollBy 并记录请求量）作为“请求侧证据”，把“是否真的滚”交给截图/像素判定；或换用 `RecyclerView`/自定义 View 处理 `onGenericMotionEvent` 并 `requestFocus`。

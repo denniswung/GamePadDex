@@ -1,0 +1,11 @@
+== t66e helper=30702 ==
+init: 纵向 offset=0
+ARG: ERR_ARG d 
+STATE m: ERR_STATE m no-down 
+STATE e: ERR_STATE e no-drag 
+d: DRAG down display=0 x=1280,y=1000 rect=20..2540/20..1580 OK d 0 1280 1000 
+m: OK m 0 -400 300 
+e: OK e 
+after: 纵向 offset=2
+DRAG: DRAG up display=0 x=1280,y=1000 frames=0 emitted=0 dur=137ms why=cmd-e
+pid: 30702 -> 30702

@@ -1,0 +1,8 @@
+init: 纵向 offset=0 | 后端统计：手势滑动 0 次（已应用到列表 开） · 滚轮 0 次" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,457][2493,499]" drawing-order="5" hint="" />
+== S0) real input swipe sanity ==
+  after swipe: 纵向 offset=3 | 后端统计：手势滑动 1 次（已应用到列表 开） · 滚轮 0 次" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,457][2493,499]" drawing-order="5" hint="" />
+== A) control channel d/m/e ==
+  before: 纵向 offset=0
+  after: 纵向 offset=0 | 后端统计：手势滑动 0 次（已应用到列表 开） · 滚轮 0 次" resource-id="" class="android.widget.TextView" package="com.dennis.padtest" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[67,457][2493,499]" drawing-order="5" hint="" />
+  helper: 
+DONE

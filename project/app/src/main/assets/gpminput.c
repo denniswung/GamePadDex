@@ -3161,6 +3161,10 @@ static void handle_line(char *line) {
             /* d <display> <x> <y> : 连续拖拽按下（MT 单指，复用触摸面板） */
             int dd = 0, dx = 0, dy = 0;
             if (sscanf(line, "%d %d %d", &dd, &dx, &dy) == 3) {
+                if (g_out_fd != STDOUT_FILENO && g_drag.active) {
+                    out("ERR_STATE d busy");
+                    break;
+                }
                 if (g_dsh) {
                     g_dsh->disp = dd;
                     g_dsh->ox = dx;
@@ -3173,13 +3177,25 @@ static void handle_line(char *line) {
                 } else {
                     drag_down(dd, dx, dy);
                 }
-            } else out("ERR d args");
+                if (g_out_fd != STDOUT_FILENO) {
+                    /* 控制通道：立即按下（不必等主循环），保证后续 m 能看到 active */
+                    drag_down(dd, dx, dy);
+                    out("OK d %d %d %d", dd, dx, dy);
+                }
+            } else {
+                if (g_out_fd != STDOUT_FILENO) out("ERR_ARG d");
+                else out("ERR d args");
+            }
             break;
         }
         case 'm': {
             /* m <display> <dx> <dy> <ms> : 登记本段位移，主循环 8~16ms 一步发 EV_ABS */
             int dd = 0, dx = 0, dy = 0, ms = 0;
             if (sscanf(line, "%d %d %d %d", &dd, &dx, &dy, &ms) == 4) {
+                if (g_out_fd != STDOUT_FILENO && !(g_dsh && g_dsh->active)) {
+                    out("ERR_STATE m no-down");
+                    break;
+                }
                 if (g_dsh) {
                     g_dsh->dx += dx;
                     g_dsh->dy += dy;
@@ -3189,7 +3205,11 @@ static void handle_line(char *line) {
                 } else {
                     drag_move(dd, dx, dy, ms);
                 }
-            } else out("ERR m args");
+                if (g_out_fd != STDOUT_FILENO) out("OK m %d %d %d", dx, dy, ms);
+            } else {
+                if (g_out_fd != STDOUT_FILENO) out("ERR_ARG m");
+                else out("ERR m args");
+            }
             break;
         }
         case 'e': {
@@ -3199,8 +3219,10 @@ static void handle_line(char *line) {
             if (g_dsh && g_dsh->active) {
                 g_dsh->release = 1;
                 g_dsh->stamp = now_ms();
+                if (g_out_fd != STDOUT_FILENO) out("OK e");
             } else {
                 drag_release("cmd-e");
+                if (g_out_fd != STDOUT_FILENO) out("ERR_STATE e no-drag");
             }
             break;
         }
@@ -3386,6 +3408,7 @@ static void shared_drag_poll(void) {
         g_dsh->ms = 0;
         return;
     }
+    if (g_dsh->active && !g_drag.active) drag_down(g_dsh->disp, g_dsh->ox, g_dsh->oy);
     if (g_dsh->dx != 0 || g_dsh->dy != 0) {
         /* 分块推进：每轮最多 20px，保证 m 的位移能被逐帧发完（≥20 帧且总位移足额） */
         int maxc = 20;

@@ -1,0 +1,6 @@
+== t71 Fri Nov 27 13:31:22 CST 2026 helper=17304 engine=4806 ==
+before: text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|
+after:  text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|text=""|
+wheel events: 1
+  [    2651.758823] EV_REL       REL_WHEEL            00000008            
+dumpsys:       Classes: CURSOR       Descriptor: ea011df68d5e458fae3d98067e2d851a8bb4cac2 

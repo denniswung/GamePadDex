@@ -1,0 +1,54 @@
+
+===== A 基线（v1.70 release 字节 05f4f11f） =====
+  apk=05f4f11f2e48b498556abc35ea58bbc873f032128529d83d6abe9ea5eced876c
+  helper=eb0b5dfc6d5403b30d8200467f773e628729ea5290d1574aeb5651bf33c8c31c module=eb0b5dfc6d5403b30d8200467f773e628729ea5290d1574aeb5651bf33c8c31c
+  version=1.70/72 module.prop=version=v1.70 versionCode=72 
+  padtest=1.4/5 sha=0f4a91911360cb4051fff9b54711508e4dc90de797be6ec0e55e83e9a967056d
+  rot=1 accel=0 app=2560x1600
+[V170-APK] PASS | 阈值: 设备 base.apk == 发布 dexpad-v1.70.apk | 实测: 05f4f11f2e48b498556abc35ea58bbc873f032128529d83d6abe9ea5eced876c
+[V170-HELPER] PASS | 阈值: 助手 gpm==模块==eb0b5dfc | 实测: eb0b5dfc6d5403b30d8200467f773e628729ea5290d1574aeb5651bf33c8c31c / eb0b5dfc6d5403b30d8200467f773e628729ea5290d1574aeb5651bf33c8c31c
+[V170-VER] PASS | 阈值: versionName=1.70 / versionCode=72（module.prop v1.70/72） | 实测: 1.70/72 | version=v1.70 versionCode=72 
+[V170-PADTEST] PASS | 阈值: padtest v1.4/5 且 sha==0f4a9191（不升 v1.5） | 实测: 1.4/5 0f4a91911360cb4051fff9b54711508e4dc90de797be6ec0e55e83e9a967056d
+[V170-LAND] PASS | 阈值: 默认横屏 user_rotation=1 accel=0 app=2560x1600 | 实测: rot=1 accel=0 app=2560x1600
+
+===== B LB/RB 连续拖拽三档（100/300/1500ms） =====
+  100ms=71 (98ms) 300ms=246 (300ms) 1500ms=1597 (1499ms) SWIPE=0 WHEEL=0
+[V170-DRAG100] PASS | 阈值: 100ms 位移 0<t≤150px | 实测: 71px
+[V170-DRAG300] PASS | 阈值: 300ms 位移 ≤450px 且单调 | 实测: 246px
+[V170-DRAG1500] PASS | 阈值: 1500ms 位移 ∈[1200,2200]px | 实测: 1597px
+[V170-DRAGPURE] PASS | 阈值: 拖拽期间 SWIPE=0 WHEEL=0（纯 d/m/e） | 实测: SWIPE=0 WHEEL=0
+
+===== C 滚轮模式（v_touch_scroll=false）：9 WHEEL / 0 SWIPE =====
+[V170-VTOFF] PASS | 阈值: release 包 v_touch_scroll=false 生效（sed prefs + 强制重启引擎） | 实测: vtouch=false engine=27121
+  wheel RB 1.5s: WHEEL=9 SWIPE=0
+[V170-WHEEL] PASS | 阈值: 滚轮 RB 1.5s：WHEEL≥6 且 SWIPE=0（投递 PASS；内容位移见 FINAL3 = BLOCKED） | 实测: WHEEL=9 SWIPE=0
+[V170-RESTORE] PASS | 阈值: 恢复 v_touch_scroll=true | 实测: vtouch=true engine=27473
+
+===== D 控制通道拖拽 d/m/e（v1.70 产品级化） =====
+  D1 vertical: [OK d 0 1280 700] [OK m 0 -400 400] [OK e] voff 0 -> 3
+[V170-CTLDRAG-V] PASS | 阈值: 控制通道 d/m/e 竖向：vertical_offset 增加（内容滚动） | 实测: voff 0->3
+  D2 horizontal: hx 0 -> 500
+[V170-CTLDRAG-H] PASS | 阈值: 控制通道 d/m/e 横向：horizontal_scroll_x 增加（分页滚动） | 实测: hx 0->500
+  D3 auto-up: voff 3 -> 5 (no e, wait 2.6s) then e -> [OK e] auto-up_lines=6
+[V170-AUTOUP] PASS | 阈值: 不发 e、2.6s 后自动抬指（helper why=auto-up），后续 e 正常 | 实测: voff 3->5 auto-up=6 e=[OK e]
+  故障码：d(无参)=[ERR_ARG d] m(无down)=[ERR_STATE m no-down]
+[V170-CTLERR] PASS | 阈值: 控制通道故障码：d 缺参 → ERR、m 无 down → ERR_STATE/no-down | 实测: d=[ERR_ARG d] m=[ERR_STATE m no-down]
+
+===== E P 绝对定位六点（阈值 ≤8px） =====
+  P 400,1200 err=[-2,-2] | CURSOR 402 1202 display=0 space=logical frame=0,2176 raw=564.4,341.8 took=56us
+  P 2000,300 err=[3,0] | CURSOR 1997 300 display=0 space=logical frame=0,2176 raw=1330.6,1697.8 took=55us
+  P 102,102 err=[-2,-2] | CURSOR 104 104 display=0 space=logical frame=0,2176 raw=1497.8,88.2 took=54us
+  P 2447,1498 err=[2,2] | CURSOR 2445 1496 display=0 space=logical frame=0,2176 raw=314.5,2078.1 took=57us
+  P 1282,802 err=[-2,-2] | CURSOR 1284 804 display=0 space=logical frame=0,2176 raw=902.5,1091.4 took=55us
+  P 700,1000 err=[0,1] | CURSOR 700 999 display=0 space=logical frame=0,2176 raw=737.1,595.3 took=54us
+[V170-P6] PASS | 阈值: P 六点落点误差 ≤8px（六点全过） | 实测: 6/6
+
+===== F X+LB / X+RB 横向翻页方向 =====
+[V170-XLB] PASS | 阈值: X+LB → dx>0（上一页方向） | 实测: dx=+1260
+[V170-XRB] PASS | 阈值: X+RB → dx<0（下一页方向） | 实测: dx=-1260
+
+===== RESTORE =====
+  helper=27510 engine=27473 vtouch=true rot=1 accel=0
+
+PASS=19 FAIL=0 FAILED=[]
+PASS=19 FAIL=0

@@ -1,0 +1,14 @@
+
+===== R1 右摇杆竖推（锚点 1280,1000 内层 vList）→ instrumentation.vertical_offset =====
+  vertical_offset 0 -> 14 | touch.path_px 0 -> 475 | Z=4
+[R1-VOFF] PASS | 阈值: 竖推 1.5s：内层 vertical_offset 增加 且 helper Z≥1 | 实测: voff 0->14 Z=4 path 0->475
+
+===== R2 空闲隐藏后首次竖推（锚点 1280,1000） =====
+  POINTER off 1->1 ptr_dev=0 vertical_offset 0 -> 14 Z=4
+[R2-HIDDEN] PASS | 阈值: 隐藏后首次竖推：内层 vertical_offset 增加 且 Z≥1（ptr 设备不存在） | 实测: POFF 1->1 ptr=0 voff 0->14 Z=4
+
+===== RESTORE =====
+  helper=27510 engine=27473 rot=1 accel=0
+
+PASS=2 FAIL=0 FAILED=[]
+PASS=2 FAIL=0
